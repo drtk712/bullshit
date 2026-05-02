@@ -1,0 +1,22 @@
+<view class="container">
+  <view class="header">
+    <view class="title">AI 智能助手</view>
+    <view class="subtitle">选择功能，开启 AI 体验</view>
+  </view>
+
+  <view class="power-list">
+    <view
+      class="power-item"
+      wx:for="{{powerList}}"
+      wx:key="title"
+      data-page="{{item.page}}"
+      bindtap="onClickPowerInfo"
+    >
+      <view class="power-item-content">
+        <view class="power-item-title">{{item.title}}</view>
+        <view class="power-item-tip">{{item.tip}}</view>
+      </view>
+      <view class="power-item-arrow">›</view>
+    </view>
+  </view>
+</view>

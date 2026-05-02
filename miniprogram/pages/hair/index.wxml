@@ -1,0 +1,36 @@
+<!-- pages/hair/index.wxml -->
+<view class="container">
+  <view class="header">
+    <text class="title">AI设计发型</text>
+    <text class="subtitle">上传正面照片，获取专属发型建议</text>
+  </view>
+
+  <view class="test-toggle">
+    <switch checked="{{testMode}}" bindchange="toggleTestMode" color="#07c160"/>
+    <text class="test-label">测试模式（不消耗API费用）</text>
+  </view>
+
+  <view class="upload-area" bindtap="{{posterUrl ? '' : 'chooseImage'}}">
+    <image wx:if="{{posterUrl}}" class="poster-image" src="{{posterUrl}}" mode="scaleToFill" style="width: 100%; height: 600rpx;" binderror="onImageError" bindload="onImageLoad"></image>
+    <view wx:else class="upload-placeholder">
+      <text class="upload-icon">💇</text>
+      <text class="upload-text">点击拍照或选择图片</text>
+      <text class="upload-tip">请确保正面清晰、光线充足</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-area">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">{{loadingText}}</text>
+  </view>
+
+  <view wx:if="{{errorMsg}}" class="error-area">
+    <text class="error-text">{{errorMsg}}</text>
+    <button class="retry-btn" bindtap="chooseImage">重新拍摄</button>
+  </view>
+
+  <view wx:if="{{posterUrl}}" class="action-area">
+    <button class="save-btn" bindtap="savePoster">保存海报</button>
+    <button class="share-btn" bindtap="sharePoster">分享</button>
+  </view>
+</view>

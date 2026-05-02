@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Python
+server/__pycache__/
+server/.venv/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+miniprogram/miniprogram_npm/
+
+# Sensitive
+server/.env
+project.private.config.json
+
+# Logs
+*.log
+d2f97963d22248c50ec20d2b4f4dd47b.jpg
