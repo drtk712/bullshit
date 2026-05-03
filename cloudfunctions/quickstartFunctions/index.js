@@ -301,17 +301,6 @@ const getUserProfile = async () => {
     const openid = wxContext.OPENID;
     const user = await ensureUser(openid);
 
-    const transactionResult = await db.collection(POINT_TRANSACTIONS_COLLECTION)
-      .where({ openid })
-      .orderBy("createdAt", "desc")
-      .limit(5)
-      .get();
-    const taskResult = await db.collection(JOBS_COLLECTION)
-      .where({ openid })
-      .orderBy("createdAt", "desc")
-      .limit(10)
-      .get();
-
     return {
       success: true,
       data: {
@@ -321,8 +310,6 @@ const getUserProfile = async () => {
           createdAt: user.createdAt,
           lastLoginAt: user.lastLoginAt,
         },
-        recentTransactions: (transactionResult.data || []).map(toPublicTransaction),
-        recentTasks: (taskResult.data || []).map(toPublicTask),
       },
     };
   } catch (e) {
@@ -331,6 +318,80 @@ const getUserProfile = async () => {
       success: false,
       errMsg: e.message || "获取用户资料失败",
     };
+  }
+};
+
+const getTransactions = async (event) => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    await ensureCollection();
+
+    const page = Math.max(1, parseInt(event.data?.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, parseInt(event.data?.pageSize) || 20));
+    const skip = (page - 1) * pageSize;
+
+    const countResult = await db.collection(POINT_TRANSACTIONS_COLLECTION)
+      .where({ openid })
+      .count();
+
+    const result = await db.collection(POINT_TRANSACTIONS_COLLECTION)
+      .where({ openid })
+      .orderBy("createdAt", "desc")
+      .skip(skip)
+      .limit(pageSize)
+      .get();
+
+    return {
+      success: true,
+      data: {
+        transactions: (result.data || []).map(toPublicTransaction),
+        total: countResult.total,
+        page,
+        pageSize,
+        hasMore: skip + pageSize < countResult.total,
+      },
+    };
+  } catch (e) {
+    console.error("getTransactions 错误:", e.message);
+    return { success: false, errMsg: e.message || "获取积分明细失败" };
+  }
+};
+
+const getTasks = async (event) => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    await ensureCollection();
+
+    const page = Math.max(1, parseInt(event.data?.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, parseInt(event.data?.pageSize) || 20));
+    const skip = (page - 1) * pageSize;
+
+    const countResult = await db.collection(JOBS_COLLECTION)
+      .where({ openid })
+      .count();
+
+    const result = await db.collection(JOBS_COLLECTION)
+      .where({ openid })
+      .orderBy("createdAt", "desc")
+      .skip(skip)
+      .limit(pageSize)
+      .get();
+
+    return {
+      success: true,
+      data: {
+        tasks: (result.data || []).map(toPublicTask),
+        total: countResult.total,
+        page,
+        pageSize,
+        hasMore: skip + pageSize < countResult.total,
+      },
+    };
+  } catch (e) {
+    console.error("getTasks 错误:", e.message);
+    return { success: false, errMsg: e.message || "获取生成记录失败" };
   }
 };
 
@@ -769,6 +830,10 @@ exports.main = async (event, context) => {
       return await validateAndCreateJob(event);
     case "getTaskStatus":
       return await getTaskStatus(event);
+    case "getTransactions":
+      return await getTransactions(event);
+    case "getTasks":
+      return await getTasks(event);
     default:
       return { success: false, errMsg: `未知的操作类型: ${event.type}` };
   }

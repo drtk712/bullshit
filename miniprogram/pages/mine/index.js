@@ -1,70 +1,123 @@
 Page({
   data: {
+    // User card
     user: null,
-    points: 0,
+    userLoading: true,
+    userError: '',
+    
+    // Transactions section
     transactions: [],
+    transLoading: true,
+    transError: '',
+    transTotal: 0,
+    
+    // Tasks section
     tasks: [],
-    loading: true,
-    error: ''
+    tasksLoading: true,
+    tasksError: '',
+    tasksTotal: 0,
   },
 
   onShow() {
-    this.loadUserData();
+    this.loadUserProfile();
+    this.loadTransactions();
+    this.loadTasks();
   },
 
-  async loadUserData() {
-    this.setData({ loading: true, error: '' });
-
+  async loadUserProfile() {
+    this.setData({ userLoading: true, userError: '' });
     try {
       const res = await wx.cloud.callFunction({
         name: 'quickstartFunctions',
-        data: {
-          type: 'getUserProfile',
-          data: {
-            transactionLimit: 5,
-            taskLimit: 10
-          }
-        }
+        data: { type: 'getUserProfile', data: {} }
       });
-
       if (res.result && res.result.success) {
-        const { user, recentTransactions, recentTasks } = res.result.data;
-
-        const processedTransactions = (recentTransactions || []).map(transaction => ({
-          ...transaction,
-          amountText: this.formatAmount(transaction.amount),
-          typeText: this.getTransactionTypeText(transaction),
-          amountClass: transaction.amount >= 0 ? 'amount-plus' : 'amount-minus',
-          timeText: this.formatTime(transaction.createdAt)
-        }));
-        const processedTasks = (recentTasks || []).map(task => ({
-          ...task,
-          displayName: this.getTaskDisplayName(task.type),
-          statusText: this.getTaskStatusText(task),
-          statusClass: this.getTaskStatusClass(task.status, task.pointsRefunded),
-          timeText: this.formatTime(task.createdAt)
-        }));
-
-        this.setData({
-          user,
-          points: (user && user.points) || 0,
-          transactions: processedTransactions,
-          tasks: processedTasks,
-          loading: false
+        this.setData({ 
+          user: res.result.data.user, 
+          userLoading: false 
         });
       } else {
-        this.setData({
-          loading: false,
-          error: res.result?.errMsg || '加载失败'
+        this.setData({ 
+          userLoading: false, 
+          userError: res.result?.errMsg || '加载失败' 
         });
       }
     } catch (err) {
       console.error('加载用户数据失败:', err);
-      this.setData({
-        loading: false,
-        error: '网络错误，请稍后重试'
-      });
+      this.setData({ userLoading: false, userError: '网络错误' });
     }
+  },
+
+  async loadTransactions() {
+    this.setData({ transLoading: true, transError: '' });
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'quickstartFunctions',
+        data: { type: 'getTransactions', data: { page: 1, pageSize: 5 } }
+      });
+      if (res.result && res.result.success) {
+        const processed = (res.result.data.transactions || []).map(t => ({
+          ...t,
+          amountText: this.formatAmount(t.amount),
+          typeText: this.getTransactionTypeText(t),
+          amountClass: t.amount >= 0 ? 'amount-plus' : 'amount-minus',
+          timeText: this.formatTime(t.createdAt)
+        }));
+        this.setData({ 
+          transactions: processed, 
+          transTotal: res.result.data.total || 0,
+          transLoading: false 
+        });
+      } else {
+        this.setData({ 
+          transLoading: false, 
+          transError: res.result?.errMsg || '加载失败' 
+        });
+      }
+    } catch (err) {
+      console.error('加载积分记录失败:', err);
+      this.setData({ transLoading: false, transError: '网络错误' });
+    }
+  },
+
+  async loadTasks() {
+    this.setData({ tasksLoading: true, tasksError: '' });
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'quickstartFunctions',
+        data: { type: 'getTasks', data: { page: 1, pageSize: 5 } }
+      });
+      if (res.result && res.result.success) {
+        const processed = (res.result.data.tasks || []).map(t => ({
+          ...t,
+          displayName: this.getTaskDisplayName(t.type),
+          statusText: this.getTaskStatusText(t),
+          statusClass: this.getTaskStatusClass(t.status, t.pointsRefunded),
+          timeText: this.formatTime(t.createdAt)
+        }));
+        this.setData({ 
+          tasks: processed, 
+          tasksTotal: res.result.data.total || 0,
+          tasksLoading: false 
+        });
+      } else {
+        this.setData({ 
+          tasksLoading: false, 
+          tasksError: res.result?.errMsg || '加载失败' 
+        });
+      }
+    } catch (err) {
+      console.error('加载生成记录失败:', err);
+      this.setData({ tasksLoading: false, tasksError: '网络错误' });
+    }
+  },
+
+  goToTransactions() {
+    wx.navigateTo({ url: '/pages/mine/transactions' });
+  },
+
+  goToTasks() {
+    wx.navigateTo({ url: '/pages/mine/tasks' });
   },
 
   formatTime(timestamp) {

@@ -1,0 +1,134 @@
+page {
+  background: #f7f7f7;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx 28rpx;
+  box-sizing: border-box;
+}
+
+.state-card {
+  display: flex;
+  min-height: 220rpx;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 48rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 52rpx;
+  height: 52rpx;
+  margin-bottom: 16rpx;
+  border: 4rpx solid #eeeeee;
+  border-top-color: #07c160;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner.small {
+  width: 36rpx;
+  height: 36rpx;
+  margin-bottom: 0;
+  margin-right: 12rpx;
+  border-width: 3rpx;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.state-text {
+  color: #888888;
+  font-size: 27rpx;
+}
+
+.state-text.error {
+  color: #e64340;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 32rpx;
+  background: #ffffff;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.transaction-item:first-child {
+  border-radius: 28rpx 28rpx 0 0;
+}
+
+.transaction-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.transaction-title {
+  color: #222222;
+  font-size: 28rpx;
+}
+
+.transaction-time {
+  margin-top: 8rpx;
+  color: #bbbbbb;
+  font-size: 23rpx;
+}
+
+.transaction-amount {
+  margin-left: 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.amount-plus {
+  color: #07c160;
+}
+
+.amount-minus {
+  color: #e64340;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx 0;
+}
+
+.empty-text {
+  color: #999999;
+  font-size: 26rpx;
+}
+
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
+}
+
+.load-more-text {
+  color: #888888;
+  font-size: 26rpx;
+}
+
+.no-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
+}
+
+.no-more-text {
+  color: #bbbbbb;
+  font-size: 24rpx;
+}

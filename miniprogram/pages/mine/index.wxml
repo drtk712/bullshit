@@ -1,31 +1,57 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="state-card">
-    <view class="loading-spinner"></view>
-    <text class="state-text">加载中...</text>
-  </view>
-
-  <view wx:if="{{error && !loading}}" class="state-card">
-    <text class="state-text error">{{error}}</text>
-  </view>
-
-  <view wx:if="{{!loading && !error}}">
-    <view class="user-card">
+  <!-- User Card -->
+  <view class="user-card">
+    <block wx:if="{{userLoading}}">
+      <view class="card-loading">
+        <view class="loading-spinner small"></view>
+      </view>
+    </block>
+    <block wx:elif="{{userError}}">
+      <view class="card-error">
+        <text class="card-error-text">{{userError}}</text>
+      </view>
+    </block>
+    <block wx:else>
       <view class="user-avatar">👤</view>
       <view class="user-info">
         <text class="user-name">微信用户</text>
         <text class="user-id">ID: {{user.openidMasked || '未登录'}}</text>
       </view>
-    </view>
-    <view class="user-hint">首次登录赠送 3 积分</view>
+    </block>
+  </view>
+  <view class="user-hint">首次登录赠送 3 积分</view>
 
-    <view class="points-card">
+  <!-- Points Card -->
+  <view class="points-card">
+    <block wx:if="{{userLoading}}">
+      <view class="card-loading">
+        <view class="loading-spinner small"></view>
+      </view>
+    </block>
+    <block wx:else>
       <text class="points-label">当前积分</text>
-      <text class="points-value">{{points}}</text>
+      <text class="points-value">{{user.points || 0}}</text>
       <text class="points-hint">每次生成消耗 1 积分</text>
-    </view>
+    </block>
+  </view>
 
-    <view class="records-card">
+  <!-- Transactions Section -->
+  <view class="records-card">
+    <view class="records-header">
       <text class="records-title">积分明细</text>
+      <text class="records-more" bindtap="goToTransactions" wx:if="{{transTotal > 5}}">查看更多 ></text>
+    </view>
+    <block wx:if="{{transLoading}}">
+      <view class="section-loading">
+        <view class="loading-spinner"></view>
+      </view>
+    </block>
+    <block wx:elif="{{transError}}">
+      <view class="section-error">
+        <text class="section-error-text">{{transError}}</text>
+      </view>
+    </block>
+    <block wx:else>
       <view wx:for="{{transactions}}" wx:key="_id" class="transaction-item">
         <view class="transaction-main">
           <text class="transaction-title">{{item.typeText}}</text>
@@ -36,10 +62,26 @@
       <view wx:if="{{transactions.length === 0}}" class="empty-state">
         <text class="empty-text">暂无积分记录</text>
       </view>
-    </view>
+    </block>
+  </view>
 
-    <view class="records-card">
+  <!-- Tasks Section -->
+  <view class="records-card">
+    <view class="records-header">
       <text class="records-title">最近生成</text>
+      <text class="records-more" bindtap="goToTasks" wx:if="{{tasksTotal > 5}}">查看更多 ></text>
+    </view>
+    <block wx:if="{{tasksLoading}}">
+      <view class="section-loading">
+        <view class="loading-spinner"></view>
+      </view>
+    </block>
+    <block wx:elif="{{tasksError}}">
+      <view class="section-error">
+        <text class="section-error-text">{{tasksError}}</text>
+      </view>
+    </block>
+    <block wx:else>
       <view wx:for="{{tasks}}" wx:key="_id" class="task-item">
         <text class="task-name">{{item.displayName}}</text>
         <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
@@ -48,6 +90,6 @@
       <view wx:if="{{tasks.length === 0}}" class="empty-state">
         <text class="empty-text">暂无生成记录</text>
       </view>
-    </view>
+    </block>
   </view>
 </view>

@@ -8,42 +8,25 @@ page {
   box-sizing: border-box;
 }
 
-.state-card {
-  display: flex;
-  min-height: 220rpx;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border-radius: 28rpx;
-  padding: 48rpx;
-  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
-  text-align: center;
-}
-
 .loading-spinner {
   width: 52rpx;
   height: 52rpx;
-  margin-bottom: 16rpx;
   border: 4rpx solid #eeeeee;
   border-top-color: #07c160;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
+.loading-spinner.small {
+  width: 36rpx;
+  height: 36rpx;
+  border-width: 3rpx;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
-}
-
-.state-text {
-  color: #888888;
-  font-size: 27rpx;
-}
-
-.state-text.error {
-  color: #e64340;
 }
 
 .user-card {
@@ -54,6 +37,27 @@ page {
   padding: 32rpx;
   margin-bottom: 24rpx;
   box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+}
+
+.card-loading {
+  display: flex;
+  width: 100%;
+  height: 120rpx;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-error {
+  display: flex;
+  width: 100%;
+  height: 120rpx;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-error-text {
+  color: #e64340;
+  font-size: 26rpx;
 }
 
 .user-avatar {
@@ -133,12 +137,41 @@ page {
   box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
 }
 
-.records-title {
-  display: block;
+.records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 24rpx;
+}
+
+.records-title {
   color: #111111;
   font-size: 34rpx;
   font-weight: 600;
+}
+
+.records-more {
+  color: #07c160;
+  font-size: 26rpx;
+}
+
+.section-loading {
+  display: flex;
+  height: 200rpx;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-error {
+  display: flex;
+  height: 200rpx;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-error-text {
+  color: #e64340;
+  font-size: 26rpx;
 }
 
 .transaction-item,

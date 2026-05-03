@@ -1,0 +1,39 @@
+<view class="page">
+  <!-- Loading state -->
+  <view wx:if="{{loading}}" class="state-card">
+    <view class="loading-spinner"></view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <!-- Error state -->
+  <view wx:elif="{{error}}" class="state-card">
+    <text class="state-text error">{{error}}</text>
+  </view>
+
+  <!-- Content -->
+  <block wx:else>
+    <view wx:for="{{tasks}}" wx:key="_id" class="task-item">
+      <view class="task-main">
+        <text class="task-name">{{item.displayName}}</text>
+        <text class="task-time">{{item.timeText}}</text>
+      </view>
+      <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
+    </view>
+
+    <!-- Empty state -->
+    <view wx:if="{{tasks.length === 0}}" class="empty-state">
+      <text class="empty-text">暂无生成记录</text>
+    </view>
+
+    <!-- Loading more -->
+    <view wx:if="{{loadingMore}}" class="load-more">
+      <view class="loading-spinner small"></view>
+      <text class="load-more-text">加载中...</text>
+    </view>
+
+    <!-- No more data -->
+    <view wx:if="{{!hasMore && tasks.length > 0}}" class="no-more">
+      <text class="no-more-text">没有更多了</text>
+    </view>
+  </block>
+</view>
