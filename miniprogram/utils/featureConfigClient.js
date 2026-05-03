@@ -1,9 +1,9 @@
 const FALLBACK_FEATURES = [
   {
     type: "palm",
-    title: "AI看手相",
+    title: "看手相",
     shortTitle: "看手相",
-    description: "上传清晰手掌照片，生成专属手相解读海报",
+    description: "上传清晰手掌照片，瞎扯一段手相解读海报",
     icon: "🖐️",
     uploadIcon: "📷",
     uploadTitle: "上传手掌照片",
@@ -13,9 +13,9 @@ const FALLBACK_FEATURES = [
   },
   {
     type: "hair",
-    title: "AI设计发型",
+    title: "设计发型",
     shortTitle: "设计发型",
-    description: "上传正面照片，生成专属发型建议海报",
+    description: "上传正面照片，瞎扯一段发型建议海报",
     icon: "💇",
     uploadIcon: "📷",
     uploadTitle: "上传正面照片",

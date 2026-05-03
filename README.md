@@ -1,14 +1,13 @@
-# AI 海报生成小程序
+# 瞎说
 
-基于微信小程序的 AI 图片生成应用，提供 **AI 看手相** 和 **AI 设计发型** 两大功能。
+基于微信小程序的玄学图片生成应用，提供**看手相**和**设计发型**两大功能。上传照片，瞎扯一段专属解读海报。
 
 ## 功能特性
 
-- 🖐️ **AI 看手相** - 上传手掌照片，生成专属手相解读海报
-- 💇 **AI 设计发型** - 上传正面照片，生成专属发型建议海报
+- 🖐️ **看手相** - 上传手掌照片，瞎扯一段手相解读海报
+- 💇 **设计发型** - 上传正面照片，瞎扯一段发型建议海报
 - 👤 **用户系统** - 微信一键登录，首次登录赠送 3 积分
 - 💰 **积分系统** - 每次生成消耗 1 积分，失败自动退款
-- 🧪 **测试模式** - 前端 switch 切换，不消耗 API 费用
 - 🔧 **不扣积分开关** - 开发测试用，真实生成但不消耗积分
 - 💾 **保存分享** - 支持保存海报到相册和分享
 - 📱 **底部导航** - 首页 / 我的，查看积分和生成记录
@@ -78,7 +77,7 @@ TEST_POSTER_FILE_ID=cloud://your-env-id.your-bucket/ai-posters/test-poster.png
 
 | 集合名 | 用途 |
 |--------|------|
-| `ai_poster_jobs` | AI 生成任务记录 |
+| `ai_poster_jobs` | 生成任务记录 |
 | `users` | 用户信息（openid、积分等） |
 | `point_transactions` | 积分流水（赠送/消耗/退款） |
 
@@ -87,10 +86,14 @@ TEST_POSTER_FILE_ID=cloud://your-env-id.your-bucket/ai-posters/test-poster.png
 | 操作类型 | 说明 |
 |----------|------|
 | `login` | 用户登录，首次赠送 3 积分 |
-| `getUserProfile` | 获取用户资料、积分、最近任务 |
+| `getUserProfile` | 获取用户资料、积分 |
 | `getFeatureConfig` | 获取功能配置 |
 | `validateAndCreateJob` | 验证图片并创建生成任务（扣积分） |
 | `getTaskStatus` | 查询任务状态（失败自动退款） |
+| `getTask` | 按 ID 查询单条任务详情 |
+| `getTransactions` | 分页查询积分明细 |
+| `getTasks` | 分页查询生成记录 |
+| `cleanupStaleTasks` | 定时清理超时任务并退款（每 5 分钟） |
 
 ## 项目配置
 

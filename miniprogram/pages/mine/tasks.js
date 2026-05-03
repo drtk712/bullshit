@@ -100,8 +100,8 @@ Page({
   },
 
   getTaskDisplayName(type) {
-    const typeMap = { 'palm': 'AI看手相', 'hair': 'AI设计发型' };
-    return typeMap[type] || 'AI生成';
+    const typeMap = { 'palm': '看手相', 'hair': '设计发型' };
+    return typeMap[type] || '瞎扯';
   },
 
   getTaskStatusText(task) {

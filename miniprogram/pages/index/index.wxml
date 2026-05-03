@@ -1,7 +1,7 @@
 <view class="container">
   <view class="header">
-    <view class="title">AI 智能助手</view>
-    <view class="subtitle">选择功能，开启 AI 体验</view>
+    <view class="title">瞎说</view>
+    <view class="subtitle">选个功能，开始瞎扯</view>
   </view>
 
   <view wx:if="{{loadingFeatures}}" class="state-card">
