@@ -120,6 +120,11 @@ Page({
     wx.navigateTo({ url: '/pages/mine/tasks' });
   },
 
+  goToTaskDetail(e) {
+    const taskId = e.currentTarget.dataset.id;
+    wx.navigateTo({ url: `/pages/mine/task-detail?id=${taskId}` });
+  },
+
   formatTime(timestamp) {
     if (!timestamp) return '';
 

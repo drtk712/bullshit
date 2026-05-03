@@ -82,7 +82,7 @@
       </view>
     </block>
     <block wx:else>
-      <view wx:for="{{tasks}}" wx:key="_id" class="task-item">
+      <view wx:for="{{tasks}}" wx:key="_id" class="task-item" bindtap="goToTaskDetail" data-id="{{item._id}}">
         <text class="task-name">{{item.displayName}}</text>
         <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
         <text class="task-time">{{item.timeText}}</text>
