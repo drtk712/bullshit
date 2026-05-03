@@ -11,7 +11,7 @@ Page({
       return;
     }
 
-    const feature = await fetchFeature(type);
+    const feature = this.getFeatureFromCache(type) || await fetchFeature(type);
     if (!feature) {
       this.setData({ configLoading: false, configError: "功能暂不可用" });
       return;
@@ -19,5 +19,11 @@ Page({
 
     this.setFeature(feature);
     wx.setNavigationBarTitle({ title: feature.title });
+  },
+
+  getFeatureFromCache(type) {
+    const list = getApp().globalData.featureList;
+    if (!Array.isArray(list)) return null;
+    return list.find((f) => f.type === type) || null;
   },
 });

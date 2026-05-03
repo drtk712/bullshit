@@ -14,6 +14,7 @@ Page({
 
     try {
       const featureList = await fetchFeatureList();
+      getApp().globalData.featureList = featureList;
       this.setData({
         featureList,
         loadingFeatures: false,
