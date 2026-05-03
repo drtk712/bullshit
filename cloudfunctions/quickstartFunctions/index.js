@@ -1,14 +1,61 @@
+require("dotenv").config();
+
+const REQUIRED_ENV_VARS = ["POSTER_SERVER_TOKEN"];
+for (const varName of REQUIRED_ENV_VARS) {
+  if (!process.env[varName]) {
+    throw new Error(`[quickstartFunctions] Missing required env: ${varName}`);
+  }
+}
+
 const cloud = require("wx-server-sdk");
 const axios = require("axios");
+const {
+  getEnabledFeatureConfig,
+  getPublicFeatureList,
+} = require("./featureConfig");
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
 });
 
 const db = cloud.database();
+const _ = db.command;
 const JOBS_COLLECTION = "ai_poster_jobs";
+const USERS_COLLECTION = "users";
+const POINT_TRANSACTIONS_COLLECTION = "point_transactions";
+const CLOUD_ENV = cloud.DYNAMIC_CURRENT_ENV;
 
 let _collectionReady = false;
+
+const getFeatureConfig = async (event) => {
+  const requestedType = event.data?.type;
+
+  if (requestedType) {
+    const config = getEnabledFeatureConfig(requestedType);
+    if (!config) {
+      return { success: false, errMsg: "功能暂不可用" };
+    }
+
+    return {
+      success: true,
+      data: {
+        feature: {
+          type: config.type,
+          enabled: config.enabled,
+          order: config.order,
+          ...config.public,
+        },
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      features: getPublicFeatureList(),
+    },
+  };
+};
 
 const ensureCollection = async () => {
   if (_collectionReady) return;
@@ -20,10 +67,274 @@ const ensureCollection = async () => {
       throw new Error(`数据库初始化失败: ${e.message || e.errCode}`);
     }
   }
+  await ensureUserCollections();
   _collectionReady = true;
 };
 
-const validateImage = async (fileID, type) => {
+const ensureUserCollections = async () => {
+  for (const collectionName of [USERS_COLLECTION, POINT_TRANSACTIONS_COLLECTION]) {
+    try {
+      await db.createCollection(collectionName);
+    } catch (e) {
+      if (e.errCode !== -501001) {
+        throw new Error(`数据库初始化失败: ${e.message || e.errCode}`);
+      }
+    }
+  }
+};
+
+const maskOpenid = (openid) => `******${String(openid || "").slice(-4)}`;
+
+const createPointTransaction = async ({
+  openid,
+  type,
+  amount,
+  balanceAfter,
+  reason,
+  taskId = null,
+}) => {
+  return await db.collection(POINT_TRANSACTIONS_COLLECTION).add({
+    data: {
+      openid,
+      type,
+      amount,
+      balanceAfter,
+      reason,
+      taskId,
+      createdAt: Date.now(),
+    },
+  });
+};
+
+const ensureUser = async (openid, options = {}) => {
+  await ensureCollection();
+
+  const now = Date.now();
+  const userResult = await db.collection(USERS_COLLECTION)
+    .where({ openid })
+    .limit(1)
+    .get();
+
+  if (userResult.data && userResult.data.length > 0) {
+    const user = userResult.data[0];
+    if (options.recordLogin) {
+      await db.collection(USERS_COLLECTION).doc(user._id).update({
+        data: {
+          updatedAt: now,
+          lastLoginAt: now,
+        },
+      });
+      return {
+        ...user,
+        updatedAt: now,
+        lastLoginAt: now,
+        isNewUser: false,
+      };
+    }
+
+    return {
+      ...user,
+      isNewUser: false,
+    };
+  }
+
+  const userData = {
+    openid,
+    points: 3,
+    totalGrantedPoints: 3,
+    totalUsedPoints: 0,
+    totalRefundedPoints: 0,
+    createdAt: now,
+    updatedAt: now,
+    lastLoginAt: now,
+  };
+  const createResult = await db.collection(USERS_COLLECTION).add({ data: userData });
+
+  await createPointTransaction({
+    openid,
+    type: "grant",
+    amount: 3,
+    balanceAfter: 3,
+    reason: "first_login",
+    taskId: null,
+  });
+
+  return {
+    _id: createResult._id,
+    ...userData,
+    isNewUser: true,
+  };
+};
+
+const consumePoints = async ({ openid, amount, reason }) => {
+  const user = await ensureUser(openid);
+
+  const updateResult = await db.collection(USERS_COLLECTION)
+    .where({ _id: user._id, points: _.gte(amount) })
+    .update({
+      data: {
+        points: _.inc(-amount),
+        totalUsedPoints: _.inc(amount),
+        updatedAt: Date.now(),
+      },
+    });
+
+  if (!updateResult.stats || updateResult.stats.updated !== 1) {
+    throw new Error("积分不足，请先获取积分");
+  }
+
+  const updatedUser = await db.collection(USERS_COLLECTION).doc(user._id).get();
+
+  return await createPointTransaction({
+    openid,
+    type: "consume",
+    amount: -amount,
+    balanceAfter: updatedUser.data.points,
+    reason,
+    taskId: null,
+  });
+};
+
+const refundPoints = async ({ openid, amount, reason, taskId }) => {
+  const user = await ensureUser(openid);
+
+  await db.collection(USERS_COLLECTION).doc(user._id).update({
+    data: {
+      points: _.inc(amount),
+      totalRefundedPoints: _.inc(amount),
+      updatedAt: Date.now(),
+    },
+  });
+
+  const updatedUser = await db.collection(USERS_COLLECTION).doc(user._id).get();
+
+  return await createPointTransaction({
+    openid,
+    type: "refund",
+    amount,
+    balanceAfter: updatedUser.data.points,
+    reason,
+    taskId,
+  });
+};
+
+const toPublicTransaction = (transaction) => ({
+  _id: transaction._id,
+  type: transaction.type,
+  amount: transaction.amount,
+  balanceAfter: transaction.balanceAfter,
+  reason: transaction.reason,
+  taskId: transaction.taskId || null,
+  createdAt: transaction.createdAt,
+});
+
+const toPublicTask = (task) => ({
+  _id: task._id,
+  type: task.type,
+  status: task.status,
+  posterFileID: task.posterFileID || null,
+  errMsg: task.errMsg || "",
+  pointsCost: task.pointsCost || 0,
+  pointsConsumed: !!task.pointsConsumed,
+  pointsRefunded: !!task.pointsRefunded,
+  skipPointsDeduction: !!task.skipPointsDeduction,
+  createdAt: task.createdAt,
+  updatedAt: task.updatedAt,
+});
+
+const markTaskFailedWithRefund = async ({ taskId, task, errMsg }) => {
+  let refundTransactionId = task.refundTransactionId || null;
+
+  if (task.pointsConsumed && !task.pointsRefunded) {
+    const refundResult = await refundPoints({
+      openid: task.openid,
+      amount: 1,
+      reason: "job_failed_refund",
+      taskId,
+    });
+    refundTransactionId = refundResult._id;
+  }
+
+  await db.collection(JOBS_COLLECTION).doc(taskId).update({
+    data: {
+      status: "failed",
+      errMsg,
+      pointsRefunded: task.pointsConsumed ? true : !!task.pointsRefunded,
+      refundTransactionId,
+      updatedAt: Date.now(),
+    },
+  });
+
+  return refundTransactionId;
+};
+
+const login = async () => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    const user = await ensureUser(openid, { recordLogin: true });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          openidMasked: maskOpenid(openid),
+          points: user.points,
+          isNewUser: user.isNewUser,
+          createdAt: user.createdAt,
+          lastLoginAt: user.lastLoginAt,
+        },
+      },
+    };
+  } catch (e) {
+    console.error("login 错误:", e.message);
+    return {
+      success: false,
+      errMsg: e.message || "登录失败",
+    };
+  }
+};
+
+const getUserProfile = async () => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    const user = await ensureUser(openid);
+
+    const transactionResult = await db.collection(POINT_TRANSACTIONS_COLLECTION)
+      .where({ openid })
+      .orderBy("createdAt", "desc")
+      .limit(5)
+      .get();
+    const taskResult = await db.collection(JOBS_COLLECTION)
+      .where({ openid })
+      .orderBy("createdAt", "desc")
+      .limit(10)
+      .get();
+
+    return {
+      success: true,
+      data: {
+        user: {
+          openidMasked: maskOpenid(openid),
+          points: user.points,
+          createdAt: user.createdAt,
+          lastLoginAt: user.lastLoginAt,
+        },
+        recentTransactions: (transactionResult.data || []).map(toPublicTransaction),
+        recentTasks: (taskResult.data || []).map(toPublicTask),
+      },
+    };
+  } catch (e) {
+    console.error("getUserProfile 错误:", e.message);
+    return {
+      success: false,
+      errMsg: e.message || "获取用户资料失败",
+    };
+  }
+};
+
+const validateImage = async (fileID, featureConfig) => {
   const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
   
   if (!tempFileResult.fileList || tempFileResult.fileList.length === 0) {
@@ -37,16 +348,14 @@ const validateImage = async (fileID, type) => {
   
   const imageUrl = fileInfo.tempFileURL;
 
-  const prompt =
-    type === "palm"
-      ? "这张图片是否包含清晰的手掌照片？请只回答'是'或'否'。"
-      : "这张图片是否包含清晰的正面人像照片？请只回答'是'或'否'。";
+  const validationConfig = featureConfig.validation;
+  const prompt = validationConfig.prompt;
 
   try {
     const res = await axios.post(
-      "http://36.156.154.98:8010/v1/chat/completions",
+      validationConfig.serviceUrl,
       {
-        model: "qwen3.6",
+        model: validationConfig.model,
         messages: [
           {
             role: "user",
@@ -98,7 +407,7 @@ const validateImage = async (fileID, type) => {
 
     return {
       passed: hasYes,
-      reason: hasNo ? "图片不符合要求，请重新拍摄" : "",
+      reason: hasNo ? validationConfig.failMessage : "",
     };
   } catch (e) {
     console.error("validateImage 错误:", e.code, e.message);
@@ -121,20 +430,40 @@ const validateAndCreateJob = async (event) => {
   try {
     await ensureCollection();
     
-    const { type, fileID, test } = event.data;
+    const { type, fileID, test, skipPointsDeduction = false } = event.data;
 
     if (!type || !fileID) {
       return { success: false, errMsg: "缺少必要参数" };
     }
 
-    if (!["palm", "hair"].includes(type)) {
-      return { success: false, errMsg: "无效的类型参数" };
+    const featureConfig = getEnabledFeatureConfig(type);
+    if (!featureConfig) {
+      return { success: false, errMsg: "功能暂不可用" };
     }
 
-    const validation = await validateImage(fileID, type);
+    const validation = await validateImage(fileID, featureConfig);
     if (!validation.passed) {
       await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
       return { success: false, errMsg: validation.reason };
+    }
+
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    const shouldConsumePoints = !test && !skipPointsDeduction;
+    const user = await ensureUser(openid);
+    let consumeResult = null;
+
+    if (shouldConsumePoints && user.points < 1) {
+      await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+      return { success: false, errMsg: "积分不足，请先获取积分" };
+    }
+
+    if (shouldConsumePoints) {
+      consumeResult = await consumePoints({
+        openid,
+        amount: 1,
+        reason: "create_ai_job",
+      });
     }
 
     const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
@@ -157,13 +486,29 @@ const validateAndCreateJob = async (event) => {
       serverResp = await axios.post(`${SERVER_URL}/api/job`, {
         imageUrl,
         type,
-        test: test || false
-      }, { 
+        test: test || false,
+        generationPrompt: featureConfig.generation.prompt,
+        testPosterFileID: featureConfig.test?.posterFileID,
+      }, {
+        headers: {
+          "X-Internal-Token": process.env.POSTER_SERVER_TOKEN || "",
+        },
         timeout: 10000,
         validateStatus: (status) => status < 500
       });
     } catch (serverErr) {
       console.error("调用服务端失败:", serverErr.code, serverErr.message);
+      
+      if (shouldConsumePoints && consumeResult) {
+        await refundPoints({
+          openid,
+          amount: 1,
+          reason: "job_failed_refund",
+          taskId: null,
+        }).catch((refundErr) => {
+          console.error("自动退款失败:", refundErr.message);
+        });
+      }
       
       if (serverErr.code === "ECONNABORTED") {
         return { success: false, errMsg: "连接服务端超时，请稍后重试" };
@@ -176,16 +521,21 @@ const validateAndCreateJob = async (event) => {
     }
 
     if (serverResp.status !== 200) {
+      if (shouldConsumePoints && consumeResult) {
+        await refundPoints({ openid, amount: 1, reason: "job_failed_refund", taskId: null })
+          .catch((e) => console.error("自动退款失败:", e.message));
+      }
       return { success: false, errMsg: `服务端错误（${serverResp.status}): 请稍后重试` };
     }
 
     const serverTaskId = serverResp.data?.taskId;
     if (!serverTaskId) {
+      if (shouldConsumePoints && consumeResult) {
+        await refundPoints({ openid, amount: 1, reason: "job_failed_refund", taskId: null })
+          .catch((e) => console.error("自动退款失败:", e.message));
+      }
       return { success: false, errMsg: "服务端返回无效任务ID" };
     }
-
-    const wxContext = cloud.getWXContext();
-    const openid = wxContext.OPENID;
 
     const taskResult = await db.collection(JOBS_COLLECTION).add({
       data: {
@@ -196,12 +546,24 @@ const validateAndCreateJob = async (event) => {
         posterFileID: null,
         errMsg: "",
         openid,
+        pointsCost: shouldConsumePoints ? 1 : 0,
+        pointsConsumed: shouldConsumePoints,
+        pointsRefunded: false,
+        skipPointsDeduction: skipPointsDeduction || false,
+        consumeTransactionId: shouldConsumePoints ? consumeResult._id : null,
+        refundTransactionId: null,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     });
 
     const taskId = taskResult._id;
+
+    if (consumeResult && consumeResult._id) {
+      await db.collection(POINT_TRANSACTIONS_COLLECTION).doc(consumeResult._id).update({
+        data: { taskId },
+      });
+    }
 
     return {
       success: true,
@@ -233,17 +595,21 @@ const getTaskStatus = async (event) => {
     }
 
     const task = taskDoc.data;
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+
+    if (!task.openid || task.openid !== openid) {
+      return { success: false, errMsg: "任务不存在" };
+    }
 
     if (task.status === "pending") {
       const SERVER_URL = process.env.POSTER_SERVER_URL || "http://36.156.154.98:8011";
       
       if (!task.serverTaskId) {
-        await db.collection(JOBS_COLLECTION).doc(taskId).update({
-          data: { 
-            status: "failed", 
-            errMsg: "任务配置错误，缺少服务端任务ID", 
-            updatedAt: Date.now() 
-          }
+        await markTaskFailedWithRefund({
+          taskId,
+          task,
+          errMsg: "任务配置错误，缺少服务端任务ID",
         });
         return { success: false, errMsg: "任务配置错误" };
       }
@@ -258,17 +624,41 @@ const getTaskStatus = async (event) => {
         const errMsg = serverResp.data?.errMsg;
 
         if (serverStatus === "completed" && posterUrl) {
-          if (!posterUrl.startsWith("http")) {
+          if (posterUrl.startsWith("cloud://")) {
+            const expectedPrefix = `cloud://${CLOUD_ENV}-`;
+            if (!posterUrl.startsWith(expectedPrefix)) {
+              console.warn(
+                "[getTaskStatus] Poster cloud file ID from unexpected environment:",
+                posterUrl.slice(0, 30) + "..."
+              );
+            }
+
             await db.collection(JOBS_COLLECTION).doc(taskId).update({
-              data: { 
-                status: "failed", 
-                errMsg: "生成的图片链接无效", 
-                updatedAt: Date.now() 
-              }
+              data: {
+                status: "completed",
+                posterFileID: posterUrl,
+                updatedAt: Date.now(),
+              },
+            });
+
+            return {
+              success: true,
+              data: {
+                status: "completed",
+                posterFileID: posterUrl,
+              },
+            };
+          }
+
+          if (!posterUrl.startsWith("http")) {
+            await markTaskFailedWithRefund({
+              taskId,
+              task,
+              errMsg: "生成的图片链接无效",
             });
             return { success: false, errMsg: "生成结果异常，请重试" };
           }
-          
+
           let imageBuffer;
           try {
             const imageRes = await axios.get(posterUrl, {
@@ -279,12 +669,10 @@ const getTaskStatus = async (event) => {
             imageBuffer = Buffer.from(imageRes.data);
           } catch (downloadErr) {
             console.error("下载海报失败:", downloadErr.message);
-            await db.collection(JOBS_COLLECTION).doc(taskId).update({
-              data: { 
-                status: "failed", 
-                errMsg: "海报下载失败", 
-                updatedAt: Date.now() 
-              }
+            await markTaskFailedWithRefund({
+              taskId,
+              task,
+              errMsg: "海报下载失败",
             });
             return { success: false, errMsg: "海报下载失败，请重试" };
           }
@@ -297,12 +685,10 @@ const getTaskStatus = async (event) => {
             });
           } catch (uploadErr) {
             console.error("云存储上传失败:", uploadErr.message);
-            await db.collection(JOBS_COLLECTION).doc(taskId).update({
-              data: { 
-                status: "failed", 
-                errMsg: "图片上传失败", 
-                updatedAt: Date.now() 
-              }
+            await markTaskFailedWithRefund({
+              taskId,
+              task,
+              errMsg: "图片上传失败",
             });
             return { success: false, errMsg: "图片上传失败，请重试" };
           }
@@ -324,12 +710,10 @@ const getTaskStatus = async (event) => {
           };
           return result;
         } else if (serverStatus === "failed") {
-          await db.collection(JOBS_COLLECTION).doc(taskId).update({
-            data: {
-              status: "failed",
-              errMsg: errMsg || "生成失败",
-              updatedAt: Date.now(),
-            },
+          await markTaskFailedWithRefund({
+            taskId,
+            task,
+            errMsg: errMsg || "生成失败",
           });
 
           return {
@@ -375,6 +759,12 @@ const getTaskStatus = async (event) => {
 
 exports.main = async (event, context) => {
   switch (event.type) {
+    case "getFeatureConfig":
+      return await getFeatureConfig(event);
+    case "login":
+      return await login(event);
+    case "getUserProfile":
+      return await getUserProfile(event);
     case "validateAndCreateJob":
       return await validateAndCreateJob(event);
     case "getTaskStatus":
