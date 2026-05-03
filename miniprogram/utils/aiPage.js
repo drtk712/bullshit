@@ -1,11 +1,15 @@
-function createAiPage(type) {
+function createAiPage() {
   return {
     data: {
+      feature: null,
+      configLoading: true,
+      configError: "",
       posterUrl: "",
       loading: false,
       loadingText: "",
       errorMsg: "",
       testMode: false,
+      skipPointsDeduction: false,
     },
 
     taskId: null,
@@ -13,21 +17,50 @@ function createAiPage(type) {
 
     cleanupTask() {
       if (this.pollTimer) {
-        clearInterval(this.pollTimer);
+        clearTimeout(this.pollTimer);
         this.pollTimer = null;
       }
       this.taskId = null;
+    },
+
+    setFeature(feature) {
+      this.setData({
+        feature,
+        configLoading: false,
+        configError: "",
+      });
+    },
+
+    getFeatureType() {
+      return this.data.feature && this.data.feature.type;
+    },
+
+    handleUploadTap() {
+      if (
+        this.data.posterUrl ||
+        this.data.loading ||
+        this.data.configLoading ||
+        this.data.configError
+      ) {
+        return;
+      }
+
+      this.chooseImage();
     },
 
     toggleTestMode(e) {
       this.setData({ testMode: e.detail.value });
     },
 
+    toggleSkipPointsDeduction(e) {
+      this.setData({ skipPointsDeduction: e.detail.value });
+    },
+
     chooseImage() {
-      if (this.data.loading) return;
-      
+      if (this.data.loading || this.data.configLoading || this.data.configError) return;
+
       this.cleanupTask();
-      
+
       wx.chooseMedia({
         count: 1,
         mediaType: ["image"],
@@ -36,7 +69,7 @@ function createAiPage(type) {
           if (!res.tempFiles || res.tempFiles.length === 0) {
             this.setData({
               loading: false,
-              errorMsg: "图片选择失败，请重试"
+              errorMsg: "图片选择失败，请重试",
             });
             return;
           }
@@ -47,7 +80,7 @@ function createAiPage(type) {
           if (err.errMsg !== "chooseMedia:fail cancel") {
             this.setData({
               loading: false,
-              errorMsg: "选择图片失败，请重试"
+              errorMsg: "选择图片失败，请重试",
             });
           }
         },
@@ -80,8 +113,8 @@ function createAiPage(type) {
       const cloudPath = `ai-upload/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
 
       wx.cloud.uploadFile({
-        cloudPath: cloudPath,
-        filePath: filePath,
+        cloudPath,
+        filePath,
         uploadTask: (uploadTask) => {
           uploadTask.onProgressUpdate((res) => {
             if (res.progress < 100) {
@@ -93,7 +126,7 @@ function createAiPage(type) {
           this.setData({ loadingText: "AI 分析中，请稍候..." });
           this.createJob(res.fileID);
         },
-        fail: (err) => {
+        fail: () => {
           this.setData({
             loading: false,
             errorMsg: "图片上传失败，请重试",
@@ -103,12 +136,26 @@ function createAiPage(type) {
     },
 
     createJob(fileID) {
+      const type = this.getFeatureType();
+      if (!type) {
+        this.setData({
+          loading: false,
+          errorMsg: "功能配置加载失败，请返回重试",
+        });
+        return;
+      }
+
       wx.cloud
         .callFunction({
           name: "quickstartFunctions",
           data: {
             type: "validateAndCreateJob",
-            data: { type, fileID, test: this.data.testMode || false },
+            data: {
+              type,
+              fileID,
+              test: this.data.testMode || false,
+              skipPointsDeduction: this.data.skipPointsDeduction || false
+            },
           },
         })
         .then((resp) => {
@@ -134,12 +181,12 @@ function createAiPage(type) {
       this.setData({ loadingText: "海报生成中..." });
 
       let pollCount = 0;
-      const MAX_POLL_COUNT = 60;
-      const POLL_INTERVAL = 10000;
+      const maxPollCount = 60;
+      const pollInterval = 10000;
 
       const pollOnce = () => {
         pollCount++;
-        if (pollCount > MAX_POLL_COUNT) {
+        if (pollCount > maxPollCount) {
           this.cleanupTask();
           this.setData({
             loading: false,
@@ -160,7 +207,7 @@ function createAiPage(type) {
             if (!this.taskId) return;
 
             if (resp.result && resp.result.success) {
-              const { status, posterUrl, posterFileID, errMsg } = resp.result.data;
+              const { status, posterFileID, errMsg } = resp.result.data;
 
               if (status === "completed") {
                 this.cleanupTask();
@@ -169,12 +216,6 @@ function createAiPage(type) {
                   this.setData({
                     loading: false,
                     posterUrl: posterFileID,
-                    errorMsg: "",
-                  });
-                } else if (posterUrl) {
-                  this.setData({
-                    loading: false,
-                    posterUrl: posterUrl,
                     errorMsg: "",
                   });
                 } else {
@@ -190,7 +231,7 @@ function createAiPage(type) {
                   errorMsg: errMsg || "生成失败，请重试",
                 });
               } else {
-                this.pollTimer = setTimeout(pollOnce, POLL_INTERVAL);
+                this.pollTimer = setTimeout(pollOnce, pollInterval);
               }
             } else {
               this.cleanupTask();
@@ -200,7 +241,7 @@ function createAiPage(type) {
               });
             }
           })
-          .catch((err) => {
+          .catch(() => {
             if (!this.taskId) return;
 
             if (pollCount >= 3) {
@@ -210,7 +251,7 @@ function createAiPage(type) {
                 errorMsg: "网络异常，请重试",
               });
             } else {
-              this.pollTimer = setTimeout(pollOnce, POLL_INTERVAL);
+              this.pollTimer = setTimeout(pollOnce, pollInterval);
             }
           });
       };
@@ -218,10 +259,7 @@ function createAiPage(type) {
       pollOnce();
     },
 
-    onImageLoad() {
-      console.log("图片加载成功");
-    },
-
+    onImageLoad() {},
     onImageError(e) {
       console.error("图片加载失败:", e);
     },
@@ -279,8 +317,8 @@ function createAiPage(type) {
 
     doDownloadAndSave() {
       wx.showLoading({ title: "保存中..." });
-      wx.downloadFile({
-        url: this.data.posterUrl,
+      wx.cloud.downloadFile({
+        fileID: this.data.posterUrl,
         success: (res) => {
           wx.saveImageToPhotosAlbum({
             filePath: res.tempFilePath,

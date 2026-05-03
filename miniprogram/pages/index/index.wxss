@@ -1,28 +1,29 @@
 page {
-  background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 100%);
+  background: #f7f7f7;
 }
 
 .container {
-  padding: 40rpx 30rpx;
   min-height: 100vh;
+  padding: 48rpx 30rpx 120rpx;
+  box-sizing: border-box;
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 60rpx;
-  padding-top: 40rpx;
+  margin-bottom: 52rpx;
+  padding-top: 28rpx;
 }
 
 .title {
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #1a1a2e;
-  margin-bottom: 12rpx;
+  color: #111111;
+  font-size: 50rpx;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .subtitle {
+  margin-top: 14rpx;
+  color: #888888;
   font-size: 28rpx;
-  color: #888;
 }
 
 .power-list {
@@ -31,14 +32,18 @@ page {
   gap: 24rpx;
 }
 
-.power-item {
+.power-item,
+.state-card {
   display: flex;
   align-items: center;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 32rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+}
+
+.power-item {
   justify-content: space-between;
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 36rpx 30rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06);
   transition: transform 0.2s;
 }
 
@@ -46,24 +51,69 @@ page {
   transform: scale(0.98);
 }
 
+.power-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  margin-right: 24rpx;
+  border-radius: 24rpx;
+  background: #f0fbf5;
+  font-size: 48rpx;
+}
+
 .power-item-content {
   flex: 1;
 }
 
 .power-item-title {
+  margin-bottom: 8rpx;
+  color: #111111;
   font-size: 34rpx;
   font-weight: 600;
-  color: #1a1a2e;
-  margin-bottom: 8rpx;
 }
 
 .power-item-tip {
-  font-size: 24rpx;
-  color: #999;
+  color: #8a8a8a;
+  font-size: 25rpx;
+  line-height: 1.5;
 }
 
 .power-item-arrow {
-  font-size: 40rpx;
-  color: #999;
   margin-left: 20rpx;
+  color: #bbbbbb;
+  font-size: 46rpx;
+}
+
+.state-card {
+  min-height: 220rpx;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.state-text {
+  color: #888888;
+  font-size: 27rpx;
+}
+
+.state-text.error {
+  color: #e64340;
+}
+
+.loading-spinner {
+  width: 52rpx;
+  height: 52rpx;
+  margin-bottom: 20rpx;
+  border: 6rpx solid #eeeeee;
+  border-top-color: #07c160;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

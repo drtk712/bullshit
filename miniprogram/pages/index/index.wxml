@@ -4,17 +4,27 @@
     <view class="subtitle">选择功能，开启 AI 体验</view>
   </view>
 
-  <view class="power-list">
+  <view wx:if="{{loadingFeatures}}" class="state-card">
+    <view class="loading-spinner"></view>
+    <view class="state-text">正在加载功能</view>
+  </view>
+
+  <view wx:elif="{{featureError}}" class="state-card">
+    <view class="state-text error">{{featureError}}</view>
+  </view>
+
+  <view wx:else class="power-list">
     <view
       class="power-item"
-      wx:for="{{powerList}}"
-      wx:key="title"
-      data-page="{{item.page}}"
-      bindtap="onClickPowerInfo"
+      wx:for="{{featureList}}"
+      wx:key="type"
+      data-url="{{item.route}}"
+      bindtap="onClickFeature"
     >
+      <view class="power-item-icon">{{item.icon}}</view>
       <view class="power-item-content">
         <view class="power-item-title">{{item.title}}</view>
-        <view class="power-item-tip">{{item.tip}}</view>
+        <view class="power-item-tip">{{item.description}}</view>
       </view>
       <view class="power-item-arrow">›</view>
     </view>

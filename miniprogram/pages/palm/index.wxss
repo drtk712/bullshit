@@ -1,145 +1,15 @@
-/* pages/palm/index.wxss */
-.container {
-  padding: 30rpx;
+page {
+  background: #f7f7f7;
+}
+
+.redirect-page {
+  display: flex;
   min-height: 100vh;
-  background: #f5f5f5;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 40rpx;
-}
-
-.title {
-  font-size: 44rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.subtitle {
-  font-size: 26rpx;
-  color: #999;
-  margin-top: 12rpx;
-  display: block;
-}
-
-.upload-area {
-  width: 100%;
-  background: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
-}
-
-.upload-placeholder {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 100rpx 40rpx;
 }
 
-.upload-icon {
-  font-size: 80rpx;
-  margin-bottom: 24rpx;
-}
-
-.upload-text {
-  font-size: 32rpx;
-  color: #333;
-  margin-bottom: 12rpx;
-}
-
-.upload-tip {
-  font-size: 24rpx;
-  color: #999;
-}
-
-.poster-image {
-  display: block;
-  width: 100% !important;
-  height: 600rpx !important;
-  background: #f0f0f0;
-}
-
-.loading-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60rpx 0;
-}
-
-.loading-spinner {
-  width: 60rpx;
-  height: 60rpx;
-  border: 6rpx solid #eee;
-  border-top-color: #07c160;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-text {
-  margin-top: 20rpx;
+.redirect-text {
+  color: #888888;
   font-size: 28rpx;
-  color: #666;
-}
-
-.error-area {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 40rpx;
-  text-align: center;
-  margin-top: 30rpx;
-}
-
-.error-text {
-  font-size: 28rpx;
-  color: #e74c3c;
-  display: block;
-  margin-bottom: 24rpx;
-}
-
-.retry-btn {
-  background: #07c160;
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  padding: 20rpx 60rpx;
-}
-
-.action-area {
-  display: flex;
-  gap: 20rpx;
-  margin-top: 30rpx;
-}
-
-.save-btn, .share-btn {
-  flex: 1;
-  background: #07c160;
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  padding: 20rpx 0;
-}
-
-.share-btn {
-  background: #fff;
-  color: #07c160;
-  border: 2rpx solid #07c160;
-}
-
-.test-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 30rpx;
-}
-
-.test-label {
-  font-size: 26rpx;
-  color: #666;
-  margin-left: 10rpx;
 }

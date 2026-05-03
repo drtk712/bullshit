@@ -1,0 +1,69 @@
+<view class="ai-page">
+  <view wx:if="{{configLoading}}" class="status-panel standalone">
+    <view class="loading-spinner"></view>
+    <text class="status-title">正在加载功能配置</text>
+  </view>
+
+  <view wx:elif="{{configError}}" class="error-card standalone">
+    <text class="error-text">{{configError}}</text>
+  </view>
+
+  <block wx:else>
+    <view class="feature-card">
+      <view class="feature-icon">{{feature.icon}}</view>
+      <view class="feature-copy">
+        <text class="feature-title">{{feature.title}}</text>
+        <text class="feature-desc">{{feature.description}}</text>
+      </view>
+    </view>
+
+    <view class="test-toggle">
+      <view class="test-copy">
+        <text class="test-title">测试模式</text>
+        <text class="test-desc">开启后不消耗 API 费用</text>
+      </view>
+      <switch checked="{{testMode}}" bindchange="toggleTestMode" color="#07c160" />
+    </view>
+
+    <view class="test-toggle">
+      <view class="test-copy">
+        <text class="test-title">不扣积分</text>
+        <text class="test-desc">仅开发测试使用，本次真实生成不消耗积分</text>
+      </view>
+      <switch checked="{{skipPointsDeduction}}" bindchange="toggleSkipPointsDeduction" color="#07c160" />
+    </view>
+
+    <view class="upload-card" bindtap="handleUploadTap">
+      <image
+        wx:if="{{posterUrl}}"
+        class="poster-image"
+        src="{{posterUrl}}"
+        mode="aspectFill"
+        binderror="onImageError"
+        bindload="onImageLoad"
+      />
+
+      <view wx:elif="{{loading}}" class="status-panel">
+        <view class="loading-spinner"></view>
+        <text class="status-title">正在生成</text>
+        <text class="status-desc">{{loadingText}}</text>
+      </view>
+
+      <view wx:else class="upload-placeholder">
+        <text class="upload-icon">{{feature.uploadIcon}}</text>
+        <text class="upload-title">{{feature.uploadTitle}}</text>
+        <text class="upload-tip">{{feature.uploadTip}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{errorMsg}}" class="error-card">
+      <text class="error-text">{{errorMsg}}</text>
+      <button class="secondary-button" bindtap="chooseImage">{{feature.retryText}}</button>
+    </view>
+
+    <view wx:if="{{posterUrl}}" class="action-area">
+      <button class="primary-button" bindtap="savePoster">保存海报</button>
+      <button class="secondary-button" bindtap="sharePoster">分享</button>
+    </view>
+  </block>
+</view>
