@@ -3,7 +3,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException
 from pydantic import BaseModel
 import requests
 import time
@@ -16,9 +16,13 @@ import uuid
 # 配置（从环境变量读取）
 MEMEFAST_API_KEY = os.environ.get("MEMEFAST_API_KEY", "")
 MEMEFAST_API_URL = os.environ.get("MEMEFAST_API_URL", "https://memefast.top/v1/chat/completions")
+POSTER_SERVER_TOKEN = os.environ.get("POSTER_SERVER_TOKEN", "")
 
 if not MEMEFAST_API_KEY:
     raise RuntimeError("MEMEFAST_API_KEY 环境变量未设置")
+
+if not POSTER_SERVER_TOKEN:
+    raise RuntimeError("POSTER_SERVER_TOKEN 环境变量未设置")
 
 # 任务存储（线程安全）
 _tasks: dict[str, dict] = {}
@@ -35,8 +39,10 @@ app = FastAPI(title="AI Poster Generator")
 
 class JobRequest(BaseModel):
     imageUrl: str
-    type: str  # "palm" or "hair"
+    type: str
+    generationPrompt: str
     test: bool = False  # 测试模式，不调用API
+    testPosterFileID: str | None = None
 
 
 class JobCreateResponse(BaseModel):
@@ -61,24 +67,11 @@ def mask_url(url: str) -> str:
         return url[:20] + "..."
 
 
-def generate_poster(image_url: str, job_type: str) -> str:
+def generate_poster(image_url: str, job_type: str, generation_prompt: str) -> str:
     """调用大模型生成海报"""
-    
-    palm_prompt = """Based on this palm photo, generate a beautiful palmistry analysis poster in Chinese. 
-Style: minimalist line art, elegant typography, warm beige background. 
-Include: a traced palm outline with labeled lines (生命线/智慧线/感情线/事业线), 
-personality traits section, career compatibility section, emotional characteristics section. 
-Text should be in Chinese. Format: vertical poster, clean layout, professional look."""
-    
-    hair_prompt = """Based on this person's photo, generate a professional hairstyle analysis poster in Chinese.
-Style: modern magazine layout, dark navy background with white cards.
-Include: person's photo on left with face analysis (脸型/发质/发色),
-recommended hairstyles with example images on right, styles to avoid section,
-hair care tips, product recommendations.
-Text should be in Chinese. Format: vertical poster, clean layout, professional look."""
-    
-    prompt = palm_prompt if job_type == "palm" else hair_prompt
-    
+
+    prompt = generation_prompt
+
     logger.info(f"开始生成海报，类型: {job_type}, 图片: {mask_url(image_url)}")
     
     try:
@@ -161,7 +154,14 @@ async def cleanup_expired_tasks():
         logger.info(f"清理过期任务: {len(expired)} 个")
 
 
-async def process_job(task_id: str, image_url: str, job_type: str, is_test: bool = False):
+async def process_job(
+    task_id: str,
+    image_url: str,
+    job_type: str,
+    generation_prompt: str,
+    is_test: bool = False,
+    test_poster_file_id: str | None = None,
+):
     """后台处理任务"""
     try:
         async with _tasks_lock:
@@ -171,14 +171,22 @@ async def process_job(task_id: str, image_url: str, job_type: str, is_test: bool
         
         if is_test:
             await asyncio.sleep(15)
-            test_poster_url = "https://pro.filesystem.site/cdn/20260502/4f5e70a3dcb59a0ac9fd60424093c8.png"
+            poster_url = (
+                test_poster_file_id
+                or "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-posters/0274fd6869f6176c00082cfb0eeefd94.png"
+            )
             async with _tasks_lock:
                 _tasks[task_id]["status"] = "completed"
-                _tasks[task_id]["posterUrl"] = test_poster_url
-            logger.info(f"[TEST] 任务完成: {task_id}, posterUrl: {mask_url(test_poster_url)}")
+                _tasks[task_id]["posterUrl"] = poster_url
+            logger.info(f"[TEST] 任务完成: {task_id}, posterUrl: {mask_url(poster_url)}")
             return
-        
-        poster_content = await asyncio.to_thread(generate_poster, image_url, job_type)
+
+        poster_content = await asyncio.to_thread(
+            generate_poster,
+            image_url,
+            job_type,
+            generation_prompt,
+        )
         poster_url = extract_url_from_response(poster_content)
         
         async with _tasks_lock:
@@ -196,12 +204,27 @@ async def process_job(task_id: str, image_url: str, job_type: str, is_test: bool
 
 
 @app.post("/api/job", response_model=JobCreateResponse)
-async def create_job(job: JobRequest, background_tasks: BackgroundTasks):
+async def create_job(
+    job: JobRequest,
+    background_tasks: BackgroundTasks,
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+):
     """创建图片生成任务"""
-    
-    if job.type not in ["palm", "hair"]:
+
+    if not POSTER_SERVER_TOKEN or x_internal_token != POSTER_SERVER_TOKEN:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Type naming convention: lowercase alphanumeric, may contain hyphens/underscores,
+    # 2-32 chars total, must start with a letter. Examples: palm, hair, ai-makeup.
+    if not re.fullmatch(r"[a-z][a-z0-9_-]{1,31}", job.type):
         raise HTTPException(status_code=400, detail="无效的类型参数")
-    
+
+    prompt = job.generationPrompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="缺少生成提示词")
+    if len(prompt) > 4000:
+        raise HTTPException(status_code=400, detail="生成提示词过长")
+
     task_id = f"task_{uuid.uuid4().hex[:12]}"
     
     async with _tasks_lock:
@@ -213,7 +236,15 @@ async def create_job(job: JobRequest, background_tasks: BackgroundTasks):
             "createdAt": time.time()
         }
     
-    background_tasks.add_task(process_job, task_id, job.imageUrl, job.type, job.test)
+    background_tasks.add_task(
+        process_job,
+        task_id,
+        job.imageUrl,
+        job.type,
+        prompt,
+        job.test,
+        job.testPosterFileID,
+    )
     
     logger.info(f"创建任务: {task_id}, test={job.test}")
     
