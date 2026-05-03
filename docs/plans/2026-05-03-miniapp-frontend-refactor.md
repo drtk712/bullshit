@@ -85,7 +85,7 @@ const FEATURE_CONFIGS = {
     enabled: true,
     order: 10,
     public: {
-      title: "AI看手相",
+      title: "看手相",
       shortTitle: "看手相",
       description: "上传清晰手掌照片，生成专属手相解读海报",
       icon: "🖐️",
@@ -116,7 +116,7 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
     enabled: true,
     order: 20,
     public: {
-      title: "AI设计发型",
+      title: "设计发型",
       shortTitle: "设计发型",
       description: "上传正面照片，生成专属发型建议海报",
       icon: "💇",
@@ -203,7 +203,7 @@ List response:
         type: "palm",
         enabled: true,
         order: 10,
-        title: "AI看手相",
+        title: "看手相",
         shortTitle: "看手相",
         description: "上传清晰手掌照片，生成专属手相解读海报",
         icon: "🖐️",
@@ -226,7 +226,7 @@ Single feature response:
   data: {
     feature: {
       type: "palm",
-      title: "AI看手相",
+      title: "看手相",
       route: "/pages/ai/index?type=palm"
     }
   }
@@ -560,7 +560,7 @@ background_tasks.add_task(
 const FALLBACK_FEATURES = [
   {
     type: "palm",
-    title: "AI看手相",
+    title: "看手相",
     shortTitle: "看手相",
     description: "上传清晰手掌照片，生成专属手相解读海报",
     icon: "🖐️",
@@ -572,7 +572,7 @@ const FALLBACK_FEATURES = [
   },
   {
     type: "hair",
-    title: "AI设计发型",
+    title: "设计发型",
     shortTitle: "设计发型",
     description: "上传正面照片，生成专属发型建议海报",
     icon: "💇",
