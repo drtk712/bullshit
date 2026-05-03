@@ -5,6 +5,7 @@ function createAiPage() {
       configLoading: true,
       configError: "",
       posterUrl: "",
+      posterPreviewUrl: "",
       loading: false,
       loadingText: "",
       errorMsg: "",
@@ -93,6 +94,7 @@ function createAiPage() {
         loadingText: "正在处理图片...",
         errorMsg: "",
         posterUrl: "",
+        posterPreviewUrl: "",
       });
 
       wx.compressImage({
@@ -213,11 +215,7 @@ function createAiPage() {
                 this.cleanupTask();
 
                 if (posterFileID) {
-                  this.setData({
-                    loading: false,
-                    posterUrl: posterFileID,
-                    errorMsg: "",
-                  });
+                  this.showPoster(posterFileID);
                 } else {
                   this.setData({
                     loading: false,
@@ -262,6 +260,53 @@ function createAiPage() {
     onImageLoad() {},
     onImageError(e) {
       console.error("图片加载失败:", e);
+    },
+
+    async showPoster(posterFileID) {
+      try {
+        const posterPreviewUrl = await this.getPosterPreviewURL(posterFileID);
+        this.setData({
+          loading: false,
+          posterUrl: posterFileID,
+          posterPreviewUrl,
+          errorMsg: "",
+        });
+      } catch (err) {
+        this.setData({
+          loading: false,
+          posterUrl: posterFileID,
+          posterPreviewUrl: "",
+          errorMsg: "",
+        });
+      }
+    },
+
+    async previewPoster() {
+      const posterUrl = this.data.posterUrl;
+      if (!posterUrl) return;
+
+      try {
+        const tempUrl = this.data.posterPreviewUrl || await this.getPosterPreviewURL(posterUrl);
+        wx.previewImage({
+          urls: [tempUrl],
+          current: tempUrl,
+        });
+      } catch (err) {
+        wx.showToast({ title: "预览失败", icon: "none" });
+      }
+    },
+
+    async getPosterPreviewURL(fileID) {
+      if (!fileID.startsWith("cloud://")) return fileID;
+
+      const result = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+      const fileInfo = result.fileList && result.fileList[0];
+
+      if (!fileInfo || fileInfo.status !== 0 || !fileInfo.tempFileURL) {
+        throw new Error(fileInfo?.errMsg || "获取图片链接失败");
+      }
+
+      return fileInfo.tempFileURL;
     },
 
     onShow() {

@@ -87,11 +87,27 @@ page {
   min-height: 720rpx;
 }
 
+.poster-preview {
+  position: relative;
+}
+
 .poster-image {
   display: block;
   width: 100%;
   height: 720rpx;
   background: #f0f0f0;
+}
+
+.poster-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 24rpx;
+  transform: translateX(-50%);
+  padding: 10rpx 22rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.52);
+  color: #ffffff;
+  font-size: 24rpx;
 }
 
 .upload-placeholder,

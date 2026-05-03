@@ -34,14 +34,16 @@
     </view>
 
     <view class="upload-card" bindtap="handleUploadTap">
-      <image
-        wx:if="{{posterUrl}}"
-        class="poster-image"
-        src="{{posterUrl}}"
-        mode="aspectFill"
-        binderror="onImageError"
-        bindload="onImageLoad"
-      />
+      <view wx:if="{{posterUrl}}" class="poster-preview" catchtap="previewPoster">
+        <image
+          class="poster-image"
+          src="{{posterPreviewUrl || posterUrl}}"
+          mode="aspectFill"
+          binderror="onImageError"
+          bindload="onImageLoad"
+        />
+        <view class="poster-tip">点击查看大图</view>
+      </view>
 
       <view wx:elif="{{loading}}" class="status-panel">
         <view class="loading-spinner"></view>
