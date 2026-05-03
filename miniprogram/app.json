@@ -4,6 +4,7 @@
     "pages/mine/index",
     "pages/mine/transactions",
     "pages/mine/tasks",
+    "pages/mine/task-detail",
     "pages/ai/index",
     "pages/palm/index",
     "pages/hair/index"

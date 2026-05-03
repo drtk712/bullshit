@@ -1,0 +1,61 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state-card">
+    <view class="loading-spinner"></view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="state-card">
+    <text class="state-text error">{{error}}</text>
+  </view>
+
+  <block wx:else>
+    <view class="info-card">
+      <view class="info-row">
+        <text class="info-label">任务类型</text>
+        <text class="info-value">{{task.displayName}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">状态</text>
+        <text class="info-value {{task.statusClass}}">{{task.statusText}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">创建时间</text>
+        <text class="info-value">{{task.formattedTime}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">消耗积分</text>
+        <text class="info-value">{{task.pointsCost || 0}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{task.status === 'pending'}}" class="pending-card">
+      <view class="pending-icon">⏳</view>
+      <text class="pending-title">正在生成中，请稍候...</text>
+      <text class="pending-desc">通常需要 10-30 秒，请勿关闭页面</text>
+      <view class="pending-spinner">
+        <view class="loading-spinner"></view>
+      </view>
+    </view>
+
+    <view wx:elif="{{task.status === 'completed'}}" class="poster-card">
+      <text class="poster-title">生成结果</text>
+      <view class="poster-container" bindtap="viewPoster">
+        <image wx:if="{{posterPreviewUrl}}" class="poster-image" src="{{posterPreviewUrl}}" mode="widthFix" lazy-load="true"></image>
+        <view wx:else class="poster-placeholder">
+          <text class="poster-placeholder-text">{{posterError || '图片加载中...'}}</text>
+        </view>
+        <view class="poster-tip">点击查看大图</view>
+      </view>
+      <button class="save-btn" bindtap="savePoster">保存到相册</button>
+    </view>
+
+    <view wx:elif="{{task.status === 'failed'}}" class="failed-card">
+      <view class="failed-icon">❌</view>
+      <text class="failed-title">生成失败</text>
+      <text class="failed-reason" wx:if="{{task.errMsg}}">{{task.errMsg}}</text>
+      <view class="refund-hint" wx:if="{{task.pointsRefunded}}">
+        <text class="refund-text">💡 已自动退还 {{task.pointsCost || 0}} 积分</text>
+      </view>
+    </view>
+  </block>
+</view>
