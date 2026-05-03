@@ -157,7 +157,7 @@ Page({
       'palm': '看手相',
       'hair': '设计发型'
     };
-    return typeMap[type] || '瞎扯';
+    return typeMap[type] || '生成记录';
   },
 
   getTaskStatusText(task) {
