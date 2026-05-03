@@ -1,4 +1,4 @@
-# 瞎说 - 项目设计文档
+# 玩图局 - 项目设计文档
 
 ## 项目概述
 
@@ -306,7 +306,7 @@ MEMEFAST_API_URL=https://memefast.top/v1/chat/completions
 ## 项目结构
 
 ```
-bullshit/
+wantujv/
 ├── DESIGN.md                      # 项目设计文档
 ├── README.md                      # 项目说明
 ├── project.config.json            # 小程序项目配置
