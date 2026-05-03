@@ -3,5 +3,12 @@
   "memorySize": 256,
   "permissions": {
     "openapi": ["wxacode.get"]
-  }
+  },
+  "triggers": [
+    {
+      "name": "cleanupStaleTasksTimer",
+      "type": "timer",
+      "config": "0 */5 * * * * *"
+    }
+  ]
 }

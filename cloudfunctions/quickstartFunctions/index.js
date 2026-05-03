@@ -395,6 +395,36 @@ const getTasks = async (event) => {
   }
 };
 
+const getTask = async (event) => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    const { taskId } = event.data;
+
+    if (!taskId) {
+      return { success: false, errMsg: "缺少任务ID" };
+    }
+
+    await ensureCollection();
+
+    const taskDoc = await db.collection(JOBS_COLLECTION).doc(taskId).get();
+
+    if (!taskDoc.data || taskDoc.data.openid !== openid) {
+      return { success: false, errMsg: "任务不存在" };
+    }
+
+    return {
+      success: true,
+      data: {
+        task: toPublicTask(taskDoc.data),
+      },
+    };
+  } catch (e) {
+    console.error("getTask 错误:", e.message);
+    return { success: false, errMsg: e.message || "获取任务详情失败" };
+  }
+};
+
 const validateImage = async (fileID, featureConfig) => {
   const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
   
@@ -510,7 +540,7 @@ const validateAndCreateJob = async (event) => {
 
     const wxContext = cloud.getWXContext();
     const openid = wxContext.OPENID;
-    const shouldConsumePoints = !test && !skipPointsDeduction;
+    const shouldConsumePoints = !skipPointsDeduction;
     const user = await ensureUser(openid);
     let consumeResult = null;
 
@@ -818,6 +848,45 @@ const getTaskStatus = async (event) => {
   }
 };
 
+const STALE_TASK_TIMEOUT_MS = 15 * 60 * 1000;
+
+const cleanupStaleTasks = async () => {
+  try {
+    const staleThreshold = Date.now() - STALE_TASK_TIMEOUT_MS;
+
+    const staleTasks = await db.collection(JOBS_COLLECTION)
+      .where({
+        status: "pending",
+        createdAt: _.lt(staleThreshold),
+      })
+      .limit(100)
+      .get();
+
+    let cleanedCount = 0;
+
+    for (const task of staleTasks.data || []) {
+      try {
+        await markTaskFailedWithRefund({
+          taskId: task._id,
+          task,
+          errMsg: "任务超时，自动取消",
+        });
+        cleanedCount++;
+      } catch (e) {
+        console.error(`cleanupStaleTasks 处理任务 ${task._id} 失败:`, e.message);
+      }
+    }
+
+    return {
+      success: true,
+      data: { cleanedCount, total: (staleTasks.data || []).length },
+    };
+  } catch (e) {
+    console.error("cleanupStaleTasks 错误:", e.message);
+    return { success: false, errMsg: e.message || "清理超时任务失败" };
+  }
+};
+
 exports.main = async (event, context) => {
   switch (event.type) {
     case "getFeatureConfig":
@@ -834,6 +903,10 @@ exports.main = async (event, context) => {
       return await getTransactions(event);
     case "getTasks":
       return await getTasks(event);
+    case "getTask":
+      return await getTask(event);
+    case "cleanupStaleTasks":
+      return await cleanupStaleTasks(event);
     default:
       return { success: false, errMsg: `未知的操作类型: ${event.type}` };
   }
