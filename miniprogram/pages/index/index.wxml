@@ -1,6 +1,6 @@
 <view class="container">
   <view class="header">
-    <view class="title">瞎说</view>
+    <view class="title">玩图局</view>
     <view class="subtitle">选个主题，生成你的专属解读</view>
   </view>
 
