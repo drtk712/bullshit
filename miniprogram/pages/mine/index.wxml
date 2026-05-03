@@ -1,0 +1,53 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state-card">
+    <view class="loading-spinner"></view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <view wx:if="{{error && !loading}}" class="state-card">
+    <text class="state-text error">{{error}}</text>
+  </view>
+
+  <view wx:if="{{!loading && !error}}">
+    <view class="user-card">
+      <view class="user-avatar">👤</view>
+      <view class="user-info">
+        <text class="user-name">微信用户</text>
+        <text class="user-id">ID: {{user.openidMasked || '未登录'}}</text>
+      </view>
+    </view>
+    <view class="user-hint">首次登录赠送 3 积分</view>
+
+    <view class="points-card">
+      <text class="points-label">当前积分</text>
+      <text class="points-value">{{points}}</text>
+      <text class="points-hint">每次生成消耗 1 积分</text>
+    </view>
+
+    <view class="records-card">
+      <text class="records-title">积分明细</text>
+      <view wx:for="{{transactions}}" wx:key="_id" class="transaction-item">
+        <view class="transaction-main">
+          <text class="transaction-title">{{item.typeText}}</text>
+          <text class="transaction-time">{{item.timeText}}</text>
+        </view>
+        <text class="transaction-amount {{item.amountClass}}">{{item.amountText}}</text>
+      </view>
+      <view wx:if="{{transactions.length === 0}}" class="empty-state">
+        <text class="empty-text">暂无积分记录</text>
+      </view>
+    </view>
+
+    <view class="records-card">
+      <text class="records-title">最近生成</text>
+      <view wx:for="{{tasks}}" wx:key="_id" class="task-item">
+        <text class="task-name">{{item.displayName}}</text>
+        <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
+        <text class="task-time">{{item.timeText}}</text>
+      </view>
+      <view wx:if="{{tasks.length === 0}}" class="empty-state">
+        <text class="empty-text">暂无生成记录</text>
+      </view>
+    </view>
+  </view>
+</view>

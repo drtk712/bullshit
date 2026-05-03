@@ -1,0 +1,230 @@
+page {
+  background: #f7f7f7;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx 28rpx 120rpx;
+  box-sizing: border-box;
+}
+
+.state-card {
+  display: flex;
+  min-height: 220rpx;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 48rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 52rpx;
+  height: 52rpx;
+  margin-bottom: 16rpx;
+  border: 4rpx solid #eeeeee;
+  border-top-color: #07c160;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.state-text {
+  color: #888888;
+  font-size: 27rpx;
+}
+
+.state-text.error {
+  color: #e64340;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  margin-right: 24rpx;
+  border-radius: 50%;
+  background: #f0fbf5;
+  font-size: 32rpx;
+}
+
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  color: #111111;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.user-id {
+  margin-top: 8rpx;
+  color: #888888;
+  font-size: 24rpx;
+}
+
+.user-hint {
+  margin-bottom: 24rpx;
+  padding-left: 4rpx;
+  color: #999999;
+  font-size: 24rpx;
+}
+
+.points-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 48rpx 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.points-label {
+  color: #888888;
+  font-size: 28rpx;
+}
+
+.points-value {
+  margin-top: 16rpx;
+  color: #07c160;
+  font-size: 80rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.points-hint {
+  margin-top: 16rpx;
+  color: #999999;
+  font-size: 24rpx;
+}
+
+.records-card {
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+}
+
+.records-title {
+  display: block;
+  margin-bottom: 24rpx;
+  color: #111111;
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.transaction-item,
+.task-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.transaction-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.transaction-title {
+  color: #222222;
+  font-size: 28rpx;
+}
+
+.transaction-time {
+  margin-top: 8rpx;
+  color: #bbbbbb;
+  font-size: 23rpx;
+}
+
+.transaction-amount {
+  margin-left: 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.amount-plus {
+  color: #07c160;
+}
+
+.amount-minus {
+  color: #e64340;
+}
+
+.transaction-item:last-child,
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-name {
+  flex: 1;
+  color: #222222;
+  font-size: 28rpx;
+}
+
+.task-status {
+  margin-right: 16rpx;
+  font-size: 24rpx;
+}
+
+.status-pending {
+  color: #ff9500;
+}
+
+.status-completed {
+  color: #07c160;
+}
+
+.status-failed {
+  color: #e64340;
+}
+
+.status-refunded {
+  color: #888888;
+}
+
+.task-time {
+  color: #bbbbbb;
+  font-size: 24rpx;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx 0;
+}
+
+.empty-text {
+  color: #999999;
+  font-size: 26rpx;
+}
