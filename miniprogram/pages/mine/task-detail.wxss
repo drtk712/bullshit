@@ -81,6 +81,10 @@ page {
   color: #ff9500;
 }
 
+.status-processing {
+  color: #1677ff;
+}
+
 .status-completed {
   color: #07c160;
 }

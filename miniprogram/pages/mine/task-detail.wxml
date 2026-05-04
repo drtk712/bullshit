@@ -28,10 +28,10 @@
       </view>
     </view>
 
-    <view wx:if="{{task.status === 'pending'}}" class="pending-card">
-      <view class="pending-icon">⏳</view>
-      <text class="pending-title">正在生成中，请稍候...</text>
-      <text class="pending-desc">通常需要 10-30 秒，请勿关闭页面</text>
+    <view wx:if="{{task.status === 'pending' || task.status === 'processing'}}" class="pending-card">
+      <view class="pending-icon">{{task.status === 'processing' ? '🎨' : '⏳'}}</view>
+      <text class="pending-title">{{task.status === 'processing' ? '正在生成图片...' : '任务排队中...'}}</text>
+      <text class="pending-desc">{{task.status === 'processing' ? '服务端正在处理，请稍候' : '任务已创建，正在等待服务端开始处理'}}</text>
       <view class="pending-spinner">
         <view class="loading-spinner"></view>
       </view>

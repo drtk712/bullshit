@@ -49,9 +49,9 @@ Page({
           loading: false,
         });
 
-        if (task.status === 'pending' && !this.data.polling) {
+        if (this.isActiveTask(task.status) && !this.data.polling) {
           this.startPolling();
-        } else if (task.status !== 'pending' && this.data.polling) {
+        } else if (!this.isActiveTask(task.status) && this.data.polling) {
           this.stopPolling();
         }
       } else {
@@ -76,8 +76,26 @@ Page({
   startPolling() {
     this.setData({ polling: true });
     this.pollTimer = setInterval(() => {
-      this.loadTask({ silent: true });
+      this.refreshActiveTaskStatus();
     }, 3000);
+  },
+
+  async refreshActiveTaskStatus() {
+    if (!this.taskId) return;
+
+    try {
+      await wx.cloud.callFunction({
+        name: 'quickstartFunctions',
+        data: {
+          type: 'getTaskStatus',
+          data: { taskId: this.taskId }
+        }
+      });
+    } catch (err) {
+      // 下一轮继续尝试；详情展示仍以云数据库中的任务记录为准。
+    }
+
+    await this.loadTask({ silent: true });
   },
 
   stopPolling() {
@@ -167,9 +185,14 @@ Page({
     return typeMap[type] || '生成记录';
   },
 
+  isActiveTask(status) {
+    return status === 'pending' || status === 'processing';
+  },
+
   getTaskStatusText(task) {
     const statusMap = {
-      'pending': '处理中',
+      'pending': '排队中',
+      'processing': '生成中',
       'completed': '已完成',
       'failed': task.pointsRefunded ? '失败已退款' : '生成失败'
     };
@@ -178,6 +201,7 @@ Page({
 
   getTaskStatusClass(status, pointsRefunded) {
     if (status === 'pending') return 'status-pending';
+    if (status === 'processing') return 'status-processing';
     if (status === 'completed') return 'status-completed';
     if (status === 'failed') return pointsRefunded ? 'status-refunded' : 'status-failed';
     return '';

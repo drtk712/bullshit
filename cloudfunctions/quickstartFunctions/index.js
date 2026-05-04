@@ -693,7 +693,7 @@ const getTaskStatus = async (event) => {
       return { success: false, errMsg: "任务不存在" };
     }
 
-    if (task.status === "pending") {
+    if (task.status === "pending" || task.status === "processing") {
       const SERVER_URL = process.env.POSTER_SERVER_URL || "http://36.156.154.98:8011";
       
       if (!task.serverTaskId) {
@@ -713,6 +713,36 @@ const getTaskStatus = async (event) => {
         const serverStatus = serverResp.data?.status;
         const posterUrl = serverResp.data?.posterUrl;
         const errMsg = serverResp.data?.errMsg;
+
+        if (serverStatus === "pending" || serverStatus === "processing") {
+          if (task.status !== serverStatus) {
+            await db.collection(JOBS_COLLECTION).doc(taskId).update({
+              data: {
+                status: serverStatus,
+                errMsg: errMsg || "",
+                updatedAt: Date.now(),
+              },
+            });
+          }
+
+          return {
+            success: true,
+            data: {
+              status: serverStatus,
+              posterFileID: task.posterFileID,
+              errMsg: errMsg || "",
+            },
+          };
+        }
+
+        if (serverStatus === "completed" && !posterUrl) {
+          await markTaskFailedWithRefund({
+            taskId,
+            task,
+            errMsg: "服务端已完成但未返回图片链接",
+          });
+          return { success: false, errMsg: "生成结果异常，请重试" };
+        }
 
         if (serverStatus === "completed" && posterUrl) {
           if (posterUrl.startsWith("cloud://")) {
@@ -816,15 +846,42 @@ const getTaskStatus = async (event) => {
           };
         }
       } catch (e) {
-        console.error("查询服务端失败:", e.code, e.message);
+        const statusCode = e.response?.status;
+        const responseDetail = e.response?.data?.detail || e.response?.data?.errMsg || "";
+        console.error("查询服务端失败:", {
+          code: e.code,
+          statusCode,
+          message: e.message,
+          responseDetail,
+          taskId,
+          serverTaskId: task.serverTaskId,
+        });
         
-        if (e.code === "ECONNABORTED" || e.code === "ENOTFOUND" || e.code === "ECONNREFUSED") {
+        if (statusCode === 404) {
+          await markTaskFailedWithRefund({
+            taskId,
+            task,
+            errMsg: "服务端任务不存在或已过期",
+          });
+          return { success: true, data: { status: "failed", errMsg: "任务已过期，请重试" } };
+        }
+
+        if (statusCode >= 400 && statusCode < 500) {
+          await markTaskFailedWithRefund({
+            taskId,
+            task,
+            errMsg: responseDetail || "服务端任务状态异常",
+          });
+          return { success: true, data: { status: "failed", errMsg: responseDetail || "生成失败，请重试" } };
+        }
+
+        if (e.code === "ECONNABORTED" || e.code === "ETIMEDOUT" || e.code === "ENOTFOUND" || e.code === "EAI_AGAIN" || e.code === "ECONNREFUSED" || e.code === "ECONNRESET" || statusCode >= 500 || !e.response) {
           return {
             success: true,
             data: {
               status: task.status,
               posterFileID: task.posterFileID,
-              errMsg: "服务端暂时不可用，请稍后重试",
+              errMsg: e.code ? `服务端暂时不可用，请稍后重试（${e.code}）` : "服务端暂时不可用，请稍后重试",
             }
           };
         }

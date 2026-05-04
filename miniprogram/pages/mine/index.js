@@ -165,7 +165,8 @@ Page({
 
   getTaskStatusText(task) {
     const statusMap = {
-      'pending': '处理中',
+      'pending': '排队中',
+      'processing': '生成中',
       'completed': '已完成',
       'failed': task.pointsRefunded ? '失败已退款' : '生成失败'
     };
@@ -174,6 +175,7 @@ Page({
 
   getTaskStatusClass(status, pointsRefunded) {
     if (status === 'pending') return 'status-pending';
+    if (status === 'processing') return 'status-processing';
     if (status === 'completed') return 'status-completed';
     if (status === 'failed') return pointsRefunded ? 'status-refunded' : 'status-failed';
     return '';
