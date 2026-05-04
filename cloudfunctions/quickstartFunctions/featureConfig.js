@@ -162,6 +162,36 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
       posterFileID: TEST_POSTER_FILE_ID,
     },
   },
+  soul: {
+    type: "soul",
+    enabled: true,
+    order: 50,
+    public: {
+      title: "灵魂画手",
+      shortTitle: "灵魂画手",
+      description: "上传照片，生成魔性灵魂画风",
+      icon: "🎨",
+      uploadIcon: "📷",
+      uploadTitle: "上传照片",
+      uploadTip: "请确保照片清晰",
+      retryText: "重新上传",
+      route: "/pages/ai/index?type=soul",
+    },
+    validation: {
+      serviceUrl:
+        process.env.VALIDATION_SERVICE_URL ||
+        "http://36.156.154.98:8010/v1/chat/completions",
+      model: process.env.VALIDATION_MODEL || "qwen3.6",
+      prompt: "这张图片是否是一张清晰的照片？请只回答'是'或'否'。",
+      failMessage: "图片不符合要求，请重新上传清晰照片",
+    },
+    generation: {
+      prompt: `Redraw the attached image in the most clumsy, scribbly, and utterly pathetic way possible. Use a white background, and make it look like it was drawn in MS Paint with a mouse. It should be vaguely similar but also not really, kind of matching but also off in a confusing, awkward way, with that low-quality pixel-by-pixel feel that really emphasizes how ridiculously bad it is. Actually, you know what, whatever, just draw it however you want.`,
+    },
+    test: {
+      posterFileID: TEST_POSTER_FILE_ID,
+    },
+  },
 };
 
 function getEnabledFeatureConfig(type) {
