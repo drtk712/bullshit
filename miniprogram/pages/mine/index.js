@@ -155,7 +155,8 @@ Page({
   getTaskDisplayName(type) {
     const typeMap = {
       'palm': '看手相',
-      'hair': '设计发型'
+      'hair': '设计发型',
+      'profile': '个人形象分析'
     };
     return typeMap[type] || '生成记录';
   },

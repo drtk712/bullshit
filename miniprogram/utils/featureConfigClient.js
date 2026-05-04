@@ -23,6 +23,18 @@ const FALLBACK_FEATURES = [
     retryText: "重新上传",
     route: "/pages/ai/index?type=hair",
   },
+  {
+    type: "profile",
+    title: "个人形象分析",
+    shortTitle: "形象分析",
+    description: "上传正面肖像照，生成专属个人形象分析图卡",
+    icon: "✨",
+    uploadIcon: "📷",
+    uploadTitle: "上传正面肖像照",
+    uploadTip: "请确保脸部正面清晰、无遮挡、光线充足",
+    retryText: "重新上传",
+    route: "/pages/ai/index?type=profile",
+  },
 ];
 
 /**
