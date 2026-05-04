@@ -35,6 +35,18 @@ const FALLBACK_FEATURES = [
     retryText: "重新上传",
     route: "/pages/ai/index?type=profile",
   },
+  {
+    type: "doodle",
+    title: "INS手绘风照片",
+    shortTitle: "手绘照片",
+    description: "上传照片，生成手绘风注解照片",
+    icon: "✏️",
+    uploadIcon: "📷",
+    uploadTitle: "上传照片",
+    uploadTip: "请确保照片清晰、光线充足",
+    retryText: "重新上传",
+    route: "/pages/ai/index?type=doodle",
+  },
 ];
 
 /**
