@@ -888,6 +888,18 @@ const cleanupStaleTasks = async () => {
 };
 
 exports.main = async (event, context) => {
+  // 处理定时触发器触发 (微信云开发定时任务 event.Type = "Timer")
+  if (event.Type === "Timer" || event.TriggerName) {
+    if (event.TriggerName === "cleanupStaleTasksTimer") {
+      console.log("[Timer] 定时任务触发: 清理超时任务", new Date().toISOString());
+      const result = await cleanupStaleTasks(event);
+      console.log("[Timer] 定时任务完成: 清理了", result.data?.cleanedCount || 0, "个任务");
+      return result;
+    }
+    return { success: false, errMsg: `未知触发器: ${event.TriggerName}` };
+  }
+
+  // 处理普通调用
   switch (event.type) {
     case "getFeatureConfig":
       return await getFeatureConfig(event);
