@@ -157,7 +157,8 @@ Page({
       'palm': '看手相',
       'hair': '设计发型',
       'profile': '个人形象分析',
-      'doodle': 'INS手绘风照片'
+      'doodle': 'INS手绘风照片',
+      'soul': '灵魂画手'
     };
     return typeMap[type] || '生成记录';
   },

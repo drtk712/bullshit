@@ -47,6 +47,18 @@ const FALLBACK_FEATURES = [
     retryText: "重新上传",
     route: "/pages/ai/index?type=doodle",
   },
+  {
+    type: "soul",
+    title: "灵魂画手",
+    shortTitle: "灵魂画手",
+    description: "上传照片，生成魔性灵魂画风",
+    icon: "🎨",
+    uploadIcon: "📷",
+    uploadTitle: "上传照片",
+    uploadTip: "请确保照片清晰",
+    retryText: "重新上传",
+    route: "/pages/ai/index?type=soul",
+  },
 ];
 
 /**
