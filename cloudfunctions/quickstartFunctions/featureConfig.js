@@ -100,19 +100,13 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
       failMessage: "图片不符合要求，请重新拍摄清晰正面人像",
     },
     generation: {
-      prompt: `Based on this person's portrait photo, generate a professional personal image analysis poster in Chinese.
-Style: clean, premium, minimalist aesthetic, high-end fashion magazine look, 3:4 aspect ratio.
-CRITICAL: Preserve the person's actual facial features, skin tone, and face shape. Do NOT over-edit or change their appearance. All variations must show on THEIR ACTUAL FACE for realistic comparison.
-
-Content sections:
-1. HAIRSTYLE - Compare Best / Average / Not Recommended, with labels: 显脸小 (face slimming), 显老 (aging)
-   - Include length, curl/straight, and fringe recommendations
-2. MAKEUP - Eyebrow, eye, nose, lip analysis with style labels: 自然 (natural), 提气色 (vibrant), 柔和 (soft)
-3. COLORS - Compare Recommended / Average / Not Suitable colors with labels: 显白 (flattering skin tone), 显老 (aging)
-   - Show how different colors look on the person
-4. JEWELRY - Compare Recommended / Average / Not Suitable for: 珍珠 (pearls), 翡翠 (jade), 红蓝宝 (ruby/sapphire), 钻石 (diamond), 黄金 (gold)
-
-Visual priority over text. Keep all text concise and minimal. Chinese only. Clean layout with clear section headers.`,
+      prompt: `请根据我上传的人像照片，做一套个人形象分析图卡，包含发型、妆容、色彩和珠宝。
+要求：保留五官脸型肤色，不要过度修图，所有变化在同一张脸真实展示，风格干净高级。
+发型：长短、卷直、刘海，对比最适合 / 普通 / 不建议（显脸小、显老）
+妆容：眉眼鼻唇分析，标签（自然、提气色、柔和）
+色彩：不同颜色上身，对比推荐 / 普通 / 不适合（显白、显老）
+珠宝：珍珠、翡翠、红蓝宝、钻石、黄金，对比推荐 / 普通 / 不建议
+整体：视觉为主，文字简短，3:4比例`,
     },
     test: {
       posterFileID: TEST_POSTER_FILE_ID,
