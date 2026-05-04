@@ -112,6 +112,56 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
       posterFileID: TEST_POSTER_FILE_ID,
     },
   },
+  doodle: {
+    type: "doodle",
+    enabled: true,
+    order: 40,
+    public: {
+      title: "INS手绘风照片",
+      shortTitle: "手绘照片",
+      description: "上传照片，生成手绘风注解照片",
+      icon: "✏️",
+      uploadIcon: "📷",
+      uploadTitle: "上传照片",
+      uploadTip: "请确保照片清晰、光线充足",
+      retryText: "重新上传",
+      route: "/pages/ai/index?type=doodle",
+    },
+    validation: {
+      serviceUrl:
+        process.env.VALIDATION_SERVICE_URL ||
+        "http://36.156.154.98:8010/v1/chat/completions",
+      model: process.env.VALIDATION_MODEL || "qwen3.6",
+      prompt: "这张图片是否是一张清晰的照片？请只回答'是'或'否'。",
+      failMessage: "图片不符合要求，请重新上传清晰照片",
+    },
+    generation: {
+      prompt: `请观察照片中的元素，并为每个物件加上有意义的手绘风注解。请填写照片中的物品（例：披萨、汽水）
+
+【描写规则】
+• 使用像白色笔画的细线手绘线条
+• 一笔画风格、随性、略带不均匀感
+• 沿着物件外围加上描边轮廓
+• 用箭头或虚线做出视线引导
+
+【文字规则】
+• 手写风格字体（日系可爱感）
+• 句子简短、像自言自语的小碎念
+• 语气偏日记感、带一点情绪
+
+【注解生成规则】
+• 饮料 → 味道、温度、心情（例：清爽、微甜、刚刚好）
+• 食物 → 口感、好吃程度（例：松软、超好吃）
+• 空间 → 氛围（例：很放松、喜欢这种感觉）
+• 整体 → 一句总结（例：今天有点幸福~）
+
+【装饰】
+• 适度加入热气、闪光、爱心、星星、小表情等元素。不要过度装饰，保留空白空间。`,
+    },
+    test: {
+      posterFileID: TEST_POSTER_FILE_ID,
+    },
+  },
 };
 
 function getEnabledFeatureConfig(type) {
