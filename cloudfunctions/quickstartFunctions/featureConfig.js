@@ -76,6 +76,48 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
       posterFileID: TEST_POSTER_FILE_ID,
     },
   },
+  profile: {
+    type: "profile",
+    enabled: true,
+    order: 30,
+    public: {
+      title: "个人形象分析",
+      shortTitle: "形象分析",
+      description: "上传正面肖像照，生成专属个人形象分析图卡",
+      icon: "✨",
+      uploadIcon: "📷",
+      uploadTitle: "上传正面肖像照",
+      uploadTip: "请确保脸部正面清晰、无遮挡、光线充足",
+      retryText: "重新上传",
+      route: "/pages/ai/index?type=profile",
+    },
+    validation: {
+      serviceUrl:
+        process.env.VALIDATION_SERVICE_URL ||
+        "http://36.156.154.98:8010/v1/chat/completions",
+      model: process.env.VALIDATION_MODEL || "qwen3.6",
+      prompt: "这张图片是否包含清晰的正面人像照片？请只回答'是'或'否'。",
+      failMessage: "图片不符合要求，请重新拍摄清晰正面人像",
+    },
+    generation: {
+      prompt: `Based on this person's portrait photo, generate a professional personal image analysis poster in Chinese.
+Style: clean, premium, minimalist aesthetic, high-end fashion magazine look, 3:4 aspect ratio.
+CRITICAL: Preserve the person's actual facial features, skin tone, and face shape. Do NOT over-edit or change their appearance. All variations must show on THEIR ACTUAL FACE for realistic comparison.
+
+Content sections:
+1. HAIRSTYLE - Compare Best / Average / Not Recommended, with labels: 显脸小 (face slimming), 显老 (aging)
+   - Include length, curl/straight, and fringe recommendations
+2. MAKEUP - Eyebrow, eye, nose, lip analysis with style labels: 自然 (natural), 提气色 (vibrant), 柔和 (soft)
+3. COLORS - Compare Recommended / Average / Not Suitable colors with labels: 显白 (flattering skin tone), 显老 (aging)
+   - Show how different colors look on the person
+4. JEWELRY - Compare Recommended / Average / Not Suitable for: 珍珠 (pearls), 翡翠 (jade), 红蓝宝 (ruby/sapphire), 钻石 (diamond), 黄金 (gold)
+
+Visual priority over text. Keep all text concise and minimal. Chinese only. Clean layout with clear section headers.`,
+    },
+    test: {
+      posterFileID: TEST_POSTER_FILE_ID,
+    },
+  },
 };
 
 function getEnabledFeatureConfig(type) {
