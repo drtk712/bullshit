@@ -53,7 +53,7 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
       shortTitle: "设计发型",
       description: "上传正面照片，生成适合你的发型建议海报",
       icon: "💇",
-      previewImageHD: "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-preview-image/发型.png",
+      previewImageHD: "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-preview-image/hair.png",
       uploadIcon: "📷",
       uploadTitle: "上传正面照片",
       uploadTip: "请确保脸部正面清晰、无遮挡、光线充足",
