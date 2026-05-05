@@ -360,6 +360,12 @@ function createAiPage() {
       wx.cloud.downloadFile({
         fileID: this.data.posterUrl,
         success: (res) => {
+          if (!res.tempFilePath) {
+            wx.hideLoading();
+            wx.showToast({ title: "下载失败", icon: "none" });
+            return;
+          }
+
           wx.saveImageToPhotosAlbum({
             filePath: res.tempFilePath,
             success: () => {
@@ -408,7 +414,7 @@ function createAiPage() {
         }
       });
       
-      const featureName = this.data.feature?.name || "AI 创意生成";
+      const featureName = this.data.feature?.title || "AI 创意生成";
       return {
         title: `我用「玩图局」生成了${featureName}，快来试试！`,
         path: "/pages/index/index",
