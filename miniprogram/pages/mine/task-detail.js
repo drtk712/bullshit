@@ -1,4 +1,9 @@
 const { createTaskPoller, isActiveTaskStatus } = require('../../utils/taskPoller');
+const {
+  getTaskDisplayName,
+  getTaskStatusText,
+  getTaskStatusClass,
+} = require('../../utils/taskDisplay');
 
 Page({
   data: {
@@ -72,9 +77,9 @@ Page({
         this.setData({
           task: {
             ...task,
-            displayName: this.getTaskDisplayName(task.type),
-            statusText: this.getTaskStatusText(task),
-            statusClass: this.getTaskStatusClass(task.status, task.pointsRefunded),
+            displayName: getTaskDisplayName(task.type),
+            statusText: getTaskStatusText(task),
+            statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
             formattedTime: this.formatTime(task.createdAt),
           },
           ...posterState,
@@ -127,12 +132,12 @@ Page({
       status: taskStatus.status || this.data.task.status,
       posterFileID: taskStatus.posterFileID || this.data.task.posterFileID,
       errMsg: taskStatus.errMsg || '',
-      statusText: this.getTaskStatusText({
+      statusText: getTaskStatusText({
         ...this.data.task,
         status: taskStatus.status || this.data.task.status,
         errMsg: taskStatus.errMsg || '',
       }),
-      statusClass: this.getTaskStatusClass(
+      statusClass: getTaskStatusClass(
         taskStatus.status || this.data.task.status,
         this.data.task.pointsRefunded
       ),
@@ -281,32 +286,10 @@ Page({
     return fileInfo.tempFileURL;
   },
 
-  getTaskDisplayName(type) {
-    const typeMap = { 'palm': '看手相', 'hair': '设计发型', 'profile': '个人形象分析', 'doodle': 'INS手绘风照片', 'soul': '灵魂画手' };
-    return typeMap[type] || '生成记录';
-  },
-
   isActiveTask(status) {
     return isActiveTaskStatus(status);
   },
 
-  getTaskStatusText(task) {
-    const statusMap = {
-      'pending': '排队中',
-      'processing': '生成中',
-      'completed': '已完成',
-      'failed': task.pointsRefunded ? '失败已退款' : '生成失败'
-    };
-    return statusMap[task.status] || task.status;
-  },
-
-  getTaskStatusClass(status, pointsRefunded) {
-    if (status === 'pending') return 'status-pending';
-    if (status === 'processing') return 'status-processing';
-    if (status === 'completed') return 'status-completed';
-    if (status === 'failed') return pointsRefunded ? 'status-refunded' : 'status-failed';
-    return '';
-  },
 
   formatTime(timestamp) {
     if (!timestamp) return '';

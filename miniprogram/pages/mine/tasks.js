@@ -1,3 +1,9 @@
+const {
+  getTaskDisplayName,
+  getTaskStatusText,
+  getTaskStatusClass,
+} = require('../../utils/taskDisplay');
+
 const PAGE_SIZE = 20;
 
 Page({
@@ -37,9 +43,9 @@ Page({
         const { tasks, hasMore } = res.result.data;
         const processed = (tasks || []).map(t => ({
           ...t,
-          displayName: this.getTaskDisplayName(t.type),
-          statusText: this.getTaskStatusText(t),
-          statusClass: this.getTaskStatusClass(t.status, t.pointsRefunded),
+          displayName: getTaskDisplayName(t.type),
+          statusText: getTaskStatusText(t),
+          statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
           timeText: this.formatTime(t.createdAt)
         }));
 
@@ -99,26 +105,4 @@ Page({
     return `${month}-${day} ${hours}:${minutes}`;
   },
 
-  getTaskDisplayName(type) {
-    const typeMap = { 'palm': '看手相', 'hair': '设计发型', 'profile': '个人形象分析', 'doodle': 'INS手绘风照片', 'soul': '灵魂画手' };
-    return typeMap[type] || '生成记录';
-  },
-
-  getTaskStatusText(task) {
-    const statusMap = {
-      'pending': '排队中',
-      'processing': '生成中',
-      'completed': '已完成',
-      'failed': task.pointsRefunded ? '失败已退款' : '生成失败'
-    };
-    return statusMap[task.status] || task.status;
-  },
-
-  getTaskStatusClass(status, pointsRefunded) {
-    if (status === 'pending') return 'status-pending';
-    if (status === 'processing') return 'status-processing';
-    if (status === 'completed') return 'status-completed';
-    if (status === 'failed') return pointsRefunded ? 'status-refunded' : 'status-failed';
-    return '';
-  },
 });
