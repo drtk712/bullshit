@@ -3,7 +3,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, BackgroundTasks, Header, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import requests
 import time
@@ -31,10 +32,33 @@ _tasks_lock = asyncio.Lock()
 # 任务过期时间（秒）
 TASK_EXPIRE_SECONDS = 3600  # 1小时
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-7s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Poster Generator")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = (time.time() - start) * 1000
+
+    # 跳过健康检查的日志噪声
+    if request.url.path != "/health":
+        logger.info(
+            "%s %s → %s | %.0fms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+
+    return response
 
 
 class JobRequest(BaseModel):
@@ -72,7 +96,7 @@ def generate_poster(image_url: str, job_type: str, generation_prompt: str) -> st
 
     prompt = generation_prompt
 
-    logger.info(f"开始生成海报，类型: {job_type}, 图片: {mask_url(image_url)}")
+    logger.info("[海报生成] 类型: %s, 图片: %s", job_type, mask_url(image_url))
     
     try:
         resp = requests.post(
@@ -120,7 +144,7 @@ def generate_poster(image_url: str, job_type: str, generation_prompt: str) -> st
     if not content:
         raise Exception("大模型返回内容为空")
     
-    logger.info(f"大模型返回: {content[:100]}...")
+    logger.info("[海报生成] 大模型返回内容长度: %d 字符", len(content))
     return content
 
 
@@ -130,12 +154,12 @@ def extract_url_from_response(content: str) -> str:
     markdown_match = re.search(r'!\[.*?\]\((https?://[^\s\)]+)\)', content)
     if markdown_match:
         url = markdown_match.group(1)
-        logger.info(f"提取到 Markdown 图片 URL: {url}")
+        logger.info("[URL提取] Markdown 格式: %s", mask_url(url))
         return url
     
     url_matches = re.findall(r'https?://[^\s"\'\)<>\]]+\.(?:png|jpg|jpeg|webp)', content, re.I)
     if url_matches:
-        logger.info(f"提取到直接 URL: {url_matches[0]}")
+        logger.info("[URL提取] 直接链接: %s", mask_url(url_matches[0]))
         return url_matches[0]
     
     raise Exception("无法从响应中提取图片 URL")
@@ -151,7 +175,7 @@ async def cleanup_expired_tasks():
     for tid in expired:
         del _tasks[tid]
     if expired:
-        logger.info(f"清理过期任务: {len(expired)} 个")
+        logger.info("[任务清理] 清理过期任务: %d 个", len(expired))
 
 
 async def process_job(
@@ -178,7 +202,7 @@ async def process_job(
             async with _tasks_lock:
                 _tasks[task_id]["status"] = "completed"
                 _tasks[task_id]["posterUrl"] = poster_url
-            logger.info(f"[TEST] 任务完成: {task_id}, posterUrl: {mask_url(poster_url)}")
+            logger.info("[任务完成] task_id=%s, mode=TEST, posterUrl=%s", task_id, mask_url(poster_url))
             return
 
         poster_content = await asyncio.to_thread(
@@ -193,10 +217,10 @@ async def process_job(
             _tasks[task_id]["status"] = "completed"
             _tasks[task_id]["posterUrl"] = poster_url
         
-        logger.info(f"任务完成: {task_id}, posterUrl: {mask_url(poster_url)}")
+        logger.info("[任务完成] task_id=%s, posterUrl=%s", task_id, mask_url(poster_url))
         
     except Exception as e:
-        logger.error(f"任务处理失败: {task_id}, 错误: {e}")
+        logger.error("[任务失败] task_id=%s, 错误: %s", task_id, str(e))
         async with _tasks_lock:
             if task_id in _tasks:
                 _tasks[task_id]["status"] = "failed"
@@ -246,7 +270,7 @@ async def create_job(
         job.testPosterFileID,
     )
     
-    logger.info(f"创建任务: {task_id}, test={job.test}")
+    logger.info("[任务创建] task_id=%s, type=%s, test=%s", task_id, job.type, job.test)
     
     return JobCreateResponse(taskId=task_id)
 
