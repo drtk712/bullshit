@@ -1,4 +1,5 @@
 const { fetchFeatureList } = require("../../utils/featureConfigClient");
+const { previewImages } = require("../../utils/previewImage");
 
 Page({
   data: {
@@ -64,16 +65,20 @@ Page({
     this.setData({ [key]: true });
   },
 
-  onPreviewImageTap(e) {
+  async onPreviewImageTap(e) {
     const { index } = e.currentTarget.dataset;
     const feature = this.data.featureList[index];
-    if (!feature || !feature.previewImageUrl) return;
+    if (!feature || !feature.previewImageHD) return;
 
-    wx.previewImage({
-      urls: this.data.featureList
-        .filter((f) => f.previewImageUrl)
-        .map((f) => f.previewImageUrl),
-      current: feature.previewImageUrl,
-    });
+    try {
+      await previewImages({
+        urls: this.data.featureList
+          .filter((f) => f.previewImageHD)
+          .map((f) => f.previewImageHD),
+        current: feature.previewImageHD,
+      });
+    } catch (err) {
+      wx.showToast({ title: "预览失败", icon: "none" });
+    }
   },
 });

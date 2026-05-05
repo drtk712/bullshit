@@ -1,4 +1,5 @@
 const { createTaskPoller } = require("./taskPoller");
+const { previewImages } = require("./previewImage");
 
 function createAiPage() {
   return {
@@ -423,13 +424,17 @@ function createAiPage() {
       this.setData({ "feature._imageError": true });
     },
 
-    previewFeatureImage() {
-      if (!this.data.feature?.previewImageUrl) return;
+    async previewFeatureImage() {
+      if (!this.data.feature?.previewImageHD) return;
 
-      wx.previewImage({
-        urls: [this.data.feature.previewImageUrl],
-        current: this.data.feature.previewImageUrl,
-      });
+      try {
+        await previewImages({
+          urls: [this.data.feature.previewImageHD],
+          current: this.data.feature.previewImageHD,
+        });
+      } catch (err) {
+        wx.showToast({ title: "预览失败", icon: "none" });
+      }
     },
 
     showPointsInsufficientModal() {

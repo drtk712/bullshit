@@ -24,9 +24,9 @@
       <view class="power-item-icon-wrapper">
         <view class="power-item-icon">{{item.icon}}</view>
         <image
-          wx:if="{{item.previewImageUrl}}"
+          wx:if="{{item.previewImageHD}}"
           class="power-item-preview {{item._imageLoaded ? 'loaded' : ''}}"
-          src="{{item.previewImageUrl}}"
+          src="{{item.previewImageHD}}"
           mode="aspectFill"
           lazy-load
           data-index="{{index}}"

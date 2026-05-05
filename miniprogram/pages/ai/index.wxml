@@ -13,9 +13,9 @@
       <view class="feature-icon-wrapper">
         <view class="feature-icon">{{feature.icon}}</view>
         <image
-          wx:if="{{feature.previewImageUrl}}"
+          wx:if="{{feature.previewImageHD}}"
           class="feature-preview {{feature._imageLoaded ? 'loaded' : ''}}"
-          src="{{feature.previewImageUrl}}"
+          src="{{feature.previewImageHD}}"
           mode="aspectFill"
           lazy-load
           bindload="onFeatureImageLoad"
