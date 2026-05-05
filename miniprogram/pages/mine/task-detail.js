@@ -1,3 +1,5 @@
+const { createTaskPoller, isActiveTaskStatus } = require('../../utils/taskPoller');
+
 Page({
   data: {
     task: null,
@@ -6,6 +8,36 @@ Page({
     loading: true,
     error: '',
     polling: false,
+    syncError: '',
+  },
+
+  taskPoller: null,
+
+  ensureTaskPoller() {
+    if (this.taskPoller) return this.taskPoller;
+
+    this.taskPoller = createTaskPoller({
+      onStatus: async (taskStatus) => {
+        await this.applyPolledTaskStatus(taskStatus);
+      },
+      onError: (errMsg) => {
+        this.stopPolling();
+        this.setData({
+          error: errMsg || '获取状态失败',
+        });
+      },
+      onTimeout: () => {
+        this.stopPolling();
+        this.setData({
+          error: '生成超时，请稍后查看任务记录',
+        });
+      },
+      onTransientError: () => {
+        this.setData({ syncError: '状态同步暂时失败，正在重试' });
+      },
+    });
+
+    return this.taskPoller;
   },
 
   onLoad(options) {
@@ -47,6 +79,7 @@ Page({
           },
           ...posterState,
           loading: false,
+          syncError: '',
         });
 
         if (this.isActiveTask(task.status) && !this.data.polling) {
@@ -74,40 +107,66 @@ Page({
   },
 
   startPolling() {
-    this.setData({ polling: true });
-    this.pollTimer = setInterval(() => {
-      this.refreshActiveTaskStatus();
-    }, 3000);
-  },
-
-  async refreshActiveTaskStatus() {
     if (!this.taskId) return;
-
-    try {
-      await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: {
-          type: 'getTaskStatus',
-          data: { taskId: this.taskId }
-        }
-      });
-    } catch (err) {
-      // 下一轮继续尝试；详情展示仍以云数据库中的任务记录为准。
-    }
-
-    await this.loadTask({ silent: true });
+    this.setData({ polling: true });
+    this.ensureTaskPoller().start(this.taskId);
   },
 
   stopPolling() {
     this.setData({ polling: false });
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
+    if (this.taskPoller) {
+      this.taskPoller.stop();
     }
   },
 
+  async applyPolledTaskStatus(taskStatus) {
+    if (!this.data.task) return;
+
+    const nextTask = {
+      ...this.data.task,
+      status: taskStatus.status || this.data.task.status,
+      posterFileID: taskStatus.posterFileID || this.data.task.posterFileID,
+      errMsg: taskStatus.errMsg || '',
+      statusText: this.getTaskStatusText({
+        ...this.data.task,
+        status: taskStatus.status || this.data.task.status,
+        errMsg: taskStatus.errMsg || '',
+      }),
+      statusClass: this.getTaskStatusClass(
+        taskStatus.status || this.data.task.status,
+        this.data.task.pointsRefunded
+      ),
+    };
+
+    this.setData({
+      task: nextTask,
+      syncError: '',
+    });
+
+    if (!this.isActiveTask(nextTask.status)) {
+      await this.loadTask({ silent: true });
+    }
+  },
+
+  onShow() {
+    if (this.data.task && this.isActiveTask(this.data.task.status)) {
+      this.ensureTaskPoller().resume();
+      this.setData({ polling: true });
+    }
+  },
+
+  onHide() {
+    if (this.taskPoller) {
+      this.taskPoller.pause();
+    }
+    this.setData({ polling: false });
+  },
+
   onUnload() {
-    this.stopPolling();
+    if (this.taskPoller) {
+      this.taskPoller.reset();
+    }
+    this.setData({ polling: false });
   },
 
   async viewPoster() {
@@ -186,7 +245,7 @@ Page({
   },
 
   isActiveTask(status) {
-    return status === 'pending' || status === 'processing';
+    return isActiveTaskStatus(status);
   },
 
   getTaskStatusText(task) {

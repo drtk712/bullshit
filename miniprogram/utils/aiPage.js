@@ -1,3 +1,5 @@
+const { createTaskPoller } = require("./taskPoller");
+
 function createAiPage() {
   return {
     data: {
@@ -14,12 +16,63 @@ function createAiPage() {
     },
 
     taskId: null,
-    pollTimer: null,
+    taskPoller: null,
+
+    ensureTaskPoller() {
+      if (this.taskPoller) return this.taskPoller;
+
+      this.taskPoller = createTaskPoller({
+        onStatus: async ({ status, posterFileID, errMsg }) => {
+          if (!this.taskId) return;
+
+          if (status === "completed") {
+            const completedPosterFileID = posterFileID;
+            this.cleanupTask();
+
+            if (completedPosterFileID) {
+              await this.showPoster(completedPosterFileID);
+            } else {
+              this.setData({
+                loading: false,
+                errorMsg: "海报数据异常",
+              });
+            }
+            return;
+          }
+
+          if (status === "failed") {
+            this.cleanupTask();
+            this.setData({
+              loading: false,
+              errorMsg: errMsg || "生成失败，请重试",
+            });
+          }
+        },
+        onError: (errMsg) => {
+          this.cleanupTask();
+          this.setData({
+            loading: false,
+            errorMsg: errMsg || "获取状态失败",
+          });
+        },
+        onTimeout: () => {
+          this.cleanupTask();
+          this.setData({
+            loading: false,
+            errorMsg: "生成超时，请重试",
+          });
+        },
+        onTransientError: () => {
+          this.setData({ loadingText: "服务端暂时繁忙，正在重试..." });
+        },
+      });
+
+      return this.taskPoller;
+    },
 
     cleanupTask() {
-      if (this.pollTimer) {
-        clearTimeout(this.pollTimer);
-        this.pollTimer = null;
+      if (this.taskPoller) {
+        this.taskPoller.reset();
       }
       this.taskId = null;
     },
@@ -180,81 +233,9 @@ function createAiPage() {
     },
 
     startPolling() {
+      if (!this.taskId) return;
       this.setData({ loadingText: "海报生成中..." });
-
-      let pollCount = 0;
-      const maxPollCount = 60;
-      const pollInterval = 10000;
-
-      const pollOnce = () => {
-        pollCount++;
-        if (pollCount > maxPollCount) {
-          this.cleanupTask();
-          this.setData({
-            loading: false,
-            errorMsg: "生成超时，请重试",
-          });
-          return;
-        }
-
-        wx.cloud
-          .callFunction({
-            name: "quickstartFunctions",
-            data: {
-              type: "getTaskStatus",
-              data: { taskId: this.taskId },
-            },
-          })
-          .then((resp) => {
-            if (!this.taskId) return;
-
-            if (resp.result && resp.result.success) {
-              const { status, posterFileID, errMsg } = resp.result.data;
-
-              if (status === "completed") {
-                this.cleanupTask();
-
-                if (posterFileID) {
-                  this.showPoster(posterFileID);
-                } else {
-                  this.setData({
-                    loading: false,
-                    errorMsg: "海报数据异常",
-                  });
-                }
-              } else if (status === "failed") {
-                this.cleanupTask();
-                this.setData({
-                  loading: false,
-                  errorMsg: errMsg || "生成失败，请重试",
-                });
-              } else {
-                this.pollTimer = setTimeout(pollOnce, pollInterval);
-              }
-            } else {
-              this.cleanupTask();
-              this.setData({
-                loading: false,
-                errorMsg: resp.result?.errMsg || "获取状态失败",
-              });
-            }
-          })
-          .catch(() => {
-            if (!this.taskId) return;
-
-            if (pollCount >= 3) {
-              this.cleanupTask();
-              this.setData({
-                loading: false,
-                errorMsg: "网络异常，请重试",
-              });
-            } else {
-              this.pollTimer = setTimeout(pollOnce, pollInterval);
-            }
-          });
-      };
-
-      pollOnce();
+      this.ensureTaskPoller().start(this.taskId);
     },
 
     onImageLoad() {},
@@ -310,13 +291,15 @@ function createAiPage() {
     },
 
     onShow() {
-      if (this.data.loading && this.taskId && !this.pollTimer) {
-        this.startPolling();
+      if (this.data.loading && this.taskId) {
+        this.ensureTaskPoller().resume();
       }
     },
 
     onHide() {
-      this.cleanupTask();
+      if (this.taskPoller) {
+        this.taskPoller.pause();
+      }
     },
 
     onUnload() {

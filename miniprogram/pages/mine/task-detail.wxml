@@ -32,6 +32,7 @@
       <view class="pending-icon">{{task.status === 'processing' ? '🎨' : '⏳'}}</view>
       <text class="pending-title">{{task.status === 'processing' ? '正在生成图片...' : '任务排队中...'}}</text>
       <text class="pending-desc">{{task.status === 'processing' ? '服务端正在处理，请稍候' : '任务已创建，正在等待服务端开始处理'}}</text>
+      <text wx:if="{{syncError}}" class="sync-error">{{syncError}}</text>
       <view class="pending-spinner">
         <view class="loading-spinner"></view>
       </view>
