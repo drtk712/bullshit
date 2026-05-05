@@ -5,6 +5,7 @@ load_dotenv()
 
 from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from pydantic import BaseModel
 import requests
 import time
@@ -42,6 +43,14 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="AI Poster Generator")
 
 
+async def _read_body(response):
+    """读取 StreamingResponse body 并重建可返回的 response"""
+    body = b""
+    async for chunk in response.body_iterator:
+        body += chunk
+    return body
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.time()
@@ -50,12 +59,25 @@ async def log_requests(request: Request, call_next):
 
     # 跳过健康检查的日志噪声
     if request.url.path != "/health":
+        body = await _read_body(response)
+        body_preview = body.decode("utf-8", errors="replace")[:500]
+
         logger.info(
-            "%s %s → %s | %.0fms",
+            "%s %s → %s | %.0fms | %s",
             request.method,
             request.url.path,
             response.status_code,
             duration_ms,
+            body_preview,
+        )
+
+        # 重建 response（body 已被消费）
+        from starlette.responses import Response
+        return Response(
+            content=body,
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.media_type,
         )
 
     return response
