@@ -3,9 +3,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException
 from pydantic import BaseModel
 import requests
 import time
@@ -41,46 +39,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Poster Generator")
-
-
-async def _read_body(response):
-    """读取 StreamingResponse body 并重建可返回的 response"""
-    body = b""
-    async for chunk in response.body_iterator:
-        body += chunk
-    return body
-
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start = time.time()
-    response = await call_next(request)
-    duration_ms = (time.time() - start) * 1000
-
-    # 跳过健康检查的日志噪声
-    if request.url.path != "/health":
-        body = await _read_body(response)
-        body_preview = body.decode("utf-8", errors="replace")[:500]
-
-        logger.info(
-            "%s %s → %s | %.0fms | %s",
-            request.method,
-            request.url.path,
-            response.status_code,
-            duration_ms,
-            body_preview,
-        )
-
-        # 重建 response（body 已被消费）
-        from starlette.responses import Response
-        return Response(
-            content=body,
-            status_code=response.status_code,
-            headers=dict(response.headers),
-            media_type=response.media_type,
-        )
-
-    return response
 
 
 class JobRequest(BaseModel):
@@ -272,7 +230,9 @@ async def create_job(
         raise HTTPException(status_code=400, detail="生成提示词过长")
 
     task_id = f"task_{uuid.uuid4().hex[:12]}"
-    
+
+    logger.info("[请求入参] POST /api/job type=%s, imageUrl=%s, test=%s", job.type, mask_url(job.imageUrl), job.test)
+
     async with _tasks_lock:
         await cleanup_expired_tasks()
         _tasks[task_id] = {
@@ -293,24 +253,30 @@ async def create_job(
     )
     
     logger.info("[任务创建] task_id=%s, type=%s, test=%s", task_id, job.type, job.test)
-    
-    return JobCreateResponse(taskId=task_id)
+
+    result = JobCreateResponse(taskId=task_id)
+    logger.info("[请求出参] POST /api/job → %s", result.model_dump_json())
+    return result
 
 
 @app.get("/api/job/{task_id}", response_model=JobStatusResponse)
 async def get_job_status(task_id: str):
     """查询任务状态"""
-    
+
+    logger.info("[请求入参] GET /api/job/%s", task_id)
+
     async with _tasks_lock:
         if task_id not in _tasks:
             raise HTTPException(status_code=404, detail="任务不存在")
         task = _tasks[task_id].copy()
-    
-    return JobStatusResponse(
+
+    result = JobStatusResponse(
         status=task["status"],
         posterUrl=task["posterUrl"],
         errMsg=task["errMsg"]
     )
+    logger.info("[请求出参] GET /api/job/%s → %s", task_id, result.model_dump_json())
+    return result
 
 
 @app.get("/health")
@@ -325,10 +291,10 @@ async def health_check():
         api_available = resp.status_code < 500
     except:
         api_available = False
-    
+
     async with _tasks_lock:
         active_tasks = len([t for t in _tasks.values() if t["status"] in ["pending", "processing"]])
-    
+
     return {
         "status": "ok" if api_available else "degraded",
         "timestamp": time.time(),
