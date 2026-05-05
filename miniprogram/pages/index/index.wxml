@@ -21,7 +21,20 @@
       data-url="{{item.route}}"
       bindtap="onClickFeature"
     >
-      <view class="power-item-icon">{{item.icon}}</view>
+      <view class="power-item-icon-wrapper">
+        <view class="power-item-icon">{{item.icon}}</view>
+        <image
+          wx:if="{{item.previewImageUrl}}"
+          class="power-item-preview {{item._imageLoaded ? 'loaded' : ''}}"
+          src="{{item.previewImageUrl}}"
+          mode="aspectFill"
+          lazy-load
+          data-index="{{index}}"
+          bindload="onPreviewImageLoad"
+          binderror="onPreviewImageError"
+          catchtap="onPreviewImageTap"
+        />
+      </view>
       <view class="power-item-content">
         <view class="power-item-title">{{item.title}}</view>
         <view class="power-item-tip">{{item.description}}</view>

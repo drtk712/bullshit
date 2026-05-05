@@ -51,4 +51,29 @@ Page({
 
     wx.navigateTo({ url });
   },
+
+  onPreviewImageLoad(e) {
+    const { index } = e.currentTarget.dataset;
+    const key = `featureList[${index}]._imageLoaded`;
+    this.setData({ [key]: true });
+  },
+
+  onPreviewImageError(e) {
+    const { index } = e.currentTarget.dataset;
+    const key = `featureList[${index}]._imageError`;
+    this.setData({ [key]: true });
+  },
+
+  onPreviewImageTap(e) {
+    const { index } = e.currentTarget.dataset;
+    const feature = this.data.featureList[index];
+    if (!feature || !feature.previewImageUrl) return;
+
+    wx.previewImage({
+      urls: this.data.featureList
+        .filter((f) => f.previewImageUrl)
+        .map((f) => f.previewImageUrl),
+      current: feature.previewImageUrl,
+    });
+  },
 });

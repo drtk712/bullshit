@@ -10,7 +10,19 @@
 
   <block wx:else>
     <view class="feature-card">
-      <view class="feature-icon">{{feature.icon}}</view>
+      <view class="feature-icon-wrapper">
+        <view class="feature-icon">{{feature.icon}}</view>
+        <image
+          wx:if="{{feature.previewImageUrl}}"
+          class="feature-preview {{feature._imageLoaded ? 'loaded' : ''}}"
+          src="{{feature.previewImageUrl}}"
+          mode="aspectFill"
+          lazy-load
+          bindload="onFeatureImageLoad"
+          binderror="onFeatureImageError"
+          catchtap="previewFeatureImage"
+        />
+      </view>
       <view class="feature-copy">
         <text class="feature-title">{{feature.title}}</text>
         <text class="feature-desc">{{feature.description}}</text>

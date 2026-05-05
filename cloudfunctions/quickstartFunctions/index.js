@@ -33,29 +33,66 @@ let _collectionReady = false;
 const getFeatureConfig = async (event) => {
   const requestedType = event.data?.type;
 
+  const resolvePreviewImages = async (features) => {
+    const cloudFileList = features
+      .map((f) => f.previewImageHD)
+      .filter((fileID) => fileID && fileID.startsWith("cloud://"));
+
+    const urlMap = {};
+
+    if (cloudFileList.length > 0) {
+      try {
+        const result = await cloud.getTempFileURL({ fileList: cloudFileList });
+        result.fileList.forEach((item) => {
+          if (item.status === 0) {
+            urlMap[item.fileID] = item.tempFileURL;
+          }
+        });
+      } catch (err) {
+        console.error("[getFeatureConfig] getTempFileURL failed:", err);
+      }
+    }
+
+    return features.map((f) => {
+      if (!f.previewImageHD) {
+        return { ...f, previewImageUrl: "" };
+      }
+      if (f.previewImageHD.startsWith("http://") || f.previewImageHD.startsWith("https://")) {
+        return { ...f, previewImageUrl: f.previewImageHD };
+      }
+      return { ...f, previewImageUrl: urlMap[f.previewImageHD] || "" };
+    });
+  };
+
   if (requestedType) {
     const config = getEnabledFeatureConfig(requestedType);
     if (!config) {
       return { success: false, errMsg: "功能暂不可用" };
     }
 
+    const feature = {
+      type: config.type,
+      enabled: config.enabled,
+      order: config.order,
+      ...config.public,
+    };
+
+    const featuresWithUrl = await resolvePreviewImages([feature]);
     return {
       success: true,
       data: {
-        feature: {
-          type: config.type,
-          enabled: config.enabled,
-          order: config.order,
-          ...config.public,
-        },
+        feature: featuresWithUrl[0],
       },
     };
   }
 
+  const features = getPublicFeatureList();
+  const featuresWithUrl = await resolvePreviewImages(features);
+
   return {
     success: true,
     data: {
-      features: getPublicFeatureList(),
+      features: featuresWithUrl,
     },
   };
 };

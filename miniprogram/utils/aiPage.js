@@ -415,6 +415,23 @@ function createAiPage() {
       };
     },
 
+    onFeatureImageLoad() {
+      this.setData({ "feature._imageLoaded": true });
+    },
+
+    onFeatureImageError() {
+      this.setData({ "feature._imageError": true });
+    },
+
+    previewFeatureImage() {
+      if (!this.data.feature?.previewImageUrl) return;
+
+      wx.previewImage({
+        urls: [this.data.feature.previewImageUrl],
+        current: this.data.feature.previewImageUrl,
+      });
+    },
+
     showPointsInsufficientModal() {
       wx.showModal({
         title: "积分不足",
