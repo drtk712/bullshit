@@ -63,9 +63,9 @@
       <button class="secondary-button" bindtap="chooseImage">{{feature.retryText}}</button>
     </view>
 
-    <view wx:if="{{posterUrl}}" class="action-area">
-      <button class="primary-button" bindtap="savePoster">保存海报</button>
-      <button class="secondary-button" bindtap="sharePoster">分享</button>
-    </view>
+     <view wx:if="{{posterUrl}}" class="action-area">
+       <button class="primary-button" bindtap="savePoster">保存海报</button>
+       <button class="secondary-button" open-type="share">分享得积分</button>
+     </view>
   </block>
 </view>

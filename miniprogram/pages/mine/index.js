@@ -16,6 +16,10 @@ Page({
     tasksLoading: true,
     tasksError: '',
     tasksTotal: 0,
+
+    // Check-in
+    checkedIn: false,
+    checkInLoading: false,
   },
 
   onShow() {
@@ -32,9 +36,11 @@ Page({
         data: { type: 'getUserProfile', data: {} }
       });
       if (res.result && res.result.success) {
+        const checkedIn = this.checkIfCheckedIn(res.result.data.user);
         this.setData({ 
           user: res.result.data.user, 
-          userLoading: false 
+          userLoading: false,
+          checkedIn
         });
       } else {
         this.setData({ 
@@ -147,7 +153,9 @@ Page({
       first_login: '首次登录赠送',
       create_ai_job: '生成消耗',
       job_failed_refund: '失败退款',
-      manual_adjust: '积分调整'
+      manual_adjust: '积分调整',
+      daily_check_in: '每日签到',
+      share_reward: '分享奖励'
     };
     return reasonMap[transaction.reason] || '积分变动';
   },
@@ -173,11 +181,86 @@ Page({
     return statusMap[task.status] || task.status;
   },
 
-  getTaskStatusClass(status, pointsRefunded) {
+   getTaskStatusClass(status, pointsRefunded) {
     if (status === 'pending') return 'status-pending';
     if (status === 'processing') return 'status-processing';
     if (status === 'completed') return 'status-completed';
     if (status === 'failed') return pointsRefunded ? 'status-refunded' : 'status-failed';
     return '';
+  },
+
+  async handleShareEarnPoints() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'quickstartFunctions',
+        data: { type: 'shareEarnPoints', data: {} }
+      });
+
+      if (res.result && res.result.success) {
+        wx.showToast({ title: '分享成功 +1 积分', icon: 'success' });
+        this.loadUserProfile();
+        this.loadTransactions();
+        return res.result.data;
+      } else {
+        wx.showToast({ title: res.result?.errMsg || '今日分享次数已达上限', icon: 'none' });
+        return null;
+      }
+    } catch (err) {
+      console.error('分享奖励获取失败:', err);
+      return null;
+    }
+  },
+
+  onShareAppMessage() {
+    this.handleShareEarnPoints();
+    return {
+      title: '玩图局 - AI 图片玩法合集，快来试试！',
+      path: '/pages/index/index'
+    };
+  },
+
+  checkIfCheckedIn(user) {
+    if (!user || !user.lastCheckInAt) return false;
+    
+    const today = new Date();
+    const shanghaiToday = new Date(today.getTime() + 8 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+    
+    const lastCheckIn = new Date(user.lastCheckInAt);
+    const shanghaiLastCheckIn = new Date(lastCheckIn.getTime() + 8 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+    
+    return shanghaiToday === shanghaiLastCheckIn;
+  },
+
+  async handleCheckIn() {
+    if (this.data.checkInLoading || this.data.checkedIn) return;
+
+    this.setData({ checkInLoading: true });
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'quickstartFunctions',
+        data: { type: 'dailyCheckIn', data: {} }
+      });
+      
+      if (res.result && res.result.success) {
+        this.setData({ checkedIn: true });
+        wx.showToast({ title: '签到成功 +1 积分', icon: 'success' });
+        this.loadUserProfile();
+        this.loadTransactions();
+      } else if (res.result && res.result.data?.checkedIn) {
+        this.setData({ checkedIn: true });
+        wx.showToast({ title: '今日已签到', icon: 'none' });
+      } else {
+        wx.showToast({ title: res.result?.errMsg || '签到失败', icon: 'none' });
+      }
+    } catch (err) {
+      console.error('签到失败:', err);
+      wx.showToast({ title: '网络错误', icon: 'none' });
+    } finally {
+      this.setData({ checkInLoading: false });
+    }
   }
 });

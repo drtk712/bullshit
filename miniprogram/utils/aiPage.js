@@ -217,13 +217,19 @@ function createAiPage() {
           if (resp.result && resp.result.success) {
             this.taskId = resp.result.data.taskId;
             this.startPolling();
-          } else {
-            this.setData({
-              loading: false,
-              errorMsg: resp.result?.errMsg || "验证失败，请重试",
-            });
-          }
-        })
+           } else {
+             const errMsg = resp.result?.errMsg || "验证失败，请重试";
+             if (errMsg.includes("积分不足")) {
+               this.setData({ loading: false });
+               this.showPointsInsufficientModal();
+             } else {
+               this.setData({
+                 loading: false,
+                 errorMsg: errMsg,
+               });
+             }
+           }
+         })
         .catch((err) => {
           this.setData({
             loading: false,
@@ -234,7 +240,7 @@ function createAiPage() {
 
     startPolling() {
       if (!this.taskId) return;
-      this.setData({ loadingText: "海报生成中..." });
+      this.setData({ loadingText: "图片生成中，预计需要 50~100 秒\n也可以稍后在「最近生成」中查看" });
       this.ensureTaskPoller().start(this.taskId);
     },
 
@@ -251,6 +257,11 @@ function createAiPage() {
           posterUrl: posterFileID,
           posterPreviewUrl,
           errorMsg: "",
+        });
+        wx.showToast({
+          title: "生成成功！分享给好友得积分",
+          icon: "success",
+          duration: 2500,
         });
       } catch (err) {
         this.setData({
@@ -368,7 +379,58 @@ function createAiPage() {
     },
 
     sharePoster() {
-      wx.showToast({ title: "请使用右上角分享", icon: "none" });
+      wx.showToast({ title: "请点击右上角「...」分享", icon: "none", duration: 2000 });
+    },
+
+    async handleShareEarnPoints() {
+      try {
+        const res = await wx.cloud.callFunction({
+          name: "quickstartFunctions",
+          data: { type: "shareEarnPoints", data: {} },
+        });
+
+        if (res.result && res.result.success) {
+          return res.result.data;
+        }
+        return null;
+      } catch (err) {
+        console.error("分享奖励获取失败:", err);
+        return null;
+      }
+    },
+
+    onShareAppMessage() {
+      // 微信小程序不会触发分享成功回调，用户点击分享按钮即给积分
+      this.handleShareEarnPoints().then((data) => {
+        if (data) {
+          wx.showToast({ title: "分享成功 +1 积分", icon: "success" });
+        }
+      });
+      
+      const featureName = this.data.feature?.name || "AI 创意生成";
+      return {
+        title: `我用「玩图局」生成了${featureName}，快来试试！`,
+        path: "/pages/index/index",
+        imageUrl: this.data.posterPreviewUrl || "",
+      };
+    },
+
+    showPointsInsufficientModal() {
+      wx.showModal({
+        title: "积分不足",
+        content: "当前积分不足，分享小程序给好友可获得 1 积分（每日最多 3 次）",
+        confirmText: "去分享",
+        cancelText: "取消",
+        success: (res) => {
+          if (res.confirm) {
+            wx.showToast({
+              title: "请点击右上角「...」分享",
+              icon: "none",
+              duration: 2500,
+            });
+          }
+        },
+      });
     },
   };
 }

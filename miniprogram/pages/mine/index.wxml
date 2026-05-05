@@ -19,7 +19,7 @@
       </view>
     </block>
   </view>
-  <view class="user-hint">首次登录赠送 3 积分</view>
+  <view class="user-hint">首次登录赠送 3 积分，每日签到 +1 积分，分享小程序 +1 积分</view>
 
   <!-- Points Card -->
   <view class="points-card">
@@ -29,9 +29,17 @@
       </view>
     </block>
     <block wx:else>
-      <text class="points-label">当前积分</text>
-      <text class="points-value">{{user.points || 0}}</text>
-      <text class="points-hint">每次生成消耗 1 积分</text>
+      <view class="points-header">
+        <view class="points-main">
+          <text class="points-label">当前积分</text>
+          <text class="points-value">{{user.points || 0}}</text>
+          <text class="points-hint">每次生成消耗 1 积分</text>
+        </view>
+        <view class="checkin-btn {{checkedIn ? 'checked' : ''}}" bindtap="handleCheckIn">
+          <text wx:if="{{checkedIn}}">已签到</text>
+          <text wx:else>签到</text>
+        </view>
+      </view>
     </block>
   </view>
 
