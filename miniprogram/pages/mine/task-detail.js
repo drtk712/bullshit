@@ -184,35 +184,77 @@ Page({
     }
   },
 
-  async savePoster() {
+  savePoster() {
     const posterFileID = this.data.task?.posterFileID;
-    if (!posterFileID) return;
-
-    try {
-      wx.showLoading({ title: '保存中...' });
-      const tempUrl = await this.getPosterTempFileURL(posterFileID);
-      const downloadResult = await wx.downloadFile({ url: tempUrl });
-
-      if (downloadResult.statusCode !== 200 || !downloadResult.tempFilePath) {
-        throw new Error('下载图片失败');
-      }
-
-      await wx.saveImageToPhotosAlbum({ filePath: downloadResult.tempFilePath });
-      wx.showToast({ title: '保存成功', icon: 'success' });
-    } catch (err) {
-      const errMsg = String(err.errMsg || err.message || '');
-      if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
-        wx.showModal({
-          title: '提示',
-          content: '需要相册权限才能保存图片，请在设置中开启',
-          showCancel: false
-        });
-      } else {
-        wx.showToast({ title: '保存失败', icon: 'none' });
-      }
-    } finally {
-      wx.hideLoading();
+    if (!posterFileID) {
+      wx.showToast({ title: '图片未生成完成', icon: 'none' });
+      return;
     }
+
+    wx.getSetting({
+      success: (settingRes) => {
+        if (settingRes.authSetting['scope.writePhotosAlbum']) {
+          this.downloadAndSavePoster(posterFileID);
+          return;
+        }
+
+        wx.authorize({
+          scope: 'scope.writePhotosAlbum',
+          success: () => {
+            this.downloadAndSavePoster(posterFileID);
+          },
+          fail: () => {
+            wx.showModal({
+              title: '需要相册权限',
+              content: '请在设置中开启相册权限以保存图片',
+              confirmText: '去设置',
+              success: (modalRes) => {
+                if (!modalRes.confirm) return;
+
+                wx.openSetting({
+                  success: (openRes) => {
+                    if (openRes.authSetting['scope.writePhotosAlbum']) {
+                      this.downloadAndSavePoster(posterFileID);
+                    }
+                  },
+                });
+              },
+            });
+          },
+        });
+      },
+    });
+  },
+
+  downloadAndSavePoster(posterFileID) {
+    wx.showLoading({ title: '保存中...' });
+
+    wx.cloud.downloadFile({
+      fileID: posterFileID,
+      success: (downloadRes) => {
+        if (!downloadRes.tempFilePath) {
+          wx.hideLoading();
+          wx.showToast({ title: '下载失败', icon: 'none' });
+          return;
+        }
+
+        wx.saveImageToPhotosAlbum({
+          filePath: downloadRes.tempFilePath,
+          success: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '已保存到相册', icon: 'success' });
+          },
+          fail: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '保存失败', icon: 'none' });
+          },
+        });
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '下载失败', icon: 'none' });
+      },
+    });
   },
 
   async createPosterState(task) {
