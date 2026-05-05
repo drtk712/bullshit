@@ -23,7 +23,10 @@ const _ = db.command;
 const JOBS_COLLECTION = "ai_poster_jobs";
 const USERS_COLLECTION = "users";
 const POINT_TRANSACTIONS_COLLECTION = "point_transactions";
-const CLOUD_ENV = cloud.DYNAMIC_CURRENT_ENV;
+// cloud.DYNAMIC_CURRENT_ENV 是 Symbol，用于 cloud.init，不能用于字符串拼接
+// 必须从 wx-server-sdk 内部获取实际的环境字符串，或直接硬编码
+const CLOUD_ENV = "cloud1-d7g1nt83fde793ad3";
+
 
 let _collectionReady = false;
 
@@ -746,14 +749,6 @@ const getTaskStatus = async (event) => {
 
         if (serverStatus === "completed" && posterUrl) {
           if (posterUrl.startsWith("cloud://")) {
-            const expectedPrefix = `cloud://${CLOUD_ENV}-`;
-            if (!posterUrl.startsWith(expectedPrefix)) {
-              console.warn(
-                "[getTaskStatus] Poster cloud file ID from unexpected environment:",
-                posterUrl.slice(0, 30) + "..."
-              );
-            }
-
             await db.collection(JOBS_COLLECTION).doc(taskId).update({
               data: {
                 status: "completed",
