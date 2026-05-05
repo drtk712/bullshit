@@ -244,7 +244,6 @@ const toPublicTask = (task) => ({
   pointsCost: task.pointsCost || 0,
   pointsConsumed: !!task.pointsConsumed,
   pointsRefunded: !!task.pointsRefunded,
-  skipPointsDeduction: !!task.skipPointsDeduction,
   createdAt: task.createdAt,
   updatedAt: task.updatedAt,
 });
@@ -715,7 +714,10 @@ const getTaskStatus = async (event) => {
       
       try {
         const serverResp = await axios.get(`${SERVER_URL}/api/job/${task.serverTaskId}`, {
-          timeout: 10000
+          headers: {
+            "X-Internal-Token": process.env.POSTER_SERVER_TOKEN || "",
+          },
+          timeout: 10000,
         });
 
         const serverStatus = serverResp.data?.status;

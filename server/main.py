@@ -260,8 +260,14 @@ async def create_job(
 
 
 @app.get("/api/job/{task_id}", response_model=JobStatusResponse)
-async def get_job_status(task_id: str):
+async def get_job_status(
+    task_id: str,
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+):
     """查询任务状态"""
+
+    if not POSTER_SERVER_TOKEN or x_internal_token != POSTER_SERVER_TOKEN:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
     logger.info("[请求入参] GET /api/job/%s", task_id)
 
