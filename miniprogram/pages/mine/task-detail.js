@@ -56,6 +56,11 @@ Page({
     });
   },
 
+  retryUpload() {
+    const type = this.data.task?.type || 'palm';
+    wx.redirectTo({ url: `/pages/ai/upload/index?type=${type}` });
+  },
+
   onPullDownRefresh() {
     this.loadTask({ silent: true, stopRefresh: true });
   },
@@ -88,6 +93,8 @@ Page({
             statusText: getTaskStatusText(task),
             statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
             formattedTime: this.formatTime(task.createdAt),
+            pointsCostText: this.getPointsCostText(task),
+            friendlyErrMsg: this.getFriendlyErrMsg(task.errMsg),
           },
           ...posterState,
           loading: false,
@@ -149,6 +156,8 @@ Page({
         this.data.task.pointsRefunded
       ),
     };
+    nextTask.pointsCostText = this.getPointsCostText(nextTask);
+    nextTask.friendlyErrMsg = this.getFriendlyErrMsg(nextTask.errMsg);
 
     this.setData({
       task: nextTask,
@@ -295,6 +304,27 @@ Page({
 
   isActiveTask(status) {
     return isActiveTaskStatus(status);
+  },
+
+  getPointsCostText(task = {}) {
+    if (task.status === 'failed' && task.pointsRefunded) {
+      return '积分已退回';
+    }
+
+    const cost = Number(task.pointsCost || 0);
+    return cost > 0 ? `-${cost} 积分` : '未扣积分';
+  },
+
+  getFriendlyErrMsg(errMsg) {
+    if (!errMsg) {
+      return '原因：上传的图片主体不够清晰或光线过暗，请尝试更换一张更清晰的照片。';
+    }
+
+    if (/API|model|\/v1\/|503|OpenAI|gpt|错误/i.test(errMsg)) {
+      return '生成服务暂时不可用，请稍后重试或重新上传。';
+    }
+
+    return errMsg;
   },
 
   onShareAppMessage() {

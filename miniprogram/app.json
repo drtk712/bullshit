@@ -11,14 +11,14 @@
     "pages/mine/task-detail"
   ],
   "window": {
-    "backgroundColor": "#F5F2EC",
+    "backgroundColor": "#FBFCF8",
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#F5F2EC",
+    "navigationBarBackgroundColor": "#FBFCF8",
     "navigationBarTitleText": "玩图局",
     "navigationBarTextStyle": "black"
   },
   "tabBar": {
-    "color": "#888888",
+    "color": "#8A938D",
     "selectedColor": "#15c77a",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",

@@ -1,14 +1,20 @@
-<view class="records-page">
+<view class="records-page ui-page">
   <view class="records-nav">
+    <view class="records-grid-icon">
+      <view></view><view></view><view></view><view></view>
+    </view>
     <text class="records-title">生成记录</text>
+    <view class="records-nav-spacer"></view>
   </view>
 
-  <view class="filter-row">
-    <text class="filter {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onFilterTap">全部</text>
-    <text class="filter {{activeFilter === 'processing' ? 'active' : ''}}" data-filter="processing" bindtap="onFilterTap">进行中</text>
-    <text class="filter {{activeFilter === 'completed' ? 'active' : ''}}" data-filter="completed" bindtap="onFilterTap">已完成</text>
-    <text class="filter {{activeFilter === 'failed' ? 'active' : ''}}" data-filter="failed" bindtap="onFilterTap">已失败</text>
-  </view>
+  <scroll-view scroll-x class="filter-scroll" enable-flex show-scrollbar="{{false}}">
+    <view class="filter-row">
+      <text class="filter-chip {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onFilterTap">全部</text>
+      <text class="filter-chip {{activeFilter === 'processing' ? 'active' : ''}}" data-filter="processing" bindtap="onFilterTap">进行中</text>
+      <text class="filter-chip {{activeFilter === 'completed' ? 'active' : ''}}" data-filter="completed" bindtap="onFilterTap">已完成</text>
+      <text class="filter-chip {{activeFilter === 'failed' ? 'active' : ''}}" data-filter="failed" bindtap="onFilterTap">已失败</text>
+    </view>
+  </scroll-view>
 
   <view wx:if="{{loading}}" class="state-card">
     <view class="mini-spinner"></view>
@@ -22,17 +28,48 @@
 
   <block wx:else>
     <view class="record-list">
-      <view wx:for="{{tasks}}" wx:key="_id" class="task-item" bindtap="goToTaskDetail" data-id="{{item._id}}">
-        <view class="task-thumb">
-          <image wx:if="{{item.previewImageHD}}" class="task-thumb-image" src="{{item.previewImageHD}}" mode="aspectFill"></image>
-          <text wx:else>{{item.displayInitial}}</text>
+      <view wx:for="{{tasks}}" wx:key="_id" class="task-card" bindtap="goToTaskDetail" data-id="{{item._id}}">
+        <view class="task-top">
+          <view class="task-left">
+            <view class="task-thumb {{item.status === 'failed' ? 'failed' : ''}}">
+              <image wx:if="{{item.thumbImage}}" class="task-thumb-image" src="{{item.thumbImage}}" mode="aspectFill"></image>
+              <text wx:else>{{item.status === 'failed' ? '!' : item.displayInitial}}</text>
+              <view wx:if="{{item.status === 'processing' || item.status === 'pending'}}" class="thumb-mask">中</view>
+            </view>
+            <view class="task-main">
+              <text class="task-name">{{item.displayName}}</text>
+              <text class="task-time">{{item.timeText}}</text>
+            </view>
+          </view>
+          <text class="status-chip {{item.statusClass}}">{{item.statusDisplay || item.statusText}}</text>
         </view>
-        <view class="task-main">
-          <text class="task-name">{{item.displayName}}</text>
-          <text class="task-desc">{{item.displayDesc}}</text>
-          <text class="task-time">{{item.timeText}}</text>
+
+        <view wx:if="{{item.status === 'processing' || item.status === 'pending'}}" class="task-progress">
+          <view class="task-progress-fill" style="{{item.progressStyle}}"></view>
         </view>
-        <text class="status-chip {{item.statusClass}}">{{item.statusText}}</text>
+
+        <view wx:if="{{item.status === 'completed'}}" class="task-actions">
+          <button class="task-action-btn" open-type="share" data-id="{{item._id}}" catchtap="onShareTask">
+            <text class="task-action-icon">↗</text>
+            <text>分享</text>
+          </button>
+          <button class="task-action-btn" data-id="{{item._id}}" catchtap="onSaveTaskPoster">
+            <text class="task-action-icon">↓</text>
+            <text>保存</text>
+          </button>
+        </view>
+
+        <view wx:if="{{item.status === 'failed'}}" class="task-error">
+          <text class="task-error-icon">!</text>
+          <text>{{item.errMsgText}}</text>
+        </view>
+
+        <button wx:if="{{item.status === 'failed'}}" class="retry-btn" data-type="{{item.type}}" catchtap="retryTask">
+          <text class="retry-icon">↻</text>
+          <text>重新生成</text>
+        </button>
+
+        <text wx:if="{{item.status !== 'completed' && item.status !== 'failed' && item.status !== 'processing' && item.status !== 'pending'}}" class="task-desc">{{item.displayDesc}}</text>
       </view>
     </view>
 

@@ -72,20 +72,8 @@ Page({
   },
 
   createHomeFeatureList(featureList) {
-    const displayMap = {
-      palm: { homeDesc: "趣味解读运势", badgeIcon: "✋" },
-      hair: { homeDesc: "挑发型看新印象", badgeIcon: "👩" },
-      profile: { homeDesc: "生成专属形象", badgeIcon: "👩‍🦰" },
-      doodle: { homeDesc: "手绘风标注照", badgeIcon: "🖼" },
-      soul: { homeDesc: "让人忍不住看", badgeIcon: "🖌" },
-    };
-
     return (featureList || []).map((feature) => ({
       ...feature,
-      ...(displayMap[feature.type] || {
-        homeDesc: feature.description,
-        badgeIcon: feature.icon,
-      }),
     }));
   },
 

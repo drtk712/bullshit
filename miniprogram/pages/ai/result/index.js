@@ -100,7 +100,9 @@ Page({
   },
 
   async viewPoster() {
-    const url = this.data.posterPreviewUrl;
+    const url = this.data.activeTab === "original"
+      ? this.data.originalImageUrl
+      : this.data.posterPreviewUrl;
     if (!url) return;
     wx.previewImage({ urls: [url], current: url });
   },

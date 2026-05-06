@@ -2,6 +2,7 @@
   <view class="detail-nav">
     <view class="back-btn" bindtap="goBack">‹</view>
     <text class="nav-title">任务详情</text>
+    <view class="nav-spacer"></view>
   </view>
 
   <view wx:if="{{loading}}" class="state-card">
@@ -15,62 +16,54 @@
   </view>
 
   <block wx:else>
-    <view class="info-card">
-      <view class="task-head">
-        <view class="task-cover">{{task.displayInitial}}</view>
-        <view class="task-copy">
-          <text class="task-title">{{task.displayName}}</text>
-          <text class="task-time">{{task.status === 'failed' ? '创建于' : '完成于'}} {{task.formattedTime}}</text>
+    <view class="task-card {{task.status === 'failed' ? 'failed' : ''}}">
+      <view class="task-card-head">
+        <view class="task-status-left">
+          <view class="status-icon {{task.statusClass}}">{{task.status === 'failed' ? '!' : task.status === 'completed' ? '✓' : '◴'}}</view>
+          <view>
+            <text class="task-state-title">{{task.status === 'failed' ? '生成失败' : task.status === 'completed' ? '生成完成' : task.statusText}}</text>
+            <text class="task-time">{{task.formattedTime}}</text>
+          </view>
+        </view>
+        <view class="cost-pill">
+          <text class="cost-star">✦</text>
+          <text>{{task.pointsCostText}}</text>
         </view>
       </view>
-      <view class="info-row">
-        <text class="info-label">消耗积分</text>
-        <text class="info-value">{{task.pointsCost || 0}}</text>
-      </view>
-      <view wx:if="{{task.status !== 'failed'}}" class="info-row">
-        <text class="info-label">奖励积分</text>
-        <text class="info-value plus">+1</text>
-      </view>
-      <view class="info-row">
-        <text class="info-label">状态</text>
-        <text class="info-value {{task.statusClass}}">{{task.statusText}}</text>
-      </view>
-    </view>
 
-    <view wx:if="{{task.status === 'pending' || task.status === 'processing'}}" class="progress-card">
-      <view class="progress-orbit">
-        <view class="progress-core">{{task.status === 'processing' ? '画' : '等'}}</view>
-      </view>
-      <text class="progress-title">{{task.status === 'processing' ? '正在生成图片' : '任务排队中'}}</text>
-      <text class="progress-desc">{{task.status === 'processing' ? '服务端正在处理，请稍候' : '任务已创建，正在等待开始处理'}}</text>
-      <text wx:if="{{syncError}}" class="sync-error">{{syncError}}</text>
-    </view>
-
-    <view wx:elif="{{task.status === 'completed'}}" class="result-card">
-      <text class="section-title">生成结果</text>
-      <view class="result-row">
-        <view class="poster-thumb" bindtap="viewPoster">
-          <image wx:if="{{posterPreviewUrl}}" class="poster-image" src="{{posterPreviewUrl}}" mode="aspectFill" lazy-load="true"></image>
-          <text wx:else class="poster-placeholder-text">{{posterError || '加载中'}}</text>
+      <view wx:if="{{task.status === 'completed'}}" class="task-preview" bindtap="viewPoster">
+        <image wx:if="{{posterPreviewUrl}}" class="task-preview-image" src="{{posterPreviewUrl}}" mode="aspectFill"></image>
+        <view wx:else class="poster-placeholder-text">{{posterError || '图片加载中'}}</view>
+        <view class="preview-mask">
+          <text>查看大图</text>
         </view>
-        <button class="ghost-btn" bindtap="viewPoster">⇩ 查看大图</button>
-        <button class="ghost-btn" open-type="share">↗ 分享</button>
       </view>
-    </view>
 
-    <view wx:elif="{{task.status === 'failed'}}" class="failed-card">
-      <text class="section-title">失败原因</text>
-      <text class="failed-reason">{{task.errMsg || '图片模糊或不符合要求，请检查图片后重新生成'}}</text>
-      <view class="refund-hint" wx:if="{{task.pointsRefunded}}">
+      <view wx:if="{{task.status === 'completed'}}" class="task-actions">
+        <button class="task-action ghost" open-type="share">↗ 分享</button>
+        <button class="task-action primary" bindtap="savePoster">↓ 保存相册</button>
+      </view>
+
+      <view wx:elif="{{task.status === 'failed'}}" class="error-panel">
+        <text class="error-icon">!</text>
         <view>
-          <text class="refund-title">积分已退还</text>
-          <text class="refund-desc">已退还至账户余额</text>
+          <text class="error-title">抱歉，处理您的图片时遇到问题。</text>
+          <text class="error-desc">{{task.friendlyErrMsg}}</text>
         </view>
-        <text class="refund-points">+{{task.pointsCost || 0}}</text>
       </view>
-      <button class="retry-btn" bindtap="goBack">▣ 重新生成</button>
+
+      <button wx:if="{{task.status === 'failed'}}" class="retry-btn" bindtap="retryUpload">▣ 重新上传</button>
+
+      <view wx:if="{{task.status === 'pending' || task.status === 'processing'}}" class="progress-panel">
+        <view class="progress-orbit">
+          <view class="progress-core">{{task.status === 'processing' ? '画' : '等'}}</view>
+        </view>
+        <text class="progress-title">{{task.status === 'processing' ? '正在生成图片' : '任务排队中'}}</text>
+        <text class="progress-desc">{{task.status === 'processing' ? '服务端正在处理，请稍候' : '任务已创建，正在等待开始处理'}}</text>
+        <text wx:if="{{syncError}}" class="sync-error">{{syncError}}</text>
+      </view>
     </view>
 
-    <button class="delete-btn" bindtap="handleDeleteTask">⌫ 删除记录</button>
+    <button class="delete-btn" bindtap="handleDeleteTask">删除记录</button>
   </block>
 </view>

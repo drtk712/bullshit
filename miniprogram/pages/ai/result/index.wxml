@@ -1,11 +1,8 @@
-<view class="result-page">
+<view class="result-page flow-page">
   <view class="flow-nav result-nav">
     <view class="flow-back" bindtap="goBack">‹</view>
     <text class="flow-title">{{task.displayName || '看手相'}}结果</text>
-    <view class="result-nav-tools">
-      <view class="home-tool" bindtap="goHome">⌂</view>
-      <button class="home-tool share-mini" open-type="share">⇧</button>
-    </view>
+    <view class="flow-spacer"></view>
   </view>
 
   <view wx:if="{{loading}}" class="state-card">
@@ -24,27 +21,34 @@
       <text class="result-tab {{activeTab === 'original' ? 'active' : ''}}" data-tab="original" bindtap="switchTab">原图</text>
     </view>
 
-    <view wx:if="{{activeTab === 'result'}}" class="poster-card">
-      <view class="poster-frame" bindtap="viewPoster">
-        <image wx:if="{{posterPreviewUrl}}" class="poster-image" src="{{posterPreviewUrl}}" mode="widthFix"></image>
+    <view class="poster-card">
+      <view wx:if="{{activeTab === 'result'}}" class="poster-frame" bindtap="viewPoster">
+        <image wx:if="{{posterPreviewUrl}}" class="poster-image" src="{{posterPreviewUrl}}" mode="aspectFill"></image>
         <view wx:else class="poster-placeholder">{{posterError || '图片加载中'}}</view>
       </view>
-    </view>
 
-    <view wx:elif="{{activeTab === 'original'}}" class="poster-card">
-      <view class="poster-frame" bindtap="viewPoster">
-        <image wx:if="{{originalImageUrl}}" class="poster-image" src="{{originalImageUrl}}" mode="widthFix"></image>
+      <view wx:elif="{{activeTab === 'original'}}" class="poster-frame" bindtap="viewPoster">
+        <image wx:if="{{originalImageUrl}}" class="poster-image" src="{{originalImageUrl}}" mode="aspectFill"></image>
         <view wx:else class="poster-placeholder">原图加载中</view>
       </view>
+
+      <view class="poster-watermark">玩图局</view>
     </view>
 
     <view class="reward-card">
-      <text class="reward-text">🎉 本次生成奖励 +1 积分</text>
+      <view class="reward-left">
+        <view class="reward-icon">◎</view>
+        <view>
+          <text class="reward-title">本次生成奖励</text>
+          <text class="reward-sub">每日首次生成均可获得</text>
+        </view>
+      </view>
+      <text class="reward-points">+1 积分</text>
     </view>
 
-    <view class="result-actions">
-      <button class="save-btn" bindtap="savePoster">▣ 保存到相册</button>
-      <button class="share-btn" open-type="share">☁ 分享得积分</button>
+    <view class="result-dock">
+      <button class="save-btn" bindtap="savePoster">↓ 保存到相册</button>
+      <button class="share-btn" open-type="share">↗ 分享得积分</button>
     </view>
   </block>
 </view>

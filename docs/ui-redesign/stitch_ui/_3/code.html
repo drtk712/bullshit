@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>玩图局 - 上传照片</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&amp;family=Be+Vietnam+Pro:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#fdab1b",
+                        "outline-variant": "#bbcabd",
+                        "tertiary-fixed-dim": "#ffb4aa",
+                        "primary-fixed-dim": "#42e090",
+                        "on-tertiary-fixed": "#410001",
+                        "surface-container-low": "#edf6ec",
+                        "on-primary-container": "#004c2b",
+                        "on-surface-variant": "#3c4a40",
+                        "inverse-surface": "#2a322c",
+                        "on-error-container": "#93000a",
+                        "outline": "#6c7b6f",
+                        "inverse-on-surface": "#ebf3e9",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#65feaa",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#8c1813",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#42e090",
+                        "secondary-fixed-dim": "#ffb953",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e2eae1",
+                        "background": "#f3fcf2",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f3fcf2",
+                        "secondary": "#825500",
+                        "surface-tint": "#006d40",
+                        "on-secondary-fixed-variant": "#633f00",
+                        "on-primary-fixed": "#002110",
+                        "on-primary-fixed-variant": "#00522f",
+                        "surface-container-highest": "#dce5db",
+                        "on-secondary-container": "#694300",
+                        "tertiary-container": "#ff8f81",
+                        "primary-container": "#15c77a",
+                        "tertiary": "#ad3128",
+                        "secondary-fixed": "#ffddb4",
+                        "tertiary-fixed": "#ffdad5",
+                        "on-background": "#161d18",
+                        "surface-variant": "#dce5db",
+                        "on-surface": "#161d18",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#291800",
+                        "on-secondary": "#ffffff",
+                        "primary": "#006d40",
+                        "surface-bright": "#f3fcf2",
+                        "surface-container": "#e8f0e7",
+                        "surface-dim": "#d4dcd3",
+                        "on-tertiary-container": "#84120f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-page": "20px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "gutter": "12px",
+                        "sm": "8px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Plus Jakarta Sans"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "h1": ["Plus Jakarta Sans"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "h2": ["Plus Jakarta Sans"],
+                        "label-sm": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "h1": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "h2": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased min-h-screen flex flex-col pt-16">
+<!-- TopAppBar (Suppressed navigation, only back button and title for linear flow) -->
+<header class="fixed top-0 left-0 w-full z-50 backdrop-blur-[20px] bg-surface/80 flex justify-between items-center px-margin-page h-16 shadow-[0px_4px_20px_rgba(23,33,27,0.04)]">
+<button class="text-primary hover:bg-surface-container-high/50 p-2 rounded-full active:scale-95 transition-transform duration-200 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-h2 text-h2 text-on-surface tracking-tight">上传照片</h1>
+<div class="w-10"></div> <!-- Placeholder for balance -->
+</header>
+<main class="flex-grow px-margin-page py-lg flex flex-col gap-lg pb-32">
+<!-- Upload Zone -->
+<section class="w-full aspect-square md:aspect-[4/3] rounded-[20px] border-2 border-dashed border-primary bg-surface-container-low flex flex-col items-center justify-center gap-md cursor-pointer active:scale-[0.98] transition-transform overflow-hidden relative shadow-[0px_4px_20px_rgba(23,33,27,0.04)]">
+<div class="flex flex-col items-center justify-center z-10 pointer-events-none p-6 text-center">
+<span class="material-symbols-outlined text-5xl text-primary mb-4" data-icon="photo_camera" data-weight="fill" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+<p class="font-h3 text-h3 text-on-surface mb-2">点击上传手掌照片</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">支持 JPG, PNG, HEIC 格式</p>
+</div>
+<!-- Optional background image element to demonstrate layering if image was uploaded (hidden by default) -->
+<!-- <div class="absolute inset-0 bg-cover bg-center opacity-20" style="background-image: url('{{DATA:IMAGE:IMAGE_1}}');" data-alt="A softly lit macro photograph of a palm against a clean white background, showcasing detailed lines and texture, styled for a modern app upload interface."></div> -->
+</section>
+<!-- Tips Card -->
+<section class="bg-surface-container-lowest rounded-[20px] p-md shadow-[0px_4px_20px_rgba(23,33,27,0.04)]">
+<div class="flex items-center gap-sm mb-4">
+<span class="material-symbols-outlined text-secondary-container" data-icon="lightbulb" data-weight="fill" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<h2 class="font-h3 text-h3 text-on-surface">拍照小贴士</h2>
+</div>
+<ul class="space-y-sm">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md text-body-md text-on-surface-variant">请确保完整拍下手掌及五指</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md text-body-md text-on-surface-variant">在光线充足的地方拍摄，避免阴影</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md text-body-md text-on-surface-variant">尽量使用纯色、干净的背景</span>
+</li>
+</ul>
+</section>
+<!-- Balance Card -->
+<section class="bg-surface-container-lowest rounded-[20px] p-md shadow-[0px_4px_20px_rgba(23,33,27,0.04)] flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary-container text-2xl" data-icon="stars" data-weight="fill" style="font-variation-settings: 'FILL' 1;">stars</span>
+<span class="font-body-md text-body-md text-on-surface-variant">本次消耗</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-h1 text-h1 text-on-surface">1</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">当前余额: 12</span>
+</div>
+</section>
+</main>
+<!-- Bottom Action Area (Fixed) -->
+<div class="fixed bottom-0 left-0 w-full p-margin-page pb-[calc(20px+env(safe-area-inset-bottom))] bg-surface/90 backdrop-blur-md z-40 flex flex-col gap-sm items-center shadow-[0px_-4px_20px_rgba(23,33,27,0.04)]">
+<button class="w-full bg-primary text-on-primary rounded-[24px] py-4 font-h3 text-h3 flex justify-center items-center active:scale-[0.98] transition-transform shadow-sm">
+            开始生成
+        </button>
+<div class="flex items-center gap-1 opacity-70">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;">lock</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">图片仅用于本次生成，生成后自动删除</span>
+</div>
+</div>
+</body></html>

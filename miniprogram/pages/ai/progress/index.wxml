@@ -1,24 +1,46 @@
-<view class="progress-page">
+<view class="progress-page flow-page">
+  <view class="flow-nav progress-nav">
+    <view class="flow-grid-icon">
+      <view></view><view></view><view></view><view></view>
+    </view>
+    <text class="flow-title">玩图局</text>
+    <view class="flow-spacer"></view>
+  </view>
+
   <view class="progress-hero">
-    <text class="progress-title">{{progressTitle}}</text>
+    <text class="progress-title">生成中...</text>
     <text class="progress-desc">正在努力创作你的专属作品</text>
-    <image class="progress-mascot-img" src="/images/ui/generating-mascot.png" mode="aspectFit"></image>
+
+    <view class="progress-visual">
+      <view class="ring-track"></view>
+      <view class="ring-fill" style="transform: rotate({{progress * 3.6}}deg);"></view>
+      <view class="mascot-shell">
+        <image class="progress-mascot-img" src="/images/ui/generating-mascot.png" mode="aspectFit"></image>
+      </view>
+    </view>
   </view>
 
   <view class="check-card">
-    <view class="check-head">
-      <text class="check-main-title">{{progressTitle}}</text>
-      <text class="check-percent">{{progress}}%</text>
-    </view>
-    <view class="progress-bar">
-      <view class="progress-fill" style="width: {{progress}}%;"></view>
-    </view>
-    <view class="check-row" wx:for="{{progressChecks}}" wx:key="title">
-      <text class="check-title">{{item.title}}</text>
-      <text class="check-sub {{item.status === 'progress' ? 'muted' : ''}}">{{item.status === 'progress' ? (progress > 70 ? '完成' : '进行中') : item.status}}</text>
+    <view class="progress-bg" style="width: {{progress}}%;"></view>
+    <view class="check-inner">
+      <view class="check-head">
+        <text class="check-main-title">{{progressTitle}}</text>
+        <text class="check-percent">{{progress}}%</text>
+      </view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progress}}%;"></view>
+      </view>
+      <view class="check-row" wx:for="{{progressChecks}}" wx:key="title">
+        <text class="check-icon {{item.status === 'progress' ? 'pending' : ''}}">{{item.status === 'progress' && progress <= 70 ? '◴' : '✓'}}</text>
+        <text class="check-title">{{item.title}}</text>
+        <text class="check-sub {{item.status === 'progress' ? 'muted' : ''}}">{{item.status === 'progress' ? (progress > 70 ? '完成' : '进行中') : item.status}}</text>
+      </view>
     </view>
   </view>
 
-  <view class="remain-line">预计剩余 {{remainText}} ›</view>
-  <view class="progress-hint">💡 你可以稍后在“生成记录”中查看进度</view>
+  <view class="progress-hint">
+    <text>你可以稍后在</text>
+    <text class="hint-strong">生成记录</text>
+    <text>中查看进度</text>
+  </view>
 </view>

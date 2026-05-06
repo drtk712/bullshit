@@ -19,10 +19,11 @@ Page({
     hasMore: true,
     refreshing: false,
     activeFilter: 'all',
+    shareTask: null,
   },
 
-  onLoad() {
-    this.loadFeatureMap();
+  async onLoad() {
+    await this.loadFeatureMap();
     this.loadTasks(1);
   },
 
@@ -66,16 +67,25 @@ Page({
 
       if (res.result && res.result.success) {
         const { tasks, hasMore } = res.result.data;
-        const processed = (tasks || []).map(t => ({
-          ...t,
-          displayName: getTaskDisplayName(t.type),
-          displayInitial: getTaskDisplayName(t.type).slice(0, 1),
-          displayDesc: this.getTaskDesc(t.type),
-          previewImageHD: this.data.featureMap[t.type]?.previewImageHD || '',
-          statusText: getTaskStatusText(t),
-          statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
-          timeText: this.formatTime(t.createdAt)
-        }));
+        const processed = (tasks || []).map(t => {
+          const displayName = getTaskDisplayName(t.type);
+          const progressPercent = t.status === 'processing' ? (t.progress || 65) : 0;
+          const statusText = getTaskStatusText(t);
+          return {
+            ...t,
+            displayName,
+            displayInitial: displayName.slice(0, 1),
+            displayDesc: this.getTaskDesc(t.type),
+            thumbImage: t.posterFileID || '',
+            progressPercent,
+            progressStyle: `width: ${progressPercent}%;`,
+            statusText,
+            statusDisplay: progressPercent ? `${statusText} ${progressPercent}%` : statusText,
+            statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
+            timeText: this.formatTime(t.createdAt),
+            errMsgText: t.errMsg || '生成失败，请重新上传照片再试一次。',
+          };
+        });
 
         this.setData({
           tasks: page === 1 ? processed : [...this.data.tasks, ...processed],
@@ -131,6 +141,28 @@ Page({
     this.applyFilter();
   },
 
+  onShareTask(e) {
+    const task = this.getTaskById(e.currentTarget.dataset.id);
+    if (task) {
+      this.setData({ shareTask: task });
+    }
+  },
+
+  onSaveTaskPoster(e) {
+    const task = this.getTaskById(e.currentTarget.dataset.id);
+    if (!task?.posterFileID) {
+      wx.showToast({ title: '图片未生成完成', icon: 'none' });
+      return;
+    }
+
+    this.savePosterFile(task.posterFileID);
+  },
+
+  retryTask(e) {
+    const type = e.currentTarget.dataset.type || 'palm';
+    wx.navigateTo({ url: `/pages/ai/upload/index?type=${type}` });
+  },
+
   applyFilter() {
     const filter = this.data.activeFilter;
     const allTasks = this.data.allTasks;
@@ -166,6 +198,86 @@ Page({
       soul: '山水简笔画',
     };
     return descMap[type] || '趣味生成';
+  },
+
+  getTaskById(taskId) {
+    if (!taskId) return null;
+    return this.data.allTasks.find((task) => task._id === taskId) || null;
+  },
+
+  savePosterFile(posterFileID) {
+    wx.getSetting({
+      success: (settingRes) => {
+        if (settingRes.authSetting['scope.writePhotosAlbum']) {
+          this.downloadAndSavePoster(posterFileID);
+          return;
+        }
+
+        wx.authorize({
+          scope: 'scope.writePhotosAlbum',
+          success: () => this.downloadAndSavePoster(posterFileID),
+          fail: () => {
+            wx.showModal({
+              title: '需要相册权限',
+              content: '请在设置中开启相册权限以保存图片',
+              confirmText: '去设置',
+              success: (modalRes) => {
+                if (!modalRes.confirm) return;
+
+                wx.openSetting({
+                  success: (openRes) => {
+                    if (openRes.authSetting['scope.writePhotosAlbum']) {
+                      this.downloadAndSavePoster(posterFileID);
+                    }
+                  },
+                });
+              },
+            });
+          },
+        });
+      },
+    });
+  },
+
+  downloadAndSavePoster(posterFileID) {
+    wx.showLoading({ title: '保存中...' });
+
+    wx.cloud.downloadFile({
+      fileID: posterFileID,
+      success: (downloadRes) => {
+        if (!downloadRes.tempFilePath) {
+          wx.hideLoading();
+          wx.showToast({ title: '下载失败', icon: 'none' });
+          return;
+        }
+
+        wx.saveImageToPhotosAlbum({
+          filePath: downloadRes.tempFilePath,
+          success: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '已保存到相册', icon: 'success' });
+          },
+          fail: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '保存失败', icon: 'none' });
+          },
+        });
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '下载失败', icon: 'none' });
+      },
+    });
+  },
+
+  onShareAppMessage(options = {}) {
+    const taskId = options.target?.dataset?.id;
+    const task = this.getTaskById(taskId) || this.data.shareTask;
+    return {
+      title: `我在玩图局生成了${task?.displayName || '趣味图'}`,
+      path: '/pages/index/index',
+      imageUrl: task?.thumbImage || '',
+    };
   },
 
 });

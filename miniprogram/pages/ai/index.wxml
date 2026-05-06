@@ -1,7 +1,8 @@
-<view class="ai-page">
+<view class="ai-page ui-page">
   <view class="custom-nav">
     <view class="nav-icon" bindtap="goBack">‹</view>
     <text class="nav-title">{{feature.title || '看手相'}}</text>
+    <view class="nav-spacer"></view>
   </view>
 
   <view wx:if="{{configLoading}}" class="state-panel">
@@ -17,57 +18,64 @@
 
   <view wx:else class="detail-content">
     <view class="detail-head">
-      <text class="detail-kicker">趣味{{feature.title}}解读</text>
-      <text class="detail-title">探索你的天赋、性格与运势</text>
+      <text class="detail-kicker">{{detailTitle || feature.title}}</text>
+      <text class="detail-title">{{detailSubtitle}}</text>
       <view class="tag-row">
-        <text class="tag">◎ 趣味解读</text>
-        <text class="tag">◉ 专业分析</text>
-        <text class="tag">♡ 精美海报</text>
+        <text class="tag" wx:for="{{detailTags}}" wx:key="text">{{item.icon}} {{item.text}}</text>
       </view>
     </view>
 
-    <view class="showcase">
-      <view class="report-card" catchtap="previewFeatureImage">
-        <image
-          wx:if="{{feature.previewImageHD}}"
-          class="report-image {{feature._imageLoaded ? 'loaded' : ''}}"
-          src="{{feature.previewImageHD}}"
-          mode="aspectFill"
-          lazy-load
-          bindload="onFeatureImageLoad"
-          binderror="onFeatureImageError"
-        />
-        <view class="report-fallback">{{feature.icon}}</view>
-        <text class="report-title">{{reportTitle}}</text>
-        <view class="magnifier">⌕</view>
+    <view class="example-card">
+      <view class="section-heading">
+        <text class="section-icon">▤</text>
+        <text class="section-title">示例报告</text>
       </view>
-      <view class="analysis-list">
-        <view class="analysis-item" wx:for="{{analysisItems}}" wx:key="title">
-          <text class="analysis-title">{{item.title}}</text>
-          <text class="analysis-desc" wx:for="{{item.items}}" wx:key="*this">{{item}}</text>
+
+      <view class="example-grid">
+        <view class="example-preview" catchtap="previewFeatureImage">
+          <image
+            wx:if="{{feature.previewImageHD}}"
+            class="report-image {{feature._imageLoaded ? 'loaded' : ''}}"
+            src="{{feature.previewImageHD}}"
+            mode="aspectFill"
+            lazy-load
+            bindload="onFeatureImageLoad"
+            binderror="onFeatureImageError"
+          />
+          <view class="report-fallback">{{feature.icon}}</view>
+          <view class="scan-line"></view>
         </view>
-      </view>
-      <view class="carousel-dots">
-        <text class="dot active"></text>
-        <text class="dot"></text>
-        <text class="dot"></text>
-        <text class="dot"></text>
+
+        <view class="analysis-list">
+          <view class="analysis-card {{item.tone}}" wx:for="{{detailAnalysis}}" wx:key="title">
+            <view class="analysis-dot"></view>
+            <view>
+              <text class="analysis-title">{{item.title}}</text>
+              <text class="analysis-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
       </view>
     </view>
 
     <view class="require-card">
-      <view class="card-row head">
-        <text class="card-title">上传要求</text>
-        <text class="card-arrow">⌄</text>
+      <view class="section-heading">
+        <text class="section-icon">▣</text>
+        <text class="section-title">拍摄要求</text>
       </view>
-      <view class="require-item" wx:for="{{requirements}}" wx:key="*this">
-        <text class="check-dot">✓</text>
-        <text>{{item}}</text>
+      <view class="require-grid">
+        <view class="require-item" wx:for="{{requirementItems}}" wx:key="text">
+          <view class="require-icon">{{item.icon}}</view>
+          <text>{{item.text}}</text>
+        </view>
       </view>
     </view>
 
     <view class="bottom-dock">
-      <view class="dock-cost">消耗 <text>1</text> 积分</view>
+      <view class="dock-cost">
+        <text class="cost-label">本次消耗</text>
+        <text class="cost-value">1 积分</text>
+      </view>
       <button class="start-btn" bindtap="startUpload">立即上传 →</button>
     </view>
   </view>

@@ -1,13 +1,5 @@
 const { fetchFeature } = require("../../../utils/featureConfigClient");
 
-const TIPS = {
-  palm: ["手掌完整，五指张开", "光线充足，清晰无反光", "避免佩戴饰品遮挡纹路"],
-  hair: ["正面露脸，脸部无遮挡", "光线均匀，发型轮廓清楚", "背景简洁，避免多人同框"],
-  profile: ["正面肖像，五官清晰", "表情自然，无遮挡", "背景简洁，主体突出"],
-  doodle: ["主体清晰，构图完整", "光线明亮，避免严重模糊", "适合生活照或旅行照"],
-  soul: ["人物或主体清楚", "画面信息不要过于复杂", "越有表情越有趣"],
-};
-
 Page({
   data: {
     feature: null,
@@ -31,7 +23,14 @@ Page({
       return;
     }
 
-    const feature = this.getFeatureFromCache(type) || await fetchFeature(type);
+    let feature;
+    try {
+      feature = this.getFeatureFromCache(type) || await fetchFeature(type);
+    } catch (err) {
+      this.setData({ configLoading: false, configError: err.message || "功能暂不可用" });
+      return;
+    }
+
     if (!feature) {
       this.setData({ configLoading: false, configError: "功能暂不可用" });
       return;
@@ -40,7 +39,7 @@ Page({
     wx.setNavigationBarTitle({ title: "上传照片" });
     this.setData({
       feature,
-      tips: TIPS[feature.type] || TIPS.doodle,
+      tips: feature.ui?.requirements || [],
       configLoading: false,
       configError: "",
     });

@@ -7,7 +7,12 @@ Page({
     configLoading: true,
     configError: "",
     requirements: [],
+    requirementItems: [],
     analysisItems: [],
+    detailAnalysis: [],
+    detailTitle: "",
+    detailSubtitle: "",
+    detailTags: [],
     reportTitle: "",
   },
 
@@ -18,7 +23,14 @@ Page({
       return;
     }
 
-    const feature = this.getFeatureFromCache(type) || await fetchFeature(type);
+    let feature;
+    try {
+      feature = this.getFeatureFromCache(type) || await fetchFeature(type);
+    } catch (err) {
+      this.setData({ configLoading: false, configError: err.message || "功能暂不可用" });
+      return;
+    }
+
     if (!feature) {
       this.setData({ configLoading: false, configError: "功能暂不可用" });
       return;
@@ -28,7 +40,12 @@ Page({
     this.setData({
       feature,
       requirements: ui.requirements || [],
+      requirementItems: this.buildRequirementItems(ui),
       analysisItems: ui.analysisItems || [],
+      detailAnalysis: this.buildDetailAnalysis(ui.analysisItems || []),
+      detailTitle: feature.title || "",
+      detailSubtitle: ui.detailSubtitle || "",
+      detailTags: this.buildDetailTags(ui.tags || []),
       reportTitle: ui.reportTitle || "",
       configLoading: false,
       configError: "",
@@ -46,6 +63,46 @@ Page({
     const type = this.data.feature?.type;
     if (!type) return;
     wx.navigateTo({ url: `/pages/ai/upload/index?type=${type}` });
+  },
+
+  buildDetailAnalysis(items) {
+    const tones = ["green", "yellow", "coral"];
+
+    return (items || []).map((source, index) => {
+      const sourceItems = Array.isArray(source.items) ? source.items : [];
+      return {
+        title: source.title || "",
+        desc: sourceItems[0] || "",
+        tone: tones[index % tones.length],
+      };
+    }).filter((item) => item.title || item.desc);
+  },
+
+  buildDetailTags(tags) {
+    const normalized = (tags || [])
+      .map((tag) => {
+        if (typeof tag === "string") return { icon: "", text: tag };
+        return {
+          icon: tag.icon || "",
+          text: tag.text || tag.title || "",
+        };
+      })
+      .filter((tag) => tag.text);
+
+    return normalized;
+  },
+
+  buildRequirementItems(ui = {}) {
+    if (Array.isArray(ui.requirementItems) && ui.requirementItems.length > 0) {
+      return ui.requirementItems
+        .map((item) => ({
+          text: item.text || item.title || "",
+          icon: item.icon || "✓",
+        }))
+        .filter((item) => item.text);
+    }
+
+    return [];
   },
 
   goBack() {

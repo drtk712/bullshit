@@ -1,24 +1,52 @@
 /**app.wxss**/
 page {
-  --bg: #f5f2ec;
-  --ink: #171615;
-  --muted: #8b8580;
-  --line: rgba(23, 22, 21, 0.08);
+  --ui-bg: #fbfcf8;
+  --ui-surface: #f3fcf2;
+  --ui-surface-low: #edf6ec;
+  --ui-surface-high: #e2eae1;
+  --ui-card: #ffffff;
+  --ui-text: #17211b;
+  --ui-text-soft: #3c4a40;
+  --ui-muted: #8a938d;
+  --ui-outline: #bbcabd;
+  --ui-line: rgba(23, 33, 27, 0.06);
+  --ui-primary: #15c77a;
+  --ui-primary-dark: #006d40;
+  --ui-primary-soft: rgba(21, 199, 122, 0.12);
+  --ui-accent: #f6a512;
+  --ui-error: #d85043;
+  --ui-error-soft: #ffdad6;
+  --ui-shadow: 0 8rpx 40rpx rgba(23, 33, 27, 0.04);
+  --ui-shadow-strong: 0 16rpx 60rpx rgba(23, 33, 27, 0.08);
+  --ui-page-x: 40rpx;
+  --ui-gap-xs: 8rpx;
+  --ui-gap-sm: 16rpx;
+  --ui-gap-md: 32rpx;
+  --ui-gap-lg: 48rpx;
+  --ui-radius-sm: 16rpx;
+  --ui-radius-md: 24rpx;
+  --ui-radius-lg: 40rpx;
+  --ui-radius-xl: 48rpx;
+  --ui-radius-full: 999rpx;
+  --bg: var(--ui-bg);
+  --ink: var(--ui-text);
+  --muted: var(--ui-muted);
+  --line: var(--ui-line);
   --paper: rgba(255, 255, 255, 0.9);
-  --paper-solid: #ffffff;
-  --green: #15c77a;
+  --paper-solid: var(--ui-card);
+  --green: var(--ui-primary);
   --green-dark: #0f9f63;
   --coral: #ff6d5a;
   --yellow: #ffd45d;
   --blue: #4e8cff;
   --purple: #8a63ff;
-  --shadow: 0 18rpx 52rpx rgba(39, 32, 24, 0.09);
-  --radius-lg: 32rpx;
-  --radius-md: 24rpx;
-  --radius-sm: 16rpx;
+  --shadow: var(--ui-shadow);
+  --radius-lg: var(--ui-radius-lg);
+  --radius-md: var(--ui-radius-md);
+  --radius-sm: var(--ui-radius-sm);
   min-height: 100vh;
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--ui-bg);
+  color: var(--ui-text);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -50,16 +78,85 @@ button::after {
 .glass-card {
   background: var(--paper);
   border: 1rpx solid rgba(255, 255, 255, 0.74);
-  box-shadow: var(--shadow);
+  box-shadow: var(--ui-shadow);
   backdrop-filter: blur(22rpx);
+}
+
+.ui-page {
+  min-height: 100vh;
+  padding-left: var(--ui-page-x);
+  padding-right: var(--ui-page-x);
+  color: var(--ui-text);
+  background: var(--ui-bg);
+}
+
+.ui-card {
+  border-radius: var(--ui-radius-lg);
+  background: var(--ui-card);
+  box-shadow: var(--ui-shadow);
+}
+
+.ui-title {
+  color: var(--ui-text);
+  font-size: 48rpx;
+  font-weight: 800;
+  line-height: 64rpx;
+}
+
+.ui-section-title {
+  color: var(--ui-text);
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 56rpx;
+}
+
+.ui-body {
+  color: var(--ui-text-soft);
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.ui-muted {
+  color: var(--ui-muted);
+}
+
+.ui-primary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  border-radius: var(--ui-radius-xl);
+  background: var(--ui-primary);
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 12rpx 32rpx rgba(21, 199, 122, 0.22);
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 56rpx;
+  padding: 0 24rpx;
+  border-radius: var(--ui-radius-full);
+  background: var(--ui-surface-low);
+  color: var(--ui-text-soft);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.ui-chip.active {
+  background: var(--ui-primary);
+  color: #ffffff;
 }
 
 .mini-spinner {
   width: 44rpx;
   height: 44rpx;
-  border: 4rpx solid rgba(23, 22, 21, 0.08);
-  border-top-color: var(--green);
-  border-radius: 999rpx;
+  border: 4rpx solid rgba(23, 33, 27, 0.08);
+  border-top-color: var(--ui-primary);
+  border-radius: var(--ui-radius-full);
   animation: app-spin 0.9s linear infinite;
 }
 

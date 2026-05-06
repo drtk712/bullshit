@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>玩图局 - 生成记录</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#fdab1b",
+                        "outline-variant": "#bbcabd",
+                        "tertiary-fixed-dim": "#ffb4aa",
+                        "primary-fixed-dim": "#42e090",
+                        "on-tertiary-fixed": "#410001",
+                        "surface-container-low": "#edf6ec",
+                        "on-primary-container": "#004c2b",
+                        "on-surface-variant": "#3c4a40",
+                        "inverse-surface": "#2a322c",
+                        "on-error-container": "#93000a",
+                        "outline": "#6c7b6f",
+                        "inverse-on-surface": "#ebf3e9",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#65feaa",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#8c1813",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#42e090",
+                        "secondary-fixed-dim": "#ffb953",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e2eae1",
+                        "background": "#f3fcf2",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f3fcf2",
+                        "secondary": "#825500",
+                        "surface-tint": "#006d40",
+                        "on-secondary-fixed-variant": "#633f00",
+                        "on-primary-fixed": "#002110",
+                        "on-primary-fixed-variant": "#00522f",
+                        "surface-container-highest": "#dce5db",
+                        "on-secondary-container": "#694300",
+                        "tertiary-container": "#ff8f81",
+                        "primary-container": "#15c77a",
+                        "tertiary": "#ad3128",
+                        "secondary-fixed": "#ffddb4",
+                        "tertiary-fixed": "#ffdad5",
+                        "on-background": "#161d18",
+                        "surface-variant": "#dce5db",
+                        "on-surface": "#161d18",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#291800",
+                        "on-secondary": "#ffffff",
+                        "primary": "#006d40",
+                        "surface-bright": "#f3fcf2",
+                        "surface-container": "#e8f0e7",
+                        "surface-dim": "#d4dcd3",
+                        "on-tertiary-container": "#84120f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-page": "20px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "gutter": "12px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "safe": "env(safe-area-inset-bottom)"
+                    },
+                    "fontFamily": {
+                        "h3": ["Plus Jakarta Sans", "sans-serif"],
+                        "body-md": ["Be Vietnam Pro", "sans-serif"],
+                        "h1": ["Plus Jakarta Sans", "sans-serif"],
+                        "body-lg": ["Be Vietnam Pro", "sans-serif"],
+                        "h2": ["Plus Jakarta Sans", "sans-serif"],
+                        "label-sm": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h1": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "h2": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom scrollbar for horizontal tabs */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col pb-[calc(80px+env(safe-area-inset-bottom))]">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 backdrop-blur-[20px] bg-surface/80 dark:bg-surface-dim/80 shadow-[0px_4px_20px_rgba(23,33,27,0.04)]">
+<div class="flex justify-between items-center w-full px-margin-page h-16 pt-[env(safe-area-inset-top)]">
+<button aria-label="Menu" class="text-on-surface-variant hover:bg-surface-container-high/50 active:scale-95 transition-all duration-200 rounded-full p-2 -ml-2">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<h1 class="font-h1 text-h1 tracking-tight text-on-surface">生成记录</h1>
+<button aria-label="More" class="text-on-surface-variant hover:bg-surface-container-high/50 active:scale-95 transition-all duration-200 rounded-full p-2 -mr-2">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 pt-[calc(64px+env(safe-area-inset-top))] px-margin-page">
+<!-- Filter Tabs -->
+<div class="flex space-x-2 overflow-x-auto no-scrollbar py-4 -mx-margin-page px-margin-page sticky top-[calc(64px+env(safe-area-inset-top))] z-40 bg-background/95 backdrop-blur-sm">
+<button class="whitespace-nowrap px-4 py-2 rounded-full font-label-sm text-label-sm bg-primary-container text-on-primary-container transition-transform active:scale-95">全部</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full font-label-sm text-label-sm bg-surface-container-highest text-on-surface-variant hover:bg-surface-variant transition-transform active:scale-95">进行中</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full font-label-sm text-label-sm bg-surface-container-highest text-on-surface-variant hover:bg-surface-variant transition-transform active:scale-95">已完成</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full font-label-sm text-label-sm bg-surface-container-highest text-on-surface-variant hover:bg-surface-variant transition-transform active:scale-95">已失败</button>
+</div>
+<!-- Records List -->
+<div class="space-y-4 mt-2">
+<!-- Item 1: INS手绘风 (In Progress) -->
+<div class="bg-surface-container-lowest rounded-[20px] p-4 shadow-[0px_4px_20px_rgba(23,33,27,0.04)] active:scale-[0.98] transition-transform duration-200 flex flex-col gap-3 border border-transparent hover:border-surface-variant">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest overflow-hidden relative">
+<img alt="" class="w-full h-full object-cover opacity-50" data-alt="A modern, playful digital avatar illustration in a trendy Instagram hand-drawn style. The artwork features soft, pastel-colored strokes on a clean, light cream background. The character has stylized features, large expressive eyes, and casual streetwear clothing, reflecting a youthful Gen-Z aesthetic. The lighting is flat and illustrative, prioritizing clean lines and vibrant color pops over realistic shading." src="https://lh3.googleusercontent.com/aida/ADBb0uhSfR7Sy6yhtfMC0frrKdbeU4v3KtRBX7Qsd6dC6j-YekcQ_5WQyoCSajqLaGxNRye2gw7tVeGymQ2fuuTTbU1j8XsijDzZluPgPMIFwoJOyy1UKPRZqItd4_oplN2l280MCGNugrZcWyBxTWV0MU_41fEVgl5qvyr0nVgRn4ZqePO2e8tM7liLZuyqMmBw61vEkVXYU-spWpXaQcLyIXSqmWBeW0yox8m2yw28Mosk1URhrsd8dMG5hLSgk9l6UTKVj5eF0pL0RhU"/>
+<div class="absolute inset-0 flex items-center justify-center bg-surface-container-low/30 backdrop-blur-sm">
+<span class="material-symbols-outlined text-primary-container animate-pulse">hourglass_empty</span>
+</div>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">INS手绘风</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">2023-10-27 14:30</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-[#E3F2FD] text-[#1976D2]">生成中 65%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden mt-1">
+<div class="h-full bg-[#1976D2] rounded-full transition-all duration-500 ease-out" style="width: 65%;"></div>
+</div>
+</div>
+<!-- Item 2: 灵魂画手 (Completed) -->
+<div class="bg-surface-container-lowest rounded-[20px] p-4 shadow-[0px_4px_20px_rgba(23,33,27,0.04)] active:scale-[0.98] transition-transform duration-200 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container overflow-hidden">
+<img alt="" class="w-full h-full object-cover" data-alt="A funny, deliberately crude and expressive digital painting in a 'soul artist' style. The image depicts a humorous caricature of a dog with exaggerated features, painted with messy, vibrant digital brushstrokes against a stark white background. The colors are intentionally loud, featuring bright yellows and deep greens, giving it a playful, meme-worthy, and highly shareable Gen-Z vibe." src="https://lh3.googleusercontent.com/aida/ADBb0uhSfR7Sy6yhtfMC0frrKdbeU4v3KtRBX7Qsd6dC6j-YekcQ_5WQyoCSajqLaGxNRye2gw7tVeGymQ2fuuTTbU1j8XsijDzZluPgPMIFwoJOyy1UKPRZqItd4_oplN2l280MCGNugrZcWyBxTWV0MU_41fEVgl5qvyr0nVgRn4ZqePO2e8tM7liLZuyqMmBw61vEkVXYU-spWpXaQcLyIXSqmWBeW0yox8m2yw28Mosk1URhrsd8dMG5hLSgk9l6UTKVj5eF0pL0RhU"/>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">灵魂画手</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">2023-10-27 10:15</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-low text-primary">已完成</span>
+</div>
+<div class="flex gap-2 mt-1">
+<button class="flex-1 bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface font-label-sm text-label-sm py-2 rounded-lg flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">share</span> 分享
+                    </button>
+<button class="flex-1 bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface font-label-sm text-label-sm py-2 rounded-lg flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">download</span> 保存
+                    </button>
+</div>
+</div>
+<!-- Item 3: 设计发型 (Completed) -->
+<div class="bg-surface-container-lowest rounded-[20px] p-4 shadow-[0px_4px_20px_rgba(23,33,27,0.04)] active:scale-[0.98] transition-transform duration-200 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container overflow-hidden">
+<img alt="" class="w-full h-full object-cover" data-alt="A sleek, high-fashion portrait generated by AI, showing a young adult with a modern, stylish haircut. The lighting is soft studio photography style, illuminating the intricate details of the hair texture. The background is a clean, neutral soft grey, putting the focus entirely on the new hairstyle. The aesthetic is polished, professional, yet distinctly modern and appealing to millennials." src="https://lh3.googleusercontent.com/aida/ADBb0uhSfR7Sy6yhtfMC0frrKdbeU4v3KtRBX7Qsd6dC6j-YekcQ_5WQyoCSajqLaGxNRye2gw7tVeGymQ2fuuTTbU1j8XsijDzZluPgPMIFwoJOyy1UKPRZqItd4_oplN2l280MCGNugrZcWyBxTWV0MU_41fEVgl5qvyr0nVgRn4ZqePO2e8tM7liLZuyqMmBw61vEkVXYU-spWpXaQcLyIXSqmWBeW0yox8m2yw28Mosk1URhrsd8dMG5hLSgk9l6UTKVj5eF0pL0RhU"/>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">设计发型</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">2023-10-26 19:42</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-low text-primary">已完成</span>
+</div>
+<div class="flex gap-2 mt-1">
+<button class="flex-1 bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface font-label-sm text-label-sm py-2 rounded-lg flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">share</span> 分享
+                    </button>
+<button class="flex-1 bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface font-label-sm text-label-sm py-2 rounded-lg flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">download</span> 保存
+                    </button>
+</div>
+</div>
+<!-- Item 4: 个人形象分析 (Failed) -->
+<div class="bg-surface-container-lowest rounded-[20px] p-4 shadow-[0px_4px_20px_rgba(23,33,27,0.04)] active:scale-[0.98] transition-transform duration-200 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-error-container/30 flex items-center justify-center text-error border border-error-container">
+<span class="material-symbols-outlined">broken_image</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">个人形象分析</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">2023-10-26 15:10</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-error-container text-on-error-container">已失败</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded-lg flex items-start gap-2 mt-1">
+<span class="material-symbols-outlined text-[16px] text-error mt-0.5">info</span>
+<p class="font-body-md text-body-md text-on-surface-variant text-xs">未检测到清晰的人脸，请重新上传照片再试一次。</p>
+</div>
+<button class="w-full bg-primary text-on-primary font-label-sm text-label-sm py-2 rounded-full hover:opacity-90 transition-opacity flex items-center justify-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[16px]">refresh</span> 重新生成
+                </button>
+</div>
+</div>
+<!-- Bottom spacing for nav bar -->
+<div class="h-24"></div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-safe pt-2 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-[20px] border-t border-surface-container-high dark:border-outline-variant/20 shadow-[0px_-4px_20px_rgba(23,33,27,0.04)] z-50 rounded-t-xl h-[calc(60px+env(safe-area-inset-bottom))]">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1.5 hover:opacity-80 transition-opacity active:scale-90 duration-150 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">home</span>
+<span class="font-label-sm text-label-sm mt-1">首页</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary-fixed-dim text-on-primary-container dark:text-on-primary-fixed rounded-full px-5 py-1.5 hover:opacity-80 transition-opacity active:scale-90 duration-150" href="#">
+<span class="material-symbols-outlined fill">history</span>
+<span class="font-label-sm text-label-sm mt-1">生成记录</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1.5 hover:opacity-80 transition-opacity active:scale-90 duration-150 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">person</span>
+<span class="font-label-sm text-label-sm mt-1">我的</span>
+</a>
+</nav>
+</body></html>
