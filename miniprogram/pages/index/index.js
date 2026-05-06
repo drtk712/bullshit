@@ -109,30 +109,10 @@ Page({
       ? this.data.homeFeatureList.filter((f) => types.includes(f.type))
       : this.data.homeFeatureList;
 
-    this.setData({ activeCategory: index, filteredFeatureList: filtered });
-  },
+     this.setData({ activeCategory: index, filteredFeatureList: filtered });
+   },
 
-  onPreviewImageLoad(e) {
-    const { index } = e.currentTarget.dataset;
-    const key = `homeFeatureList[${index}]._imageLoaded`;
-    this.setData({ [key]: true });
-  },
-
-  onPreviewImageError(e) {
-    const { index } = e.currentTarget.dataset;
-    const key = `homeFeatureList[${index}]._imageError`;
-    this.setData({ [key]: true });
-  },
-
-  onRecommendImageLoad() {
-    this.setData({ "recommendedFeature._imageLoaded": true });
-  },
-
-  onRecommendImageError() {
-    this.setData({ "recommendedFeature._imageError": true });
-  },
-
-  async onPreviewImageTap(e) {
+   async onPreviewImageTap(e) {
     const { index } = e.currentTarget.dataset;
     const feature = this.data.filteredFeatureList[index];
     if (!feature || !feature.previewImageHD) return;

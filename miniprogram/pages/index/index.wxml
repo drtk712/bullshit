@@ -24,63 +24,60 @@
         <text class="recommend-desc" wx:if="{{recommendedFeature.description}}">{{recommendedFeature.description}}</text>
         <view class="recommend-btn">去玩一玩</view>
       </view>
-      <view class="recommend-art">
-        <view class="spark s1">✦</view>
-        <view class="spark s2">＋</view>
-        <image
-          wx:if="{{recommendedFeature.previewImageHD}}"
-          class="recommend-image {{recommendedFeature._imageLoaded ? 'loaded' : ''}}"
-          src="{{recommendedFeature.previewImageHD}}"
-          mode="aspectFill"
-          lazy-load
-          bindload="onRecommendImageLoad"
-          binderror="onRecommendImageError"
-        />
-        <view class="recommend-fallback">{{recommendedFeature.icon}}</view>
-      </view>
+       <view class="recommend-art">
+         <view class="spark spark-a">✦</view>
+         <view class="spark spark-b">✧</view>
+         <view class="spark spark-c">✦</view>
+         <image
+           wx:if="{{recommendedFeature.previewImageHD}}"
+           class="recommend-image"
+           src="{{recommendedFeature.previewImageHD}}"
+           mode="aspectFill"
+           lazy-load
+         />
+         <view class="recommend-fallback">{{recommendedFeature.icon}}</view>
+       </view>
     </view>
 
-    <view class="category-row">
-      <view class="category-chip {{index === activeCategory ? 'active' : ''}}" wx:for="{{categories}}" wx:key="text" data-index="{{index}}" bindtap="onCategoryTap">
-        <text>{{item.icon}}</text>
-        <text>{{item.text}}</text>
-      </view>
-    </view>
+     <scroll-view scroll-x class="category-row" enable-flex>
+       <view class="category-chip {{index === activeCategory ? 'active' : ''}}" wx:for="{{categories}}" wx:key="text" data-index="{{index}}" bindtap="onCategoryTap">
+         <text>{{item.icon}}</text>
+         <text>{{item.text}}</text>
+       </view>
+     </scroll-view>
 
     <view class="section-head">
       <text class="section-title">全部玩法</text>
     </view>
 
-    <view class="feature-grid">
-      <view
-        class="feature-card feature-{{item.type}}"
-        wx:for="{{filteredFeatureList}}"
-        wx:key="type"
-        data-url="{{item.route}}"
-        bindtap="onClickFeature"
-      >
-        <view class="feature-thumb">
-          <image
-            wx:if="{{item.previewImageHD}}"
-            class="feature-preview {{item._imageLoaded ? 'loaded' : ''}}"
-            src="{{item.previewImageHD}}"
-            mode="aspectFill"
-            lazy-load
-            data-index="{{index}}"
-            bindload="onPreviewImageLoad"
-            binderror="onPreviewImageError"
-            catchtap="onPreviewImageTap"
-          />
-          <text class="feature-emoji">{{item.badgeIcon}}</text>
-        </view>
-        <view class="feature-copy">
-          <text class="feature-title">{{item.title}}</text>
-          <text class="feature-desc">{{item.homeDesc}}</text>
-        </view>
-      </view>
-      <view wx:if="{{filteredFeatureList.length === 0}}" class="empty-card">
-        <text>暂无玩法</text>
-      </view>
-    </view>
+     <view class="feature-grid">
+       <view
+         class="feature-card feature-{{item.type}}"
+         wx:for="{{filteredFeatureList}}"
+         wx:key="type"
+         data-url="{{item.route}}"
+         bindtap="onClickFeature"
+       >
+         <view class="feature-icon-box">
+           <image
+             wx:if="{{item.previewImageHD}}"
+             class="feature-preview"
+             src="{{item.previewImageHD}}"
+             mode="aspectFill"
+             lazy-load
+             data-index="{{index}}"
+             catchtap="onPreviewImageTap"
+           />
+           <text class="feature-emoji">{{item.badgeIcon}}</text>
+         </view>
+         <view class="feature-info">
+           <text class="feature-title">{{item.title}}</text>
+           <text class="feature-desc">{{item.homeDesc}}</text>
+         </view>
+       </view>
+       <view wx:if="{{filteredFeatureList.length === 0}}" class="empty-card">
+         <text>暂无玩法</text>
+       </view>
+     </view>
   </block>
 </view>
