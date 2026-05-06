@@ -50,6 +50,12 @@ Page({
     this.loadTask();
   },
 
+  goBack() {
+    wx.navigateBack({
+      fail: () => wx.switchTab({ url: '/pages/mine/tasks' }),
+    });
+  },
+
   onPullDownRefresh() {
     this.loadTask({ silent: true, stopRefresh: true });
   },
@@ -78,6 +84,7 @@ Page({
           task: {
             ...task,
             displayName: getTaskDisplayName(task.type),
+            displayInitial: getTaskDisplayName(task.type).slice(0, 1),
             statusText: getTaskStatusText(task),
             statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
             formattedTime: this.formatTime(task.createdAt),
@@ -290,6 +297,14 @@ Page({
     return isActiveTaskStatus(status);
   },
 
+  onShareAppMessage() {
+    return {
+      title: `我在玩图局生成了${this.data.task?.displayName || '趣味图'}`,
+      path: '/pages/index/index',
+      imageUrl: this.data.posterPreviewUrl || '',
+    };
+  },
+
 
   formatTime(timestamp) {
     if (!timestamp) return '';
@@ -300,5 +315,46 @@ Page({
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day} ${hours}:${minutes}`;
+  },
+
+  handleDeleteTask() {
+    if (!this.taskId) return;
+
+    const status = this.data.task?.status;
+    if (status === 'pending' || status === 'processing') {
+      wx.showToast({ title: '进行中的任务不能删除', icon: 'none' });
+      return;
+    }
+
+    const taskId = this.taskId;
+
+    wx.showModal({
+      title: '确认删除',
+      content: '删除后无法恢复，确定要删除这条记录吗？',
+      success: async (res) => {
+        if (!res.confirm) return;
+
+        wx.showLoading({ title: '删除中...' });
+        try {
+          const result = await wx.cloud.callFunction({
+            name: 'quickstartFunctions',
+            data: { type: 'deleteTask', data: { taskId } }
+          });
+          wx.hideLoading();
+
+          if (result.result && result.result.success) {
+            wx.showToast({ title: '删除成功', icon: 'success' });
+            setTimeout(() => {
+              wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/mine/tasks' }) });
+            }, 500);
+          } else {
+            wx.showToast({ title: result.result?.errMsg || '删除失败', icon: 'none' });
+          }
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({ title: '网络错误，请稍后重试', icon: 'none' });
+        }
+      }
+    });
   },
 });

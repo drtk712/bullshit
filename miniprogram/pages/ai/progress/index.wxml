@@ -1,0 +1,24 @@
+<view class="progress-page">
+  <view class="progress-hero">
+    <text class="progress-title">{{progressTitle}}</text>
+    <text class="progress-desc">正在努力创作你的专属作品</text>
+    <image class="progress-mascot-img" src="/images/ui/generating-mascot.png" mode="aspectFit"></image>
+  </view>
+
+  <view class="check-card">
+    <view class="check-head">
+      <text class="check-main-title">{{progressTitle}}</text>
+      <text class="check-percent">{{progress}}%</text>
+    </view>
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{progress}}%;"></view>
+    </view>
+    <view class="check-row" wx:for="{{progressChecks}}" wx:key="title">
+      <text class="check-title">{{item.title}}</text>
+      <text class="check-sub {{item.status === 'progress' ? 'muted' : ''}}">{{item.status === 'progress' ? (progress > 70 ? '完成' : '进行中') : item.status}}</text>
+    </view>
+  </view>
+
+  <view class="remain-line">预计剩余 {{remainText}} ›</view>
+  <view class="progress-hint">💡 你可以稍后在“生成记录”中查看进度</view>
+</view>

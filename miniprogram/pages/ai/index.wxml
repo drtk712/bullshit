@@ -1,83 +1,74 @@
 <view class="ai-page">
-  <view wx:if="{{configLoading}}" class="status-panel standalone">
-    <view class="loading-spinner"></view>
-    <text class="status-title">正在加载功能配置</text>
+  <view class="custom-nav">
+    <view class="nav-icon" bindtap="goBack">‹</view>
+    <text class="nav-title">{{feature.title || '看手相'}}</text>
   </view>
 
-  <view wx:elif="{{configError}}" class="error-card standalone">
-    <text class="error-text">{{configError}}</text>
+  <view wx:if="{{configLoading}}" class="state-panel">
+    <view class="mini-spinner"></view>
+    <text class="state-title">正在准备玩法</text>
   </view>
 
-  <block wx:else>
-    <view class="feature-card">
-      <view class="feature-icon-wrapper">
-        <view class="feature-icon">{{feature.icon}}</view>
+  <view wx:elif="{{configError}}" class="state-panel">
+    <view class="state-icon">!</view>
+    <text class="state-title">玩法暂不可用</text>
+    <text class="state-desc error">{{configError}}</text>
+  </view>
+
+  <view wx:else class="detail-content">
+    <view class="detail-head">
+      <text class="detail-kicker">趣味{{feature.title}}解读</text>
+      <text class="detail-title">探索你的天赋、性格与运势</text>
+      <view class="tag-row">
+        <text class="tag">◎ 趣味解读</text>
+        <text class="tag">◉ 专业分析</text>
+        <text class="tag">♡ 精美海报</text>
+      </view>
+    </view>
+
+    <view class="showcase">
+      <view class="report-card" catchtap="previewFeatureImage">
         <image
           wx:if="{{feature.previewImageHD}}"
-          class="feature-preview {{feature._imageLoaded ? 'loaded' : ''}}"
+          class="report-image {{feature._imageLoaded ? 'loaded' : ''}}"
           src="{{feature.previewImageHD}}"
           mode="aspectFill"
           lazy-load
           bindload="onFeatureImageLoad"
           binderror="onFeatureImageError"
-          catchtap="previewFeatureImage"
         />
+        <view class="report-fallback">{{feature.icon}}</view>
+        <text class="report-title">{{reportTitle}}</text>
+        <view class="magnifier">⌕</view>
       </view>
-      <view class="feature-copy">
-        <text class="feature-title">{{feature.title}}</text>
-        <text class="feature-desc">{{feature.description}}</text>
+      <view class="analysis-list">
+        <view class="analysis-item" wx:for="{{analysisItems}}" wx:key="title">
+          <text class="analysis-title">{{item.title}}</text>
+          <text class="analysis-desc" wx:for="{{item.items}}" wx:key="*this">{{item}}</text>
+        </view>
       </view>
-    </view>
-
-    <view class="test-toggle">
-      <view class="test-copy">
-        <text class="test-title">测试模式</text>
-        <text class="test-desc">开启后不消耗 API 费用</text>
-      </view>
-      <switch checked="{{testMode}}" bindchange="toggleTestMode" color="#07c160" />
-    </view>
-
-    <view class="test-toggle">
-      <view class="test-copy">
-        <text class="test-title">不扣积分</text>
-        <text class="test-desc">仅开发测试使用，本次真实生成不消耗积分</text>
-      </view>
-      <switch checked="{{skipPointsDeduction}}" bindchange="toggleSkipPointsDeduction" color="#07c160" />
-    </view>
-
-    <view class="upload-card" bindtap="handleUploadTap">
-      <view wx:if="{{posterUrl}}" class="poster-preview" catchtap="previewPoster">
-        <image
-          class="poster-image"
-          src="{{posterPreviewUrl || posterUrl}}"
-          mode="aspectFill"
-          binderror="onImageError"
-          bindload="onImageLoad"
-        />
-        <view class="poster-tip">点击查看大图</view>
-      </view>
-
-      <view wx:elif="{{loading}}" class="status-panel">
-        <view class="loading-spinner"></view>
-        <text class="status-title">正在生成</text>
-        <text class="status-desc">{{loadingText}}</text>
-      </view>
-
-      <view wx:else class="upload-placeholder">
-        <text class="upload-icon">{{feature.uploadIcon}}</text>
-        <text class="upload-title">{{feature.uploadTitle}}</text>
-        <text class="upload-tip">{{feature.uploadTip}}</text>
+      <view class="carousel-dots">
+        <text class="dot active"></text>
+        <text class="dot"></text>
+        <text class="dot"></text>
+        <text class="dot"></text>
       </view>
     </view>
 
-    <view wx:if="{{errorMsg}}" class="error-card">
-      <text class="error-text">{{errorMsg}}</text>
-      <button class="secondary-button" bindtap="chooseImage">{{feature.retryText}}</button>
+    <view class="require-card">
+      <view class="card-row head">
+        <text class="card-title">上传要求</text>
+        <text class="card-arrow">⌄</text>
+      </view>
+      <view class="require-item" wx:for="{{requirements}}" wx:key="*this">
+        <text class="check-dot">✓</text>
+        <text>{{item}}</text>
+      </view>
     </view>
 
-     <view wx:if="{{posterUrl}}" class="action-area">
-       <button class="primary-button" bindtap="savePoster">保存海报</button>
-       <button class="secondary-button" open-type="share">分享得积分</button>
-     </view>
-  </block>
+    <view class="bottom-dock">
+      <view class="dock-cost">消耗 <text>1</text> 积分</view>
+      <button class="start-btn" bindtap="startUpload">立即上传 →</button>
+    </view>
+  </view>
 </view>

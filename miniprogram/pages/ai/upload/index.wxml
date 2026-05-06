@@ -1,0 +1,58 @@
+<view class="upload-page">
+  <view class="flow-nav">
+    <view class="flow-back" bindtap="goBack">‹</view>
+    <text class="flow-title">上传照片</text>
+    <view class="flow-more">···</view>
+  </view>
+
+  <view wx:if="{{configLoading}}" class="state-card">
+    <view class="mini-spinner"></view>
+    <text class="state-text">正在准备玩法</text>
+  </view>
+
+  <view wx:elif="{{configError}}" class="state-card">
+    <view class="state-icon">!</view>
+    <text class="state-text error">{{configError}}</text>
+  </view>
+
+  <block wx:else>
+    <view class="upload-box" bindtap="chooseImage">
+      <view class="camera-bubble">{{feature.uploadIcon}}</view>
+      <text class="upload-title">{{feature.uploadTitle}}</text>
+      <text class="upload-sub">支持 JPG / PNG / HEIC</text>
+      <view class="camera-sticker">📷</view>
+    </view>
+
+    <view class="tips-card">
+      <text class="tips-title">拍照小贴士</text>
+      <view class="tip-item" wx:for="{{tips}}" wx:key="*this">
+        <text class="check-dot">✓</text>
+        <text>{{item}}</text>
+      </view>
+    </view>
+
+    <view class="cost-card">
+      <view class="cost-row">
+        <text class="cost-label">本次消耗</text>
+        <view class="cost-value"><text>1</text> 积分</view>
+      </view>
+      <view class="cost-row balance">
+        <text class="cost-sub">当前余额</text>
+        <text class="balance-value">{{points}} 积分 ›</text>
+      </view>
+      <button class="generate-btn" bindtap="chooseImage">开始生成 ✦</button>
+    </view>
+
+    <view class="upload-footnote">图片仅用于本次生成，生成后自动删除</view>
+
+    <view wx:if="{{showPointsModal}}" class="modal-mask">
+      <view class="modal-card">
+        <view class="modal-close" bindtap="hidePointsModal">×</view>
+        <view class="coin-art">◎</view>
+        <text class="modal-title">积分不足</text>
+        <text class="modal-desc">当前积分：{{points}}，还差 1 积分即可生成</text>
+        <button class="modal-btn" open-type="share">去赚积分</button>
+      </view>
+    </view>
+  </block>
+</view>

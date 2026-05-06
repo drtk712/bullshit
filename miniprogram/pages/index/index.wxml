@@ -1,45 +1,86 @@
-<view class="container">
-  <view class="header">
-    <view class="title">玩图局</view>
-    <view class="subtitle">选个主题，生成你的专属解读</view>
+<view class="home-page">
+  <view class="home-top">
+    <text class="page-brand">玩图局</text>
+    <text class="hello">Hi，玩图达人 👋</text>
+    <text class="sub-hello">今天想玩点什么呢？</text>
   </view>
 
   <view wx:if="{{loadingFeatures}}" class="state-card">
-    <view class="loading-spinner"></view>
-    <view class="state-text">正在加载功能</view>
+    <view class="mini-spinner"></view>
+    <view class="state-text">玩法加载中</view>
   </view>
 
   <view wx:elif="{{featureError}}" class="state-card">
+    <view class="state-icon warn">!</view>
+    <view class="state-title">加载失败</view>
     <view class="state-text error">{{featureError}}</view>
   </view>
 
-  <view wx:else class="power-list">
-    <view
-      class="power-item"
-      wx:for="{{featureList}}"
-      wx:key="type"
-      data-url="{{item.route}}"
-      bindtap="onClickFeature"
-    >
-      <view class="power-item-icon-wrapper">
-        <view class="power-item-icon">{{item.icon}}</view>
+  <block wx:else>
+    <view class="recommend-card" bindtap="onClickRecommend">
+      <view class="recommend-copy">
+        <text class="recommend-kicker">今日推荐</text>
+        <text class="recommend-title">{{recommendedFeature.title}}</text>
+        <text class="recommend-desc" wx:if="{{recommendedFeature.description}}">{{recommendedFeature.description}}</text>
+        <view class="recommend-btn">去玩一玩</view>
+      </view>
+      <view class="recommend-art">
+        <view class="spark s1">✦</view>
+        <view class="spark s2">＋</view>
         <image
-          wx:if="{{item.previewImageHD}}"
-          class="power-item-preview {{item._imageLoaded ? 'loaded' : ''}}"
-          src="{{item.previewImageHD}}"
+          wx:if="{{recommendedFeature.previewImageHD}}"
+          class="recommend-image {{recommendedFeature._imageLoaded ? 'loaded' : ''}}"
+          src="{{recommendedFeature.previewImageHD}}"
           mode="aspectFill"
           lazy-load
-          data-index="{{index}}"
-          bindload="onPreviewImageLoad"
-          binderror="onPreviewImageError"
-          catchtap="onPreviewImageTap"
+          bindload="onRecommendImageLoad"
+          binderror="onRecommendImageError"
         />
+        <view class="recommend-fallback">{{recommendedFeature.icon}}</view>
       </view>
-      <view class="power-item-content">
-        <view class="power-item-title">{{item.title}}</view>
-        <view class="power-item-tip">{{item.description}}</view>
-      </view>
-      <view class="power-item-arrow">›</view>
     </view>
-  </view>
+
+    <view class="category-row">
+      <view class="category-chip {{index === activeCategory ? 'active' : ''}}" wx:for="{{categories}}" wx:key="text" data-index="{{index}}" bindtap="onCategoryTap">
+        <text>{{item.icon}}</text>
+        <text>{{item.text}}</text>
+      </view>
+    </view>
+
+    <view class="section-head">
+      <text class="section-title">全部玩法</text>
+    </view>
+
+    <view class="feature-grid">
+      <view
+        class="feature-card feature-{{item.type}}"
+        wx:for="{{filteredFeatureList}}"
+        wx:key="type"
+        data-url="{{item.route}}"
+        bindtap="onClickFeature"
+      >
+        <view class="feature-thumb">
+          <image
+            wx:if="{{item.previewImageHD}}"
+            class="feature-preview {{item._imageLoaded ? 'loaded' : ''}}"
+            src="{{item.previewImageHD}}"
+            mode="aspectFill"
+            lazy-load
+            data-index="{{index}}"
+            bindload="onPreviewImageLoad"
+            binderror="onPreviewImageError"
+            catchtap="onPreviewImageTap"
+          />
+          <text class="feature-emoji">{{item.badgeIcon}}</text>
+        </view>
+        <view class="feature-copy">
+          <text class="feature-title">{{item.title}}</text>
+          <text class="feature-desc">{{item.homeDesc}}</text>
+        </view>
+      </view>
+      <view wx:if="{{filteredFeatureList.length === 0}}" class="empty-card">
+        <text>暂无玩法</text>
+      </view>
+    </view>
+  </block>
 </view>

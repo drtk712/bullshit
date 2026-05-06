@@ -1,4 +1,5 @@
 {
+  "navigationStyle": "custom",
   "navigationBarTitleText": "生成记录",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark"

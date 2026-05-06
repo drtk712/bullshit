@@ -1,24 +1,25 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/ai/index",
+    "pages/ai/upload/index",
+    "pages/ai/progress/index",
+    "pages/ai/result/index",
+    "pages/mine/tasks",
     "pages/mine/index",
     "pages/mine/transactions",
-    "pages/mine/tasks",
-    "pages/mine/task-detail",
-    "pages/ai/index",
-    "pages/palm/index",
-    "pages/hair/index"
+    "pages/mine/task-detail"
   ],
   "window": {
-    "backgroundColor": "#F7F7F7",
+    "backgroundColor": "#F5F2EC",
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#F7F7F7",
+    "navigationBarBackgroundColor": "#F5F2EC",
     "navigationBarTitleText": "玩图局",
     "navigationBarTextStyle": "black"
   },
   "tabBar": {
     "color": "#888888",
-    "selectedColor": "#07c160",
+    "selectedColor": "#15c77a",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
@@ -27,6 +28,12 @@
         "text": "首页",
         "iconPath": "images/tab-home.png",
         "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/mine/tasks",
+        "text": "生成记录",
+        "iconPath": "images/tab-record.png",
+        "selectedIconPath": "images/tab-record-active.png"
       },
       {
         "pagePath": "pages/mine/index",

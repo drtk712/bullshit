@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>玩图局 UI Redesign</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef1f5;
+      color: #19211f;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .board {
+      width: 1760px;
+      padding: 48px;
+      display: grid;
+      grid-template-columns: repeat(4, 390px);
+      gap: 36px;
+    }
+    .phone {
+      width: 390px;
+      height: 844px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #f6f7f8;
+      box-shadow: 0 24px 70px rgba(18, 28, 44, .22);
+      position: relative;
+    }
+    .screen {
+      height: 100%;
+      padding: 0 18px 92px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 15% 6%, rgba(7, 193, 96, .18), transparent 28%),
+        radial-gradient(circle at 92% 9%, rgba(255, 196, 0, .22), transparent 25%),
+        linear-gradient(180deg, #fbfffd 0%, #f5f7f8 42%, #f3f4f5 100%);
+    }
+    .status {
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #111;
+      padding: 0 2px;
+    }
+    .notch {
+      position: absolute;
+      left: 118px;
+      top: 0;
+      width: 154px;
+      height: 28px;
+      background: #050505;
+      border-radius: 0 0 18px 18px;
+    }
+    .nav {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .back {
+      position: absolute;
+      left: 2px;
+      width: 32px;
+      height: 32px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      font-size: 25px;
+      color: #1b1f1d;
+    }
+    .menu {
+      position: absolute;
+      right: 0;
+      top: 5px;
+      width: 76px;
+      height: 32px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.82);
+      border: 1px solid rgba(25, 33, 31, .08);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      box-shadow: 0 8px 18px rgba(25, 33, 31, .06);
+    }
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: #111; }
+    .circle { width: 16px; height: 16px; border: 3px solid #111; border-radius: 50%; }
+    .hero {
+      margin-top: 16px;
+      padding: 22px 6px 14px;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #07c160 0%, #18d7c6 68%, #ffc400 100%);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 900;
+      box-shadow: 0 14px 30px rgba(7, 193, 96, .28);
+    }
+    h1 {
+      margin: 0;
+      font-size: 31px;
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .sub {
+      margin: 5px 0 0;
+      color: #6d7571;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .pill {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.78);
+      border: 1px solid rgba(25,33,31,.07);
+      color: #55615b;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .feature-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .feature-card {
+      min-height: 92px;
+      border-radius: 24px;
+      background: rgba(255,255,255,.86);
+      border: 1px solid rgba(25,33,31,.06);
+      box-shadow: 0 12px 30px rgba(21, 35, 31, .07);
+      display: grid;
+      grid-template-columns: 68px 1fr 24px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+    }
+    .thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+      background: #edf4f1;
+      display: grid;
+      place-items: center;
+      font-size: 26px;
+      border: 2px solid rgba(7,193,96,.22);
+    }
+    .thumb.coral { background: #fff0ed; border-color: rgba(255, 105, 85, .28); }
+    .thumb.blue { background: #eef8ff; border-color: rgba(36, 164, 255, .24); }
+    .thumb.yellow { background: #fff8da; border-color: rgba(255, 196, 0, .32); }
+    .thumb.green { background: #eafcf2; }
+    .spark {
+      position: absolute;
+      right: -2px;
+      bottom: -2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      color: #07c160;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      box-shadow: 0 4px 10px rgba(7,193,96,.18);
+    }
+    .feature-title {
+      font-size: 18px;
+      font-weight: 900;
+      margin-bottom: 5px;
+    }
+    .feature-desc {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #7a837e;
+      font-weight: 600;
+    }
+    .arrow {
+      width: 24px;
+      height: 24px;
+      border-radius: 12px;
+      background: #f4f6f5;
+      color: #9aa29e;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+    }
+    .tabbar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 78px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(18px);
+      border-top: 1px solid rgba(20, 30, 27, .06);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 8px 62px 0;
+    }
+    .tab {
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      gap: 3px;
+      font-size: 11px;
+      color: #838b87;
+      font-weight: 700;
+    }
+    .tab.active { color: #07c160; }
+    .tab-icon {
+      width: 29px;
+      height: 29px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+    }
+    .active .tab-icon { background: #e8fff3; }
+    .homebar {
+      position: absolute;
+      left: 135px;
+      bottom: 9px;
+      width: 120px;
+      height: 5px;
+      background: #111;
+      border-radius: 4px;
+    }
+    .profile-card {
+      margin-top: 15px;
+      padding: 18px;
+      border-radius: 28px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(9, 71, 47, .92), rgba(7, 193, 96, .92)),
+        radial-gradient(circle at 90% 0%, rgba(255,196,0,.55), transparent 35%);
+      box-shadow: 0 18px 38px rgba(7, 193, 96, .22);
+    }
+    .profile-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 21px;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      color: #07c160;
+      font-size: 25px;
+      font-weight: 900;
+    }
+    .profile-name { font-size: 19px; font-weight: 900; margin: 0 0 4px; }
+    .profile-id { font-size: 12px; opacity: .72; font-weight: 700; }
+    .points-badge {
+      min-width: 76px;
+      padding: 9px 12px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.18);
+      text-align: center;
+      border: 1px solid rgba(255,255,255,.23);
+    }
+    .points-badge b { display: block; font-size: 25px; line-height: 1; }
+    .points-badge span { font-size: 11px; opacity: .8; font-weight: 700; }
+    .reward-strip {
+      margin-top: 15px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .reward {
+      padding: 9px 5px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.14);
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .section {
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 26px;
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(25,33,31,.06);
+      box-shadow: 0 12px 30px rgba(21, 35, 31, .07);
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .section-title { font-size: 18px; font-weight: 900; }
+    .more { font-size: 12px; color: #07c160; font-weight: 800; }
+    .checkin {
+      margin-top: 12px;
+      height: 54px;
+      border-radius: 20px;
+      background: #f3fbf7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px 0 16px;
+      font-size: 13px;
+      color: #64706a;
+      font-weight: 700;
+    }
+    .checkin button {
+      border: 0;
+      color: #fff;
+      background: #07c160;
+      height: 36px;
+      padding: 0 20px;
+      border-radius: 18px;
+      font-weight: 900;
+      font-size: 14px;
+    }
+    .list-item {
+      min-height: 51px;
+      border-bottom: 1px solid #eef1ef;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .list-item:last-child { border-bottom: 0; }
+    .item-title { font-size: 14px; font-weight: 800; }
+    .item-time { font-size: 11px; color: #a0a8a4; margin-top: 3px; font-weight: 600; }
+    .plus { color: #07c160; font-weight: 900; }
+    .minus { color: #ff5b68; font-weight: 900; }
+    .feature-hero {
+      margin-top: 13px;
+      border-radius: 28px;
+      padding: 16px;
+      background:
+        linear-gradient(135deg, #ffffff 0%, #effff7 100%);
+      border: 1px solid rgba(7,193,96,.1);
+      box-shadow: 0 14px 32px rgba(21, 35, 31, .08);
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      gap: 13px;
+      align-items: center;
+    }
+    .toggle-card {
+      height: 68px;
+      margin-top: 10px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.86);
+      border: 1px solid rgba(25,33,31,.06);
+      box-shadow: 0 10px 24px rgba(21, 35, 31, .055);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+    .toggle-title { font-size: 15px; font-weight: 900; margin-bottom: 3px; }
+    .toggle-desc { font-size: 11px; color: #8a938e; font-weight: 700; }
+    .switch {
+      width: 46px;
+      height: 28px;
+      background: #e3e6e4;
+      border-radius: 16px;
+      padding: 3px;
+    }
+    .switch:before {
+      content: "";
+      display: block;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(0,0,0,.12);
+    }
+    .upload {
+      margin-top: 12px;
+      height: 356px;
+      border-radius: 28px;
+      background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(135deg, rgba(7,193,96,.34), rgba(255,196,0,.3), rgba(46,168,255,.28)) border-box;
+      border: 2px dashed transparent;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      box-shadow: 0 14px 35px rgba(21, 35, 31, .07);
+    }
+    .upload-icon {
+      width: 86px;
+      height: 86px;
+      border-radius: 29px;
+      background: #e8fff3;
+      color: #07c160;
+      display: grid;
+      place-items: center;
+      font-size: 36px;
+      margin: 0 auto 18px;
+    }
+    .upload-title { font-size: 20px; font-weight: 900; margin-bottom: 7px; }
+    .upload-tip { color: #8a938e; font-size: 13px; font-weight: 700; }
+    .primary {
+      height: 48px;
+      border-radius: 24px;
+      background: #07c160;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: 0 12px 24px rgba(7,193,96,.25);
+      margin-top: 14px;
+    }
+    .info-grid {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .info-row {
+      height: 48px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,.88);
+      border-radius: 18px;
+      border: 1px solid rgba(25,33,31,.05);
+      font-size: 14px;
+    }
+    .info-row span:first-child { color: #8a938e; font-weight: 700; }
+    .info-row span:last-child { font-weight: 900; }
+    .success { color: #07c160; }
+    .poster {
+      margin-top: 14px;
+      border-radius: 28px;
+      background: #fff;
+      padding: 16px;
+      border: 1px solid rgba(25,33,31,.06);
+      box-shadow: 0 14px 34px rgba(21,35,31,.075);
+    }
+    .poster-art {
+      height: 332px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255,248,221,.9), rgba(255,255,255,.95)),
+        repeating-linear-gradient(45deg, rgba(164,116,76,.16) 0 2px, transparent 2px 12px);
+      position: relative;
+      overflow: hidden;
+      margin-top: 13px;
+    }
+    .poster-art:before,
+    .poster-art:after {
+      content: "";
+      position: absolute;
+      border: 4px solid rgba(126, 84, 48, .72);
+      border-color: rgba(126, 84, 48, .72) transparent transparent transparent;
+      width: 150px;
+      height: 90px;
+      border-radius: 50%;
+      transform: rotate(-18deg);
+    }
+    .poster-art:before { left: 44px; top: 82px; }
+    .poster-art:after { right: 28px; bottom: 70px; transform: rotate(14deg); }
+    .stone {
+      position: absolute;
+      background: #f3f0eb;
+      border: 3px solid rgba(126, 84, 48, .38);
+      border-radius: 45% 55% 50% 50%;
+    }
+    .s1 { width: 78px; height: 58px; left: 34px; bottom: 76px; }
+    .s2 { width: 92px; height: 68px; left: 108px; bottom: 50px; }
+    .s3 { width: 70px; height: 88px; right: 56px; bottom: 58px; }
+    .poster-tip {
+      height: 34px;
+      background: #f7f7f7;
+      display: grid;
+      place-items: center;
+      color: #a1a8a5;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 0 0 20px 20px;
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <section class="phone" id="home">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="status"><span>8:08</span><span>▵ ▱</span></div>
+        <div class="nav">玩图局<div class="menu"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="circle"></span></div></div>
+        <div class="hero">
+          <div class="brand-row"><div class="brand-mark">玩</div><div><h1>玩图局</h1><p class="sub">选个玩法，生成你的专属趣味图</p></div></div>
+          <div class="pill-row"><div class="pill">✨ 今日推荐</div><div class="pill">🖼️ 5 个玩法</div><div class="pill">💚 可保存分享</div></div>
+        </div>
+        <div class="feature-grid">
+          <div class="feature-card"><div class="thumb green">✋<span class="spark">✓</span></div><div><div class="feature-title">看手相</div><div class="feature-desc">上传清晰手掌照片，生成趣味手相解读海报</div></div><div class="arrow">›</div></div>
+          <div class="feature-card"><div class="thumb coral">💇<span class="spark">✓</span></div><div><div class="feature-title">设计发型</div><div class="feature-desc">上传正面照片，生成适合你的发型建议海报</div></div><div class="arrow">›</div></div>
+          <div class="feature-card"><div class="thumb blue">🪪<span class="spark">✓</span></div><div><div class="feature-title">个人形象分析</div><div class="feature-desc">上传正面肖像照，生成专属个人形象分析图卡</div></div><div class="arrow">›</div></div>
+          <div class="feature-card"><div class="thumb yellow">🎨<span class="spark">✓</span></div><div><div class="feature-title">INS手绘风照片</div><div class="feature-desc">上传照片，生成手绘风注解照片</div></div><div class="arrow">›</div></div>
+          <div class="feature-card"><div class="thumb green">🖌️<span class="spark">✓</span></div><div><div class="feature-title">灵魂画手</div><div class="feature-desc">上传照片，生成魔性灵魂画风</div></div><div class="arrow">›</div></div>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tab active"><div class="tab-icon">🖼️</div><span>首页</span></div><div class="tab"><div class="tab-icon">👤</div><span>我的</span></div></div>
+      <div class="homebar"></div>
+    </section>
+
+    <section class="phone" id="mine">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="status"><span>8:08</span><span>▵ ▱</span></div>
+        <div class="nav">我的<div class="menu"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="circle"></span></div></div>
+        <div class="profile-card">
+          <div class="profile-main">
+            <div style="display:flex;gap:13px;align-items:center"><div class="avatar">微</div><div><p class="profile-name">微信用户</p><div class="profile-id">ID: ******P5bs</div></div></div>
+            <div class="points-badge"><b>1</b><span>当前积分</span></div>
+          </div>
+          <div class="reward-strip"><div class="reward">首登 +3</div><div class="reward">签到 +1</div><div class="reward">分享 +1</div></div>
+        </div>
+        <div class="section">
+          <div class="section-head"><div class="section-title">每日福利</div><div class="more">积分规则</div></div>
+          <div class="checkin"><span>今天还可以领取 1 积分</span><button>签到</button></div>
+        </div>
+        <div class="section">
+          <div class="section-head"><div class="section-title">积分明细</div><div class="more">查看更多</div></div>
+          <div class="list-item"><div><div class="item-title">生成消耗</div><div class="item-time">05-05 22:31</div></div><div class="minus">-1</div></div>
+          <div class="list-item"><div><div class="item-title">每日签到</div><div class="item-time">05-05 13:32</div></div><div class="plus">+1</div></div>
+          <div class="list-item"><div><div class="item-title">生成消耗</div><div class="item-time">05-05 00:33</div></div><div class="minus">-1</div></div>
+          <div class="list-item"><div><div class="item-title">首次登录赠送</div><div class="item-time">05-03 22:50</div></div><div class="plus">+3</div></div>
+        </div>
+        <div class="section">
+          <div class="section-head"><div class="section-title">最近生成</div><div class="more">全部记录</div></div>
+          <div class="list-item"><div><div class="item-title">灵魂画手</div><div class="item-time">已完成 · 05-05 22:31</div></div><div class="arrow">›</div></div>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tab"><div class="tab-icon">🖼️</div><span>首页</span></div><div class="tab active"><div class="tab-icon">👤</div><span>我的</span></div></div>
+      <div class="homebar"></div>
+    </section>
+
+    <section class="phone" id="upload">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="status"><span>8:09</span><span>▵ ▱</span></div>
+        <div class="nav"><div class="back">‹</div>看手相<div class="menu"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="circle"></span></div></div>
+        <div class="feature-hero">
+          <div class="thumb green">✋<span class="spark">✓</span></div>
+          <div><div class="feature-title">看手相</div><div class="feature-desc">上传清晰手掌照片，生成趣味手相解读海报</div></div>
+        </div>
+        <div class="toggle-card"><div><div class="toggle-title">测试模式</div><div class="toggle-desc">开启后不消耗 API 费用</div></div><div class="switch"></div></div>
+        <div class="toggle-card"><div><div class="toggle-title">不扣积分</div><div class="toggle-desc">仅开发测试使用，本次真实生成不消耗积分</div></div><div class="switch"></div></div>
+        <div class="upload">
+          <div>
+            <div class="upload-icon">📷</div>
+            <div class="upload-title">上传手掌照片</div>
+            <div class="upload-tip">掌纹完整、纹路清晰、光线充足</div>
+          </div>
+        </div>
+        <div class="primary">选择照片开始生成</div>
+      </div>
+      <div class="homebar"></div>
+    </section>
+
+    <section class="phone" id="detail">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="status"><span>8:11</span><span>▵ ▱</span></div>
+        <div class="nav"><div class="back">‹</div>任务详情<div class="menu"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="circle"></span></div></div>
+        <div class="info-grid">
+          <div class="info-row"><span>任务类型</span><span>灵魂画手</span></div>
+          <div class="info-row"><span>状态</span><span class="success">已完成</span></div>
+          <div class="info-row"><span>创建时间</span><span>2026-05-05 22:31</span></div>
+          <div class="info-row"><span>消耗积分</span><span>1</span></div>
+        </div>
+        <div class="poster">
+          <div class="section-head"><div class="section-title">生成结果</div><div class="more">查看大图</div></div>
+          <div class="poster-art">
+            <div class="stone s1"></div><div class="stone s2"></div><div class="stone s3"></div>
+            <div class="poster-tip">点击查看大图</div>
+          </div>
+          <div class="primary">保存到相册</div>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </section>
+  </main>
+</body>
+</html>

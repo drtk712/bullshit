@@ -26,9 +26,15 @@ Page({
     // Check-in
     checkedIn: false,
     checkInLoading: false,
+    showCheckInModal: false,
+
+    // Dev switches
+    testMode: false,
+    skipPointsDeduction: false,
   },
 
   onShow() {
+    this.loadDevSwitches();
     this.loadUserProfile();
     this.loadTransactions();
     this.loadTasks();
@@ -192,7 +198,7 @@ Page({
   onShareAppMessage() {
     this.handleShareEarnPoints();
     return {
-      title: '玩图局 - AI 图片玩法合集，快来试试！',
+      title: '玩图局 - 图片玩法合集，快来试试！',
       path: '/pages/index/index'
     };
   },
@@ -225,7 +231,7 @@ Page({
       
       if (res.result && res.result.success) {
         this.setData({ checkedIn: true });
-        wx.showToast({ title: '签到成功 +1 积分', icon: 'success' });
+        this.setData({ showCheckInModal: true });
         this.loadUserProfile();
         this.loadTransactions();
       } else if (res.result && res.result.data?.checkedIn) {
@@ -240,5 +246,35 @@ Page({
     } finally {
       this.setData({ checkInLoading: false });
     }
-  }
+  },
+
+  hideCheckInModal() {
+    this.setData({ showCheckInModal: false });
+  },
+
+  loadDevSwitches() {
+    const g = getApp().globalData;
+    this.setData({
+      testMode: !!g.testMode,
+      skipPointsDeduction: !!g.skipPointsDeduction,
+    });
+  },
+
+  onTestModeChange(e) {
+    getApp().globalData.testMode = e.detail.value;
+    this.setData({ testMode: e.detail.value });
+  },
+
+  onSkipPointsChange(e) {
+    getApp().globalData.skipPointsDeduction = e.detail.value;
+    this.setData({ skipPointsDeduction: e.detail.value });
+  },
+
+  onEditProfile() {
+    wx.showToast({ title: '编辑资料功能开发中', icon: 'none' });
+  },
+
+  onSettings() {
+    wx.showToast({ title: '设置中心功能开发中', icon: 'none' });
+  },
 });

@@ -9,10 +9,6 @@ for (const varName of REQUIRED_ENV_VARS) {
 
 const cloud = require("wx-server-sdk");
 const axios = require("axios");
-const {
-  getEnabledFeatureConfig,
-  getPublicFeatureList,
-} = require("./featureConfig");
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
@@ -23,8 +19,7 @@ const _ = db.command;
 const JOBS_COLLECTION = "ai_poster_jobs";
 const USERS_COLLECTION = "users";
 const POINT_TRANSACTIONS_COLLECTION = "point_transactions";
-// cloud.DYNAMIC_CURRENT_ENV 是 Symbol，用于 cloud.init，不能用于字符串拼接
-// 必须从 wx-server-sdk 内部获取实际的环境字符串，或直接硬编码
+const FEATURE_CONFIGS_COLLECTION = "feature_configs";
 const CLOUD_ENV = "cloud1-d7g1nt83fde793ad3";
 
 
@@ -34,34 +29,41 @@ const getFeatureConfig = async (event) => {
   const requestedType = event.data?.type;
 
   if (requestedType) {
-    const config = getEnabledFeatureConfig(requestedType);
-    if (!config) {
+    const result = await db.collection(FEATURE_CONFIGS_COLLECTION)
+      .where({ type: requestedType, enabled: true })
+      .limit(1)
+      .get();
+
+    if (!result.data || result.data.length === 0) {
       return { success: false, errMsg: "功能暂不可用" };
     }
 
+    const config = result.data[0];
     const feature = {
       type: config.type,
       enabled: config.enabled,
       order: config.order,
       ...config.public,
+      ui: config.ui || {},
     };
 
-    return {
-      success: true,
-      data: {
-        feature,
-      },
-    };
+    return { success: true, data: { feature } };
   }
 
-  const features = getPublicFeatureList();
+  const result = await db.collection(FEATURE_CONFIGS_COLLECTION)
+    .where({ enabled: true })
+    .orderBy("order", "asc")
+    .get();
 
-  return {
-    success: true,
-    data: {
-      features,
-    },
-  };
+  const features = (result.data || []).map((config) => ({
+    type: config.type,
+    enabled: config.enabled,
+    order: config.order,
+    ...config.public,
+    ui: config.ui || {},
+  }));
+
+  return { success: true, data: { features } };
 };
 
 const ensureCollection = async () => {
@@ -534,11 +536,16 @@ const validateAndCreateJob = async (event) => {
       return { success: false, errMsg: "缺少必要参数" };
     }
 
-    const featureConfig = getEnabledFeatureConfig(type);
-    if (!featureConfig) {
+    const featureResult = await db.collection(FEATURE_CONFIGS_COLLECTION)
+      .where({ type, enabled: true })
+      .limit(1)
+      .get();
+
+    if (!featureResult.data || featureResult.data.length === 0) {
       return { success: false, errMsg: "功能暂不可用" };
     }
 
+    const featureConfig = featureResult.data[0];
     const validation = await validateImage(fileID, featureConfig);
     if (!validation.passed) {
       await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
@@ -585,7 +592,7 @@ const validateAndCreateJob = async (event) => {
         imageUrl,
         type,
         test: test || false,
-        generationPrompt: featureConfig.generation.prompt,
+        generationPrompt: featureConfig.generation?.prompt || "",
         testPosterFileID: featureConfig.test?.posterFileID,
       }, {
         headers: {
@@ -1072,6 +1079,49 @@ const shareEarnPoints = async () => {
   }
 };
 
+const deleteTask = async (event) => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    const { taskId } = event.data;
+
+    if (!taskId) {
+      return { success: false, errMsg: "缺少任务ID" };
+    }
+
+    await ensureCollection();
+
+    const taskDoc = await db.collection(JOBS_COLLECTION).doc(taskId).get();
+
+    if (!taskDoc.data || taskDoc.data.openid !== openid) {
+      return { success: false, errMsg: "任务不存在" };
+    }
+
+    // 只有已完成或失败的任务可以删除
+    const task = taskDoc.data;
+    if (task.status === "pending" || task.status === "processing") {
+      return { success: false, errMsg: "进行中的任务不能删除" };
+    }
+
+    // 删除云存储中的海报文件（如果有）
+    if (task.posterFileID) {
+      try {
+        await cloud.deleteFile({ fileList: [task.posterFileID] });
+      } catch (e) {
+        console.warn("删除海报文件失败（继续删除数据库记录）:", e.message);
+      }
+    }
+
+    // 删除数据库记录
+    await db.collection(JOBS_COLLECTION).doc(taskId).remove();
+
+    return { success: true, data: { taskId } };
+  } catch (e) {
+    console.error("deleteTask 错误:", e.message);
+    return { success: false, errMsg: e.message || "删除任务失败" };
+  }
+};
+
 const cleanupStaleTasks = async () => {
   try {
     const staleThreshold = Date.now() - STALE_TASK_TIMEOUT_MS;
@@ -1145,6 +1195,8 @@ exports.main = async (event, context) => {
       return await shareEarnPoints(event);
     case "cleanupStaleTasks":
       return await cleanupStaleTasks(event);
+    case "deleteTask":
+      return await deleteTask(event);
     default:
       return { success: false, errMsg: `未知的操作类型: ${event.type}` };
   }

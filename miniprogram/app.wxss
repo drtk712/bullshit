@@ -1,27 +1,70 @@
 /**app.wxss**/
-.container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-sizing: border-box;
-} 
-
-button {
-  background: initial;
-}
-
-button:focus{
-  outline: 0;
-}
-
-button::after{
-  border: none;
-}
-
-
 page {
-  background: #f6f6f6;
+  --bg: #f5f2ec;
+  --ink: #171615;
+  --muted: #8b8580;
+  --line: rgba(23, 22, 21, 0.08);
+  --paper: rgba(255, 255, 255, 0.9);
+  --paper-solid: #ffffff;
+  --green: #15c77a;
+  --green-dark: #0f9f63;
+  --coral: #ff6d5a;
+  --yellow: #ffd45d;
+  --blue: #4e8cff;
+  --purple: #8a63ff;
+  --shadow: 0 18rpx 52rpx rgba(39, 32, 24, 0.09);
+  --radius-lg: 32rpx;
+  --radius-md: 24rpx;
+  --radius-sm: 16rpx;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+}
+
+view,
+text,
+image,
+button,
+scroll-view {
+  box-sizing: border-box;
+}
+
+button {
+  background: initial;
+  padding: 0;
+  margin: 0;
+}
+
+button:focus {
+  outline: 0;
+}
+
+button::after {
+  border: none;
+}
+
+.glass-card {
+  background: var(--paper);
+  border: 1rpx solid rgba(255, 255, 255, 0.74);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22rpx);
+}
+
+.mini-spinner {
+  width: 44rpx;
+  height: 44rpx;
+  border: 4rpx solid rgba(23, 22, 21, 0.08);
+  border-top-color: var(--green);
+  border-radius: 999rpx;
+  animation: app-spin 0.9s linear infinite;
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

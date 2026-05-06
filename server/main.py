@@ -16,6 +16,7 @@ import uuid
 # 配置（从环境变量读取）
 MEMEFAST_API_KEY = os.environ.get("MEMEFAST_API_KEY", "")
 MEMEFAST_API_URL = os.environ.get("MEMEFAST_API_URL", "https://memefast.top/v1/chat/completions")
+MEMEFAST_MODEL = os.environ.get("MEMEFAST_MODEL", "gpt-image-2-all")
 POSTER_SERVER_TOKEN = os.environ.get("POSTER_SERVER_TOKEN", "")
 
 if not MEMEFAST_API_KEY:
@@ -82,7 +83,7 @@ def generate_poster(image_url: str, job_type: str, generation_prompt: str) -> st
         resp = requests.post(
             MEMEFAST_API_URL,
             json={
-                "model": "gpt-image-2-all",
+                "model": MEMEFAST_MODEL,
                 "messages": [{
                     "role": "user",
                     "content": [
