@@ -22,6 +22,7 @@ miniprogram/miniprogram_npm/
 
 # Sensitive
 server/.env
+server/.env.*
 cloudfunctions/quickstartFunctions/.env
 project.private.config.json
 

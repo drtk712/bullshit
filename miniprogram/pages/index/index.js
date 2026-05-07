@@ -19,6 +19,11 @@ Page({
     featureError: "",
     user: null,
     loginError: "",
+    showProfileGate: false,
+    profileAvatarTempPath: "",
+    profileNickName: "",
+    profileSaving: false,
+    profileError: "",
   },
 
   categoryMap: {
@@ -62,7 +67,14 @@ Page({
       });
 
       if (res.result && res.result.success) {
-        this.setData({ user: res.result.data.user, loginError: "" });
+        const user = res.result.data.user;
+        getApp().globalData.user = user;
+        this.setData({
+          user,
+          loginError: "",
+          showProfileGate: !user.profileCompleted,
+          profileNickName: user.nickName || "",
+        });
       } else {
         this.setData({ loginError: res.result?.errMsg || "登录失败" });
       }
@@ -114,6 +126,84 @@ Page({
       });
     } catch (err) {
       wx.showToast({ title: "预览失败", icon: "none" });
+    }
+  },
+
+  onChooseAvatar(e) {
+    const avatarUrl = e.detail?.avatarUrl || "";
+    if (!avatarUrl) {
+      this.setData({ profileError: "请选择头像" });
+      return;
+    }
+    this.setData({
+      profileAvatarTempPath: avatarUrl,
+      profileError: "",
+    });
+  },
+
+  onNickNameInput(e) {
+    this.setData({
+      profileNickName: e.detail.value,
+      profileError: "",
+    });
+  },
+
+  async onSaveProfile() {
+    const nickName = (this.data.profileNickName || "").trim();
+    const avatarPath = this.data.profileAvatarTempPath;
+
+    if (!avatarPath) {
+      this.setData({ profileError: "请先选择头像" });
+      return;
+    }
+    if (!nickName) {
+      this.setData({ profileError: "请填写昵称" });
+      return;
+    }
+
+    this.setData({ profileSaving: true, profileError: "" });
+    wx.showLoading({ title: "保存中", mask: true });
+
+    try {
+      const extMatch = avatarPath.match(/\.(png|jpg|jpeg|webp)$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
+      const cloudPath = `user-avatars/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath,
+        filePath: avatarPath,
+      });
+
+      const res = await wx.cloud.callFunction({
+        name: "quickstartFunctions",
+        data: {
+          type: "updateUserProfile",
+          data: {
+            nickName,
+            avatarFileID: uploadRes.fileID,
+          },
+        },
+      });
+
+      if (!res.result || !res.result.success) {
+        throw new Error(res.result?.errMsg || "保存失败");
+      }
+
+      const user = res.result.data.user;
+      getApp().globalData.user = user;
+      this.setData({
+        user,
+        showProfileGate: false,
+        profileSaving: false,
+        profileError: "",
+      });
+      wx.showToast({ title: "资料已保存", icon: "success" });
+    } catch (err) {
+      this.setData({
+        profileSaving: false,
+        profileError: err.message || err.errMsg || "保存失败",
+      });
+    } finally {
+      wx.hideLoading();
     }
   },
 });

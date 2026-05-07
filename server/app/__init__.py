@@ -1,0 +1,2 @@
+"""Poster server application package."""
+

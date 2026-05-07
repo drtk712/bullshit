@@ -27,6 +27,11 @@ Page({
     checkedIn: false,
     checkInLoading: false,
     showCheckInModal: false,
+    showProfileGate: false,
+    profileAvatarTempPath: '',
+    profileNickName: '',
+    profileSaving: false,
+    profileError: '',
 
     // Dev switches
     testMode: false,
@@ -49,10 +54,14 @@ Page({
       });
       if (res.result && res.result.success) {
         const checkedIn = this.checkIfCheckedIn(res.result.data.user);
+        getApp().globalData.user = res.result.data.user;
         this.setData({ 
           user: res.result.data.user, 
           userLoading: false,
-          checkedIn
+          checkedIn,
+          showProfileGate: !res.result.data.user.profileCompleted,
+          profileNickName: res.result.data.user.nickName || '',
+          profileAvatarTempPath: res.result.data.user.avatarFileID || '',
         });
       } else {
         this.setData({ 
@@ -271,7 +280,87 @@ Page({
   },
 
   onEditProfile() {
-    wx.showToast({ title: '编辑资料功能开发中', icon: 'none' });
+    this.setData({
+      showProfileGate: true,
+      profileAvatarTempPath: this.data.user?.avatarFileID || '',
+      profileNickName: this.data.user?.nickName || '',
+      profileError: '',
+    });
+  },
+
+  hideProfileGate() {
+    if (!this.data.user?.profileCompleted) return;
+    this.setData({ showProfileGate: false, profileError: '' });
+  },
+
+  onChooseAvatar(e) {
+    const avatarUrl = e.detail?.avatarUrl || '';
+    if (!avatarUrl) {
+      this.setData({ profileError: '请选择头像' });
+      return;
+    }
+    this.setData({ profileAvatarTempPath: avatarUrl, profileError: '' });
+  },
+
+  onNickNameInput(e) {
+    this.setData({ profileNickName: e.detail.value, profileError: '' });
+  },
+
+  async onSaveProfile() {
+    const nickName = (this.data.profileNickName || '').trim();
+    const avatarPath = this.data.profileAvatarTempPath;
+
+    if (!avatarPath) {
+      this.setData({ profileError: '请先选择头像' });
+      return;
+    }
+    if (!nickName) {
+      this.setData({ profileError: '请填写昵称' });
+      return;
+    }
+
+    this.setData({ profileSaving: true, profileError: '' });
+    wx.showLoading({ title: '保存中', mask: true });
+
+    try {
+      let avatarFileID = avatarPath;
+      if (!String(avatarPath).startsWith('cloud://')) {
+        const extMatch = avatarPath.match(/\.(png|jpg|jpeg|webp)$/i);
+        const ext = extMatch ? extMatch[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg';
+        const cloudPath = `user-avatars/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+        const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath: avatarPath });
+        avatarFileID = uploadRes.fileID;
+      }
+
+      const res = await wx.cloud.callFunction({
+        name: 'quickstartFunctions',
+        data: {
+          type: 'updateUserProfile',
+          data: { nickName, avatarFileID }
+        }
+      });
+
+      if (!res.result || !res.result.success) {
+        throw new Error(res.result?.errMsg || '保存失败');
+      }
+
+      const user = res.result.data.user;
+      getApp().globalData.user = user;
+      this.setData({
+        user,
+        showProfileGate: false,
+        profileSaving: false,
+        profileError: '',
+      });
+      wx.showToast({ title: '资料已保存', icon: 'success' });
+    } catch (err) {
+      this.setData({
+        profileSaving: false,
+        profileError: err.message || err.errMsg || '保存失败',
+      });
+    } finally {
+      wx.hideLoading();
+    }
   },
 
   onSettings() {

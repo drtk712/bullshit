@@ -15,10 +15,11 @@
       <view class="card-error">{{userError}}</view>
     </block>
     <block wx:else>
-      <view class="avatar">◡</view>
+      <image wx:if="{{user.avatarFileID}}" class="avatar-img" src="{{user.avatarFileID}}" mode="aspectFill" />
+      <view wx:else class="avatar">◡</view>
       <view class="profile-main">
         <view class="profile-name-row">
-          <text class="profile-name">玩图达人</text>
+          <text class="profile-name">{{user.nickName || '玩图达人'}}</text>
           <text class="level-badge">LV.88</text>
         </view>
         <text class="profile-id">ID: {{user.openidMasked || '未登录'}}</text>
@@ -131,6 +132,31 @@
       <text class="modal-points">+1 积分</text>
       <text class="modal-desc">{{user.checkInDays ? '已连续签到 ' + user.checkInDays + ' 天' : '每日签到奖励已到账'}}</text>
       <button class="modal-btn" bindtap="hideCheckInModal">开心收下</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showProfileGate}}" class="modal-mask">
+    <view class="modal-card profile-modal-card">
+      <view wx:if="{{user.profileCompleted}}" class="modal-close" bindtap="hideProfileGate">×</view>
+      <text class="modal-title">编辑头像昵称</text>
+      <text class="modal-desc">头像和昵称会展示在个人资料与管理后台中。</text>
+
+      <button class="profile-avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image wx:if="{{profileAvatarTempPath}}" class="profile-avatar-preview" src="{{profileAvatarTempPath}}" mode="aspectFill" />
+        <text wx:else class="profile-avatar-placeholder">+</text>
+      </button>
+
+      <input
+        class="profile-nickname-input"
+        type="nickname"
+        value="{{profileNickName}}"
+        placeholder="填写昵称"
+        maxlength="24"
+        bindinput="onNickNameInput"
+      />
+
+      <text wx:if="{{profileError}}" class="profile-error">{{profileError}}</text>
+      <button class="modal-btn" loading="{{profileSaving}}" bindtap="onSaveProfile">保存资料</button>
     </view>
   </view>
 </view>

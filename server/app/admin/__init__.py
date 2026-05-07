@@ -1,0 +1,2 @@
+"""FastHTML admin interface."""
+

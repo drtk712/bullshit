@@ -3,7 +3,7 @@ const DEFAULT_MAX_DELAY_MS = 15000;
 const DEFAULT_MAX_DURATION_MS = 15 * 60 * 1000;
 
 function isActiveTaskStatus(status) {
-  return status === "pending" || status === "processing";
+  return status === "init" || status === "pending" || status === "processing";
 }
 
 function createTaskPoller(options) {

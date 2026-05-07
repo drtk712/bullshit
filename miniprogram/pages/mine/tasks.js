@@ -169,7 +169,7 @@ Page({
     let filtered = allTasks;
 
     if (filter === 'processing') {
-      filtered = allTasks.filter(t => t.status === 'pending' || t.status === 'processing');
+      filtered = allTasks.filter(t => t.status === 'init' || t.status === 'pending' || t.status === 'processing');
     } else if (filter === 'completed') {
       filtered = allTasks.filter(t => t.status === 'completed');
     } else if (filter === 'failed') {

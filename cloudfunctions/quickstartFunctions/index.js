@@ -94,6 +94,20 @@ const ensureUserCollections = async () => {
 
 const maskOpenid = (openid) => `******${String(openid || "").slice(-4)}`;
 
+const toPublicUser = (user, openid) => ({
+  openidMasked: maskOpenid(openid),
+  points: user.points,
+  isNewUser: !!user.isNewUser,
+  createdAt: user.createdAt,
+  lastLoginAt: user.lastLoginAt,
+  lastCheckInAt: user.lastCheckInAt,
+  checkInDays: user.checkInDays || 0,
+  nickName: user.nickName || "",
+  avatarFileID: user.avatarFileID || "",
+  profileCompleted: !!user.profileCompleted,
+  profileCompletedAt: user.profileCompletedAt || null,
+});
+
 const createPointTransaction = async ({
   openid,
   type,
@@ -175,58 +189,6 @@ const ensureUser = async (openid, options = {}) => {
   };
 };
 
-const consumePoints = async ({ openid, amount, reason }) => {
-  const user = await ensureUser(openid);
-
-  const updateResult = await db.collection(USERS_COLLECTION)
-    .where({ _id: user._id, points: _.gte(amount) })
-    .update({
-      data: {
-        points: _.inc(-amount),
-        totalUsedPoints: _.inc(amount),
-        updatedAt: Date.now(),
-      },
-    });
-
-  if (!updateResult.stats || updateResult.stats.updated !== 1) {
-    throw new Error("积分不足，请先获取积分");
-  }
-
-  const updatedUser = await db.collection(USERS_COLLECTION).doc(user._id).get();
-
-  return await createPointTransaction({
-    openid,
-    type: "consume",
-    amount: -amount,
-    balanceAfter: updatedUser.data.points,
-    reason,
-    taskId: null,
-  });
-};
-
-const refundPoints = async ({ openid, amount, reason, taskId }) => {
-  const user = await ensureUser(openid);
-
-  await db.collection(USERS_COLLECTION).doc(user._id).update({
-    data: {
-      points: _.inc(amount),
-      totalRefundedPoints: _.inc(amount),
-      updatedAt: Date.now(),
-    },
-  });
-
-  const updatedUser = await db.collection(USERS_COLLECTION).doc(user._id).get();
-
-  return await createPointTransaction({
-    openid,
-    type: "refund",
-    amount,
-    balanceAfter: updatedUser.data.points,
-    reason,
-    taskId,
-  });
-};
-
 const toPublicTransaction = (transaction) => ({
   _id: transaction._id,
   type: transaction.type,
@@ -250,32 +212,6 @@ const toPublicTask = (task) => ({
   updatedAt: task.updatedAt,
 });
 
-const markTaskFailedWithRefund = async ({ taskId, task, errMsg }) => {
-  let refundTransactionId = task.refundTransactionId || null;
-
-  if (task.pointsConsumed && !task.pointsRefunded) {
-    const refundResult = await refundPoints({
-      openid: task.openid,
-      amount: 1,
-      reason: "job_failed_refund",
-      taskId,
-    });
-    refundTransactionId = refundResult._id;
-  }
-
-  await db.collection(JOBS_COLLECTION).doc(taskId).update({
-    data: {
-      status: "failed",
-      errMsg,
-      pointsRefunded: task.pointsConsumed ? true : !!task.pointsRefunded,
-      refundTransactionId,
-      updatedAt: Date.now(),
-    },
-  });
-
-  return refundTransactionId;
-};
-
 const login = async () => {
   try {
     const wxContext = cloud.getWXContext();
@@ -286,11 +222,7 @@ const login = async () => {
       success: true,
       data: {
         user: {
-          openidMasked: maskOpenid(openid),
-          points: user.points,
-          isNewUser: user.isNewUser,
-          createdAt: user.createdAt,
-          lastLoginAt: user.lastLoginAt,
+          ...toPublicUser(user, openid),
         },
       },
     };
@@ -313,11 +245,7 @@ const getUserProfile = async () => {
        success: true,
        data: {
          user: {
-           openidMasked: maskOpenid(openid),
-           points: user.points,
-           createdAt: user.createdAt,
-           lastLoginAt: user.lastLoginAt,
-           lastCheckInAt: user.lastCheckInAt,
+           ...toPublicUser(user, openid),
          },
        },
      };
@@ -326,6 +254,57 @@ const getUserProfile = async () => {
     return {
       success: false,
       errMsg: e.message || "获取用户资料失败",
+    };
+  }
+};
+
+const updateUserProfile = async (event) => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    const user = await ensureUser(openid);
+    const nickName = String(event.data?.nickName || "").trim();
+    const avatarFileID = String(event.data?.avatarFileID || "").trim();
+
+    if (!nickName) {
+      return { success: false, errMsg: "请填写昵称" };
+    }
+    if (nickName.length > 24) {
+      return { success: false, errMsg: "昵称不能超过 24 个字符" };
+    }
+    if (!avatarFileID || !avatarFileID.startsWith("cloud://")) {
+      return { success: false, errMsg: "请选择头像" };
+    }
+
+    const now = Date.now();
+    await db.collection(USERS_COLLECTION).doc(user._id).update({
+      data: {
+        nickName,
+        avatarFileID,
+        profileCompleted: true,
+        profileCompletedAt: user.profileCompletedAt || now,
+        updatedAt: now,
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        user: toPublicUser({
+          ...user,
+          nickName,
+          avatarFileID,
+          profileCompleted: true,
+          profileCompletedAt: user.profileCompletedAt || now,
+          updatedAt: now,
+        }, openid),
+      },
+    };
+  } catch (e) {
+    console.error("updateUserProfile 错误:", e.message);
+    return {
+      success: false,
+      errMsg: e.message || "保存用户资料失败",
     };
   }
 };
@@ -556,19 +535,10 @@ const validateAndCreateJob = async (event) => {
     const openid = wxContext.OPENID;
     const shouldConsumePoints = !skipPointsDeduction;
     const user = await ensureUser(openid);
-    let consumeResult = null;
 
     if (shouldConsumePoints && user.points < 1) {
       await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
       return { success: false, errMsg: "积分不足，请先获取积分" };
-    }
-
-    if (shouldConsumePoints) {
-      consumeResult = await consumePoints({
-        openid,
-        amount: 1,
-        reason: "create_ai_job",
-      });
     }
 
     const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
@@ -584,12 +554,34 @@ const validateAndCreateJob = async (event) => {
     
     const imageUrl = fileInfo.tempFileURL;
 
+    const taskResult = await db.collection(JOBS_COLLECTION).add({
+      data: {
+        type,
+        fileID,
+        serverTaskId: null,
+        status: "init",
+        posterFileID: null,
+        errMsg: "",
+        openid,
+        pointsCost: shouldConsumePoints ? 1 : 0,
+        pointsConsumed: false,
+        pointsRefunded: false,
+        skipPointsDeduction: skipPointsDeduction || false,
+        consumeTransactionId: null,
+        refundTransactionId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    });
+
+    const taskId = taskResult._id;
+
     const SERVER_URL = process.env.POSTER_SERVER_URL || "http://36.156.154.98:8011";
-    
-    let serverResp;
     try {
-      serverResp = await axios.post(`${SERVER_URL}/api/job`, {
+      const serverResp = await axios.post(`${SERVER_URL}/api/job`, {
+        taskId,
         imageUrl,
+        sourceFileID: fileID,
         type,
         test: test || false,
         generationPrompt: featureConfig.generation?.prompt || "",
@@ -601,73 +593,42 @@ const validateAndCreateJob = async (event) => {
         timeout: 10000,
         validateStatus: (status) => status < 500
       });
+
+      if (serverResp.status !== 200 || !serverResp.data?.taskId) {
+        throw new Error(serverResp.data?.detail || serverResp.data?.errMsg || `服务端错误（${serverResp.status}）`);
+      }
+
+      await db.collection(JOBS_COLLECTION).doc(taskId).update({
+        data: {
+          serverTaskId: serverResp.data.taskId,
+          updatedAt: Date.now(),
+        },
+      });
     } catch (serverErr) {
       console.error("调用服务端失败:", serverErr.code, serverErr.message);
-      
-      if (shouldConsumePoints && consumeResult) {
-        await refundPoints({
-          openid,
-          amount: 1,
-          reason: "job_failed_refund",
-          taskId: null,
-        }).catch((refundErr) => {
-          console.error("自动退款失败:", refundErr.message);
-        });
-      }
-      
-      if (serverErr.code === "ECONNABORTED") {
-        return { success: false, errMsg: "连接服务端超时，请稍后重试" };
-      }
-      if (serverErr.code === "ENOTFOUND" || serverErr.code === "ECONNREFUSED") {
-        return { success: false, errMsg: "服务端不可用，请稍后重试" };
-      }
-      
-      return { success: false, errMsg: "网络异常，请检查网络后重试" };
-    }
 
-    if (serverResp.status !== 200) {
-      if (shouldConsumePoints && consumeResult) {
-        await refundPoints({ openid, amount: 1, reason: "job_failed_refund", taskId: null })
-          .catch((e) => console.error("自动退款失败:", e.message));
-      }
-      return { success: false, errMsg: `服务端错误（${serverResp.status}): 请稍后重试` };
-    }
-
-    const serverTaskId = serverResp.data?.taskId;
-    if (!serverTaskId) {
-      if (shouldConsumePoints && consumeResult) {
-        await refundPoints({ openid, amount: 1, reason: "job_failed_refund", taskId: null })
-          .catch((e) => console.error("自动退款失败:", e.message));
-      }
-      return { success: false, errMsg: "服务端返回无效任务ID" };
-    }
-
-    const taskResult = await db.collection(JOBS_COLLECTION).add({
-      data: {
-        type,
-        fileID,
-        serverTaskId,
-        status: "pending",
-        posterFileID: null,
-        errMsg: "",
-        openid,
-        pointsCost: shouldConsumePoints ? 1 : 0,
-        pointsConsumed: shouldConsumePoints,
-        pointsRefunded: false,
-        skipPointsDeduction: skipPointsDeduction || false,
-        consumeTransactionId: shouldConsumePoints ? consumeResult._id : null,
-        refundTransactionId: null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      },
-    });
-
-    const taskId = taskResult._id;
-
-    if (consumeResult && consumeResult._id) {
-      await db.collection(POINT_TRANSACTIONS_COLLECTION).doc(consumeResult._id).update({
-        data: { taskId },
+      await db.collection(JOBS_COLLECTION).doc(taskId).update({
+        data: {
+          status: "failed",
+          errMsg: serverErr.code === "ECONNABORTED"
+            ? "连接服务端超时，请稍后重试"
+            : (serverErr.code === "ENOTFOUND" || serverErr.code === "ECONNREFUSED")
+              ? "服务端不可用，请稍后重试"
+              : (serverErr.message || "网络异常，请检查网络后重试"),
+          pointsRefunded: false,
+          refundTransactionId: null,
+          updatedAt: Date.now(),
+        },
       });
+
+      return {
+        success: false,
+        errMsg: serverErr.code === "ECONNABORTED"
+          ? "连接服务端超时，请稍后重试"
+          : (serverErr.code === "ENOTFOUND" || serverErr.code === "ECONNREFUSED")
+            ? "服务端不可用，请稍后重试"
+            : (serverErr.message || "网络异常，请检查网络后重试"),
+      };
     }
 
     return {
@@ -705,196 +666,6 @@ const getTaskStatus = async (event) => {
 
     if (!task.openid || task.openid !== openid) {
       return { success: false, errMsg: "任务不存在" };
-    }
-
-    if (task.status === "pending" || task.status === "processing") {
-      const SERVER_URL = process.env.POSTER_SERVER_URL || "http://36.156.154.98:8011";
-      
-      if (!task.serverTaskId) {
-        await markTaskFailedWithRefund({
-          taskId,
-          task,
-          errMsg: "任务配置错误，缺少服务端任务ID",
-        });
-        return { success: false, errMsg: "任务配置错误" };
-      }
-      
-      try {
-        const serverResp = await axios.get(`${SERVER_URL}/api/job/${task.serverTaskId}`, {
-          headers: {
-            "X-Internal-Token": process.env.POSTER_SERVER_TOKEN || "",
-          },
-          timeout: 10000,
-        });
-
-        const serverStatus = serverResp.data?.status;
-        const posterUrl = serverResp.data?.posterUrl;
-        const errMsg = serverResp.data?.errMsg;
-
-        if (serverStatus === "pending" || serverStatus === "processing") {
-          if (task.status !== serverStatus) {
-            await db.collection(JOBS_COLLECTION).doc(taskId).update({
-              data: {
-                status: serverStatus,
-                errMsg: errMsg || "",
-                updatedAt: Date.now(),
-              },
-            });
-          }
-
-          return {
-            success: true,
-            data: {
-              status: serverStatus,
-              posterFileID: task.posterFileID,
-              errMsg: errMsg || "",
-            },
-          };
-        }
-
-        if (serverStatus === "completed" && !posterUrl) {
-          await markTaskFailedWithRefund({
-            taskId,
-            task,
-            errMsg: "服务端已完成但未返回图片链接",
-          });
-          return { success: false, errMsg: "生成结果异常，请重试" };
-        }
-
-        if (serverStatus === "completed" && posterUrl) {
-          if (posterUrl.startsWith("cloud://")) {
-            await db.collection(JOBS_COLLECTION).doc(taskId).update({
-              data: {
-                status: "completed",
-                posterFileID: posterUrl,
-                updatedAt: Date.now(),
-              },
-            });
-
-            return {
-              success: true,
-              data: {
-                status: "completed",
-                posterFileID: posterUrl,
-              },
-            };
-          }
-
-          if (!posterUrl.startsWith("http")) {
-            await markTaskFailedWithRefund({
-              taskId,
-              task,
-              errMsg: "生成的图片链接无效",
-            });
-            return { success: false, errMsg: "生成结果异常，请重试" };
-          }
-
-          let imageBuffer;
-          try {
-            const imageRes = await axios.get(posterUrl, {
-              responseType: "arraybuffer",
-              timeout: 30000,
-              maxContentLength: 50 * 1024 * 1024,
-            });
-            imageBuffer = Buffer.from(imageRes.data);
-          } catch (downloadErr) {
-            console.error("下载海报失败:", downloadErr.message);
-            await markTaskFailedWithRefund({
-              taskId,
-              task,
-              errMsg: "海报下载失败",
-            });
-            return { success: false, errMsg: "海报下载失败，请重试" };
-          }
-
-          let uploadResult;
-          try {
-            uploadResult = await cloud.uploadFile({
-              cloudPath: `ai-posters/${taskId}.png`,
-              fileContent: imageBuffer,
-            });
-          } catch (uploadErr) {
-            console.error("云存储上传失败:", uploadErr.message);
-            await markTaskFailedWithRefund({
-              taskId,
-              task,
-              errMsg: "图片上传失败",
-            });
-            return { success: false, errMsg: "图片上传失败，请重试" };
-          }
-
-          await db.collection(JOBS_COLLECTION).doc(taskId).update({
-            data: {
-              status: "completed",
-              posterFileID: uploadResult.fileID,
-              updatedAt: Date.now(),
-            },
-          });
-
-          const result = {
-            success: true,
-            data: {
-              status: "completed",
-              posterFileID: uploadResult.fileID,
-            },
-          };
-          return result;
-        } else if (serverStatus === "failed") {
-          await markTaskFailedWithRefund({
-            taskId,
-            task,
-            errMsg: errMsg || "生成失败",
-          });
-
-          return {
-            success: true,
-            data: {
-              status: "failed",
-              errMsg: errMsg || "生成失败",
-            },
-          };
-        }
-      } catch (e) {
-        const statusCode = e.response?.status;
-        const responseDetail = e.response?.data?.detail || e.response?.data?.errMsg || "";
-        console.error("查询服务端失败:", {
-          code: e.code,
-          statusCode,
-          message: e.message,
-          responseDetail,
-          taskId,
-          serverTaskId: task.serverTaskId,
-        });
-        
-        if (statusCode === 404) {
-          await markTaskFailedWithRefund({
-            taskId,
-            task,
-            errMsg: "服务端任务不存在或已过期",
-          });
-          return { success: true, data: { status: "failed", errMsg: "任务已过期，请重试" } };
-        }
-
-        if (statusCode >= 400 && statusCode < 500) {
-          await markTaskFailedWithRefund({
-            taskId,
-            task,
-            errMsg: responseDetail || "服务端任务状态异常",
-          });
-          return { success: true, data: { status: "failed", errMsg: responseDetail || "生成失败，请重试" } };
-        }
-
-        if (e.code === "ECONNABORTED" || e.code === "ETIMEDOUT" || e.code === "ENOTFOUND" || e.code === "EAI_AGAIN" || e.code === "ECONNREFUSED" || e.code === "ECONNRESET" || statusCode >= 500 || !e.response) {
-          return {
-            success: true,
-            data: {
-              status: task.status,
-              posterFileID: task.posterFileID,
-              errMsg: e.code ? `服务端暂时不可用，请稍后重试（${e.code}）` : "服务端暂时不可用，请稍后重试",
-            }
-          };
-        }
-      }
     }
 
     return {
@@ -1099,7 +870,7 @@ const deleteTask = async (event) => {
 
     // 只有已完成或失败的任务可以删除
     const task = taskDoc.data;
-    if (task.status === "pending" || task.status === "processing") {
+    if (task.status === "init" || task.status === "pending" || task.status === "processing") {
       return { success: false, errMsg: "进行中的任务不能删除" };
     }
 
@@ -1128,7 +899,7 @@ const cleanupStaleTasks = async () => {
 
     const staleTasks = await db.collection(JOBS_COLLECTION)
       .where({
-        status: "pending",
+        status: "init",
         createdAt: _.lt(staleThreshold),
       })
       .limit(100)
@@ -1138,10 +909,12 @@ const cleanupStaleTasks = async () => {
 
     for (const task of staleTasks.data || []) {
       try {
-        await markTaskFailedWithRefund({
-          taskId: task._id,
-          task,
-          errMsg: "任务超时，自动取消",
+        await db.collection(JOBS_COLLECTION).doc(task._id).update({
+          data: {
+            status: "failed",
+            errMsg: "任务提交超时，自动取消",
+            updatedAt: Date.now(),
+          },
         });
         cleanedCount++;
       } catch (e) {
@@ -1179,6 +952,8 @@ exports.main = async (event, context) => {
       return await login(event);
     case "getUserProfile":
       return await getUserProfile(event);
+    case "updateUserProfile":
+      return await updateUserProfile(event);
     case "validateAndCreateJob":
       return await validateAndCreateJob(event);
     case "getTaskStatus":

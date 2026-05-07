@@ -7,6 +7,7 @@ const TASK_TYPE_NAMES = {
 };
 
 const TASK_STATUS_CLASSES = {
+  init: "status-pending",
   pending: "status-pending",
   processing: "status-processing",
   completed: "status-completed",
@@ -18,6 +19,7 @@ function getTaskDisplayName(type) {
 
 function getTaskStatusText(task) {
   const statusMap = {
+    init: "提交中",
     pending: "排队中",
     processing: "生成中",
     completed: "已完成",
