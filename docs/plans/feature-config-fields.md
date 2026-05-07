@@ -36,16 +36,9 @@ feature_configs
 | 字段 | 类型 | 必填 | 说明 | 示例 |
 |------|------|------|------|------|
 | `public.title` | string | ✅ | 玩法完整标题 | `"看手相"` |
-| `public.shortTitle` | string | ✅ | 短标题（列表/网格展示） | `"看手相"` |
 | `public.description` | string | ✅ | 玩法描述（详情/卡片展示） | `"上传清晰手掌照片，生成趣味手相解读海报"` |
 | `public.homeDesc` | string | | 首页一句话描述 | `"看看你的手相"` |
-| `public.icon` | string | ✅ | 玩法图标（emoji 或标识符） | `"🖐️"` |
-| `public.uploadIcon` | string | ✅ | 上传页图标 | `"📷"` |
-| `public.badgeIcon` | string | | 徽章/标签图标 | `"🔮"` |
 | `public.uploadTitle` | string | ✅ | 上传页标题 | `"上传手掌照片"` |
-| `public.uploadTip` | string | ✅ | 上传页提示文案 | `"请确保手掌完整、纹路清晰、光线充足"` |
-| `public.retryText` | string | ✅ | 重试按钮文案 | `"重新上传"` |
-| `public.route` | string | ✅ | 小程序路由 | `"/pages/ai/index?type=palm"` |
 | `public.cardSize` | string | | 卡片尺寸：`normal` / `wide` | `"normal"` |
 | `public.previewImageHD` | string | | 预览图云存储 ID | `"cloud://.../ai-preview-image/手相.png"` |
 
@@ -53,11 +46,10 @@ feature_configs
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `ui.reportTitle` | string | ✅ | 结果页报告标题 |
 | `ui.progressTitle` | string | ✅ | 进度页加载文案 |
 | `ui.detailSubtitle` | string | ✅ | 详情页副标题 |
 | `ui.requirements` | string[] | ✅ | 上传要求列表（纯文本数组） |
-| `ui.requirementItems` | object[] | | 上传要求（带图标） |
+| `ui.requirementItems` | object[] | | 详情页拍摄要求 |
 | `ui.analysisItems` | object[] | | 分析维度列表 |
 | `ui.progressChecks` | object[] | | 进度检查步骤 |
 | `ui.tags` | object[] | | 玩法标签 |
@@ -65,10 +57,9 @@ feature_configs
 #### ui.requirementItems / ui.tags 结构
 
 ```json
-{ "icon": "☀", "text": "光线充足" }
+{ "text": "光线充足" }
 ```
 
-- `icon`: unicode 符号（如 `☺` `☀` `▧` `◎` `◉` `▣` `✨`）
 - `text`: 显示文案
 
 #### ui.analysisItems 结构
@@ -122,28 +113,20 @@ feature_configs
   "order": 10.0,
   "public": {
     "title": "看手相",
-    "shortTitle": "看手相",
     "description": "上传清晰手掌照片，生成趣味手相解读海报",
     "homeDesc": "看看你的手相",
-    "icon": "🖐️",
-    "uploadIcon": "📷",
-    "badgeIcon": "🔮",
     "uploadTitle": "上传手掌照片",
-    "uploadTip": "请确保手掌完整、纹路清晰、光线充足",
-    "retryText": "重新上传",
-    "route": "/pages/ai/index?type=palm",
     "cardSize": "normal",
     "previewImageHD": "cloud://.../ai-preview-image/手相.png"
   },
   "ui": {
-    "reportTitle": "手相报告",
     "progressTitle": "正在解读手相...",
     "detailSubtitle": "你的专属手相解读",
     "requirements": ["清晰的手掌照片", "手掌朝上", "光线充足"],
     "requirementItems": [
-      {"icon": "▣", "text": "手掌完整"},
-      {"icon": "☀", "text": "光线充足"},
-      {"icon": "▧", "text": "纹路清晰"}
+      {"text": "手掌完整"},
+      {"text": "光线充足"},
+      {"text": "纹路清晰"}
     ],
     "analysisItems": [
       {"title": "生命线", "items": ["精力旺盛", "健康指数高"]},
@@ -158,9 +141,9 @@ feature_configs
       {"title": "生成手相报告", "status": "等待中"}
     ],
     "tags": [
-      {"icon": "◎", "text": "手相解读"},
-      {"icon": "◉", "text": "趣味分析"},
-      {"icon": "▧", "text": "运势海报"}
+      {"text": "手相解读"},
+      {"text": "趣味分析"},
+      {"text": "运势海报"}
     ]
   },
   "validation": {
@@ -180,7 +163,7 @@ feature_configs
 
 ## 注意事项
 
-1. **emoji 限制**：CloudBase API 不支持 emoji 字符（如 🖐️ 📷），写入会返回 400 错误。可用 unicode 符号（如 ☀ ▧ ◎）或纯文本替代
+1. **emoji 限制**：CloudBase API 不支持 emoji 字符，写入会返回 400 错误。玩法配置不再维护图标字段，文案字段也应避免 emoji
 2. **order 格式**：MongoDB 存储为 EJSON `{"$numberDouble": "10.0"}`，读取时需解包
 3. **新增玩法**：复制现有文档，修改 `type`、`public.*`、`validation.prompt`、`generation.prompt` 即可
 4. **管理后台**：通过 `/admin/features` 可视化编辑，表单提交时自动处理编码和嵌套字段

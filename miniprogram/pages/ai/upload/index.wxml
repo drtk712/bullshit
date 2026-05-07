@@ -17,7 +17,7 @@
 
   <block wx:else>
     <view class="upload-box" bindtap="chooseImage">
-      <view class="camera-bubble">{{feature.uploadIcon}}</view>
+      <view class="camera-bubble">▧</view>
       <text class="upload-title">{{feature.uploadTitle}}</text>
       <text class="upload-sub">支持 JPG, PNG, HEIC 格式</text>
     </view>

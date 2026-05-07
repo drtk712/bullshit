@@ -13,7 +13,6 @@ Page({
     detailTitle: "",
     detailSubtitle: "",
     detailTags: [],
-    reportTitle: "",
   },
 
   async onLoad(options) {
@@ -46,7 +45,6 @@ Page({
       detailTitle: feature.title || "",
       detailSubtitle: ui.detailSubtitle || "",
       detailTags: this.buildDetailTags(ui.tags || []),
-      reportTitle: ui.reportTitle || "",
       configLoading: false,
       configError: "",
     });
@@ -83,7 +81,6 @@ Page({
       .map((tag) => {
         if (typeof tag === "string") return { icon: "", text: tag };
         return {
-          icon: tag.icon || "",
           text: tag.text || tag.title || "",
         };
       })
@@ -97,7 +94,6 @@ Page({
       return ui.requirementItems
         .map((item) => ({
           text: item.text || item.title || "",
-          icon: item.icon || "✓",
         }))
         .filter((item) => item.text);
     }

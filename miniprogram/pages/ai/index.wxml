@@ -21,7 +21,7 @@
       <text class="detail-kicker">{{detailTitle || feature.title}}</text>
       <text class="detail-title">{{detailSubtitle}}</text>
       <view class="tag-row">
-        <text class="tag" wx:for="{{detailTags}}" wx:key="text">{{item.icon}} {{item.text}}</text>
+        <text class="tag" wx:for="{{detailTags}}" wx:key="text">{{item.text}}</text>
       </view>
     </view>
 
@@ -42,7 +42,7 @@
             bindload="onFeatureImageLoad"
             binderror="onFeatureImageError"
           />
-          <view class="report-fallback">{{feature.icon}}</view>
+          <view class="report-fallback">▧</view>
           <view class="scan-line"></view>
         </view>
 
@@ -65,7 +65,7 @@
       </view>
       <view class="require-grid">
         <view class="require-item" wx:for="{{requirementItems}}" wx:key="text">
-          <view class="require-icon">{{item.icon}}</view>
+          <view class="require-icon">✓</view>
           <text>{{item.text}}</text>
         </view>
       </view>

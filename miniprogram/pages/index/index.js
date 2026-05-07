@@ -89,15 +89,19 @@ Page({
     }));
   },
 
+  buildFeatureRoute(type) {
+    return type ? `/pages/ai/index?type=${type}` : "";
+  },
+
   onClickFeature(e) {
-    const { url } = e.currentTarget.dataset;
+    const url = this.buildFeatureRoute(e.currentTarget.dataset.type);
     if (!url) return;
 
     wx.navigateTo({ url });
   },
 
   onClickRecommend() {
-    const url = this.data.recommendedFeature?.route;
+    const url = this.buildFeatureRoute(this.data.recommendedFeature?.type);
     if (!url) return;
     wx.navigateTo({ url });
   },

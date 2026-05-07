@@ -36,7 +36,7 @@
           mode="aspectFill"
           lazy-load
         />
-        <view wx:else class="recommend-fallback">{{recommendedFeature.icon}}</view>
+        <view wx:else class="recommend-fallback">▧</view>
       </view>
     </view>
 
@@ -52,7 +52,7 @@
         class="feature-card feature-card-{{item.cardSize}}"
         wx:for="{{filteredFeatureList}}"
         wx:key="type"
-        data-url="{{item.route}}"
+        data-type="{{item.type}}"
         bindtap="onClickFeature"
       >
         <view class="feature-media">
@@ -65,7 +65,7 @@
             data-index="{{index}}"
             catchtap="onPreviewImageTap"
           />
-          <text class="feature-emoji">{{item.badgeIcon}}</text>
+          <text class="feature-emoji">▧</text>
         </view>
         <view class="feature-info">
           <text class="feature-title">{{item.title}}</text>
