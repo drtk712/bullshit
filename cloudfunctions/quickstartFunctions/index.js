@@ -203,6 +203,7 @@ const toPublicTask = (task) => ({
   _id: task._id,
   type: task.type,
   status: task.status,
+  fileID: task.fileID || null,
   posterFileID: task.posterFileID || null,
   errMsg: task.errMsg || "",
   pointsCost: task.pointsCost || 0,
