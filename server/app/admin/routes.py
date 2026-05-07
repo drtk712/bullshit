@@ -192,7 +192,7 @@ async def task_preview(request: Request):
     if auth_redirect:
         return auth_redirect
     form = await request.form()
-    task_id = str(form.get("task_id", "")).strip()
+    task_id = str(form.get("preview_task_id", "")).strip()
     field = str(form.get("field", "")).strip()
     filters = {
         "openid": str(form.get("openid", "")).strip(),

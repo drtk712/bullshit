@@ -780,7 +780,7 @@ def _task_file_button(task_id: Any, field: str, label: str, filters: dict[str, A
     ]
     return Form(
         *hidden_fields,
-        Input(type="hidden", name="task_id", value=str(task_id)),
+        Input(type="hidden", name="preview_task_id", value=str(task_id)),
         Input(type="hidden", name="field", value=field),
         Button(label, type="submit", cls="button secondary"),
         method="post",
