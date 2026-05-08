@@ -1,11 +1,3 @@
-const TASK_TYPE_NAMES = {
-  palm: "看手相",
-  hair: "设计发型",
-  profile: "个人形象分析",
-  doodle: "INS手绘风照片",
-  soul: "灵魂画手",
-};
-
 const TASK_STATUS_CLASSES = {
   init: "status-pending",
   pending: "status-pending",
@@ -13,8 +5,12 @@ const TASK_STATUS_CLASSES = {
   completed: "status-completed",
 };
 
-function getTaskDisplayName(type) {
-  return TASK_TYPE_NAMES[type] || "生成记录";
+function getTaskDisplayName(type, featureMap = {}) {
+  return featureMap[type]?.title || "生成记录";
+}
+
+function getTaskDisplayDesc(type, featureMap = {}) {
+  return featureMap[type]?.homeDesc || featureMap[type]?.description || "趣味生成";
 }
 
 function getTaskStatusText(task) {
@@ -35,6 +31,7 @@ function getTaskStatusClass(status, pointsRefunded) {
 
 module.exports = {
   getTaskDisplayName,
+  getTaskDisplayDesc,
   getTaskStatusText,
   getTaskStatusClass,
 };

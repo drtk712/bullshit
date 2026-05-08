@@ -4,6 +4,7 @@ const {
   getTaskStatusText,
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
+const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
 
 Page({
   data: {
@@ -14,6 +15,7 @@ Page({
     error: '',
     polling: false,
     syncError: '',
+    featureMap: {},
   },
 
   taskPoller: null,
@@ -73,6 +75,9 @@ Page({
     }
 
     try {
+      if (!Object.keys(this.data.featureMap).length) {
+        await this.loadFeatureMap();
+      }
       const res = await wx.cloud.callFunction({
         name: 'quickstartFunctions',
         data: {
@@ -85,11 +90,12 @@ Page({
         const task = res.result.data.task;
         const posterState = await this.createPosterState(task);
 
+        const displayName = getTaskDisplayName(task.type, this.data.featureMap);
         this.setData({
           task: {
             ...task,
-            displayName: getTaskDisplayName(task.type),
-            displayInitial: getTaskDisplayName(task.type).slice(0, 1),
+            displayName,
+            displayInitial: displayName.slice(0, 1),
             statusText: getTaskStatusText(task),
             statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
             formattedTime: this.formatTime(task.createdAt),
@@ -122,6 +128,15 @@ Page({
 
     if (stopRefresh) {
       wx.stopPullDownRefresh();
+    }
+  },
+
+  async loadFeatureMap() {
+    try {
+      const features = await fetchFeatureList();
+      this.setData({ featureMap: buildFeatureMap(features) });
+    } catch (e) {
+      console.error('加载功能配置失败:', e);
     }
   },
 

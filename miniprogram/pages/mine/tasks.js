@@ -1,9 +1,10 @@
 const {
   getTaskDisplayName,
+  getTaskDisplayDesc,
   getTaskStatusText,
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
-const { fetchFeatureList } = require('../../utils/featureConfigClient');
+const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
 
 const PAGE_SIZE = 20;
 
@@ -37,11 +38,7 @@ Page({
   async loadFeatureMap() {
     try {
       const features = await fetchFeatureList();
-      const featureMap = (features || []).reduce((acc, item) => {
-        if (item?.type) acc[item.type] = item;
-        return acc;
-      }, {});
-      this.setData({ featureMap });
+      this.setData({ featureMap: buildFeatureMap(features) });
     } catch (e) {
       console.error('加载功能配置失败:', e);
     }
@@ -68,14 +65,14 @@ Page({
       if (res.result && res.result.success) {
         const { tasks, hasMore } = res.result.data;
         const processed = (tasks || []).map(t => {
-          const displayName = getTaskDisplayName(t.type);
+          const displayName = getTaskDisplayName(t.type, this.data.featureMap);
           const progressPercent = t.status === 'processing' ? (t.progress || 65) : 0;
           const statusText = getTaskStatusText(t);
           return {
             ...t,
             displayName,
             displayInitial: displayName.slice(0, 1),
-            displayDesc: this.getTaskDesc(t.type),
+            displayDesc: getTaskDisplayDesc(t.type, this.data.featureMap),
             thumbImage: t.posterFileID || '',
             progressPercent,
             progressStyle: `width: ${progressPercent}%;`,
@@ -187,17 +184,6 @@ Page({
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${month}-${day} ${hours}:${minutes}`;
-  },
-
-  getTaskDesc(type) {
-    const descMap = {
-      palm: '灵面看手',
-      hair: '短发一眼飒',
-      profile: '职业形象卡',
-      doodle: '手绘风头像',
-      soul: '山水简笔画',
-    };
-    return descMap[type] || '趣味生成';
   },
 
   getTaskById(taskId) {

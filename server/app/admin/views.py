@@ -50,6 +50,8 @@ TASK_STATUS_OPTIONS = [
     ("failed", "失败 failed"),
 ]
 
+FEATURE_CATEGORIES = ("趣味", "人像", "风格化", "创意", "工具", "营销")
+
 BOOL_FILTER_OPTIONS = [
     ("", "全部"),
     ("true", "是"),
@@ -358,6 +360,16 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                 H2("公开展示", cls="section-title"),
                 Div(
                     _field("标题", "public.title", _text(doc, "public.title")),
+                    Label(
+                        "首页分类",
+                        Select(
+                            *(
+                                Option(category, value=category, selected=_text(doc, "public.category") == category)
+                                for category in FEATURE_CATEGORIES
+                            ),
+                            name="public.category",
+                        ),
+                    ),
                     _field("首页描述", "public.homeDesc", _text(doc, "public.homeDesc")),
                     _field("上传页标题", "public.uploadTitle", _text(doc, "public.uploadTitle")),
                     _field("预览图云存储 ID", "public.previewImageHD", _text(doc, "public.previewImageHD")),
@@ -467,6 +479,7 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         "enabled": "enabled" in form,
         "order": order,
         "public.title": str(form.get("public.title", "")).strip(),
+        "public.category": str(form.get("public.category", "")).strip(),
         "public.description": str(form.get("public.description", "")).strip(),
         "public.homeDesc": str(form.get("public.homeDesc", "")).strip(),
         "public.uploadTitle": str(form.get("public.uploadTitle", "")).strip(),
@@ -491,6 +504,7 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         [
             "type",
             "public.title",
+            "public.category",
             "public.description",
             "public.uploadTitle",
             "ui.progressTitle",
@@ -504,6 +518,8 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
     )
     if not re.fullmatch(r"[a-z][a-z0-9_-]{1,31}", data["type"]):
         raise ValueError("type 必须以小写字母开头，只能包含小写字母、数字、连字符、下划线，长度 2-32")
+    if data["public.category"] not in FEATURE_CATEGORIES:
+        raise ValueError(f"public.category 只能是：{'、'.join(FEATURE_CATEGORIES)}")
     if not data["ui.requirements"]:
         raise ValueError("ui.requirements 至少需要一条")
     if data["public.cardSize"] not in {"normal", "wide"}:
@@ -540,6 +556,7 @@ def _blank_feature() -> dict[str, Any]:
         "order": 9999,
         "public": {
             "title": "新玩法",
+            "category": "趣味",
             "description": "仅用于管理后台开发验证",
             "homeDesc": "玩法说明",
             "uploadTitle": "上传测试图片",

@@ -24,7 +24,15 @@ async function fetchFeature(type) {
   throw new Error(resp.result?.errMsg || "功能暂不可用");
 }
 
+function buildFeatureMap(features) {
+  return (features || []).reduce((acc, item) => {
+    if (item?.type) acc[item.type] = item;
+    return acc;
+  }, {});
+}
+
 module.exports = {
+  buildFeatureMap,
   fetchFeatureList,
   fetchFeature,
 };

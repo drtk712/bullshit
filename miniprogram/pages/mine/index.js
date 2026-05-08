@@ -1,27 +1,9 @@
-const {
-  getTaskDisplayName,
-  getTaskStatusText,
-  getTaskStatusClass,
-} = require('../../utils/taskDisplay');
-
 Page({
   data: {
     // User card
     user: null,
     userLoading: true,
     userError: '',
-    
-    // Transactions section
-    transactions: [],
-    transLoading: true,
-    transError: '',
-    transTotal: 0,
-    
-    // Tasks section
-    tasks: [],
-    tasksLoading: true,
-    tasksError: '',
-    tasksTotal: 0,
 
     // Check-in
     checkedIn: false,
@@ -41,8 +23,6 @@ Page({
   onShow() {
     this.loadDevSwitches();
     this.loadUserProfile();
-    this.loadTransactions();
-    this.loadTasks();
   },
 
   async loadUserProfile() {
@@ -75,112 +55,9 @@ Page({
     }
   },
 
-  async loadTransactions() {
-    this.setData({ transLoading: true, transError: '' });
-    try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: { type: 'getTransactions', data: { page: 1, pageSize: 5 } }
-      });
-      if (res.result && res.result.success) {
-        const processed = (res.result.data.transactions || []).map(t => ({
-          ...t,
-          amountText: this.formatAmount(t.amount),
-          typeText: this.getTransactionTypeText(t),
-          amountClass: t.amount >= 0 ? 'amount-plus' : 'amount-minus',
-          timeText: this.formatTime(t.createdAt)
-        }));
-        this.setData({ 
-          transactions: processed, 
-          transTotal: res.result.data.total || 0,
-          transLoading: false 
-        });
-      } else {
-        this.setData({ 
-          transLoading: false, 
-          transError: res.result?.errMsg || '加载失败' 
-        });
-      }
-    } catch (err) {
-      console.error('加载积分记录失败:', err);
-      this.setData({ transLoading: false, transError: '网络错误' });
-    }
-  },
-
-  async loadTasks() {
-    this.setData({ tasksLoading: true, tasksError: '' });
-    try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: { type: 'getTasks', data: { page: 1, pageSize: 5 } }
-      });
-      if (res.result && res.result.success) {
-        const processed = (res.result.data.tasks || []).map(t => ({
-          ...t,
-          displayName: getTaskDisplayName(t.type),
-          statusText: getTaskStatusText(t),
-          statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
-          timeText: this.formatTime(t.createdAt)
-        }));
-        this.setData({ 
-          tasks: processed, 
-          tasksTotal: res.result.data.total || 0,
-          tasksLoading: false 
-        });
-      } else {
-        this.setData({ 
-          tasksLoading: false, 
-          tasksError: res.result?.errMsg || '加载失败' 
-        });
-      }
-    } catch (err) {
-      console.error('加载生成记录失败:', err);
-      this.setData({ tasksLoading: false, tasksError: '网络错误' });
-    }
-  },
-
-  goToTransactions() {
-    wx.navigateTo({ url: '/pages/mine/transactions' });
-  },
-
   goToTasks() {
     wx.navigateTo({ url: '/pages/mine/tasks' });
   },
-
-  goToTaskDetail(e) {
-    const taskId = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/mine/task-detail?id=${taskId}` });
-  },
-
-  formatTime(timestamp) {
-    if (!timestamp) return '';
-
-    const date = new Date(timestamp);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-
-    return `${month}-${day} ${hours}:${minutes}`;
-  },
-
-  formatAmount(amount) {
-    if (amount > 0) return `+${amount}`;
-    return String(amount || 0);
-  },
-
-  getTransactionTypeText(transaction) {
-    const reasonMap = {
-      first_login: '首次登录赠送',
-      create_ai_job: '生成消耗',
-      job_failed_refund: '失败退款',
-      manual_adjust: '积分调整',
-      daily_check_in: '每日签到',
-      share_reward: '分享奖励'
-    };
-    return reasonMap[transaction.reason] || '积分变动';
-  },
-
 
   async handleShareEarnPoints() {
     try {
@@ -192,7 +69,6 @@ Page({
       if (res.result && res.result.success) {
         wx.showToast({ title: '分享成功 +1 积分', icon: 'success' });
         this.loadUserProfile();
-        this.loadTransactions();
         return res.result.data;
       } else {
         wx.showToast({ title: res.result?.errMsg || '今日分享次数已达上限', icon: 'none' });
@@ -242,7 +118,6 @@ Page({
         this.setData({ checkedIn: true });
         this.setData({ showCheckInModal: true });
         this.loadUserProfile();
-        this.loadTransactions();
       } else if (res.result && res.result.data?.checkedIn) {
         this.setData({ checkedIn: true });
         wx.showToast({ title: '今日已签到', icon: 'none' });

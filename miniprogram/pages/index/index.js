@@ -8,13 +8,15 @@ Page({
     filteredFeatureList: [],
     recommendedFeature: null,
     categories: [
-      { icon: "🔥", text: "热门" },
-      { icon: "🙂", text: "人像" },
-      { icon: "🖼", text: "风格化" },
-      { icon: "✨", text: "趣味" },
-      { icon: "🧭", text: "最新" },
+      { key: "all", icon: "🔥", text: "热门" },
+      { key: "人像", icon: "🙂", text: "人像" },
+      { key: "风格化", icon: "🖼", text: "风格化" },
+      { key: "趣味", icon: "✨", text: "趣味" },
+      { key: "创意", icon: "💡", text: "创意" },
+      { key: "工具", icon: "🛠", text: "工具" },
+      { key: "营销", icon: "📣", text: "营销" },
     ],
-    activeCategory: 0,
+    activeCategory: "all",
     loadingFeatures: true,
     featureError: "",
     user: null,
@@ -24,14 +26,6 @@ Page({
     profileNickName: "",
     profileSaving: false,
     profileError: "",
-  },
-
-  categoryMap: {
-    0: null,
-    1: ["palm", "hair", "profile"],
-    2: ["doodle", "soul"],
-    3: ["soul"],
-    4: null,
   },
 
   async onLoad() {
@@ -86,6 +80,7 @@ Page({
   createHomeFeatureList(featureList) {
     return (featureList || []).map((feature) => ({
       ...feature,
+      category: feature.category || "其他",
     }));
   },
 
@@ -107,13 +102,12 @@ Page({
   },
 
   onCategoryTap(e) {
-    const index = e.currentTarget.dataset.index;
-    const types = this.categoryMap[index];
-    const filtered = types
-      ? this.data.homeFeatureList.filter((f) => types.includes(f.type))
-      : this.data.homeFeatureList;
+    const category = e.currentTarget.dataset.category || "all";
+    const filtered = category === "all"
+      ? this.data.homeFeatureList
+      : this.data.homeFeatureList.filter((f) => (f.category || "其他") === category);
 
-     this.setData({ activeCategory: index, filteredFeatureList: filtered });
+     this.setData({ activeCategory: category, filteredFeatureList: filtered });
    },
 
    async onPreviewImageTap(e) {

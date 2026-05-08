@@ -3,6 +3,7 @@ const {
   getTaskStatusText,
   getTaskStatusClass,
 } = require("../../../utils/taskDisplay");
+const { buildFeatureMap, fetchFeatureList } = require("../../../utils/featureConfigClient");
 
 Page({
   data: {
@@ -14,6 +15,7 @@ Page({
     error: "",
     activeTab: "result",
     originalImageUrl: "",
+    featureMap: {},
   },
 
   onLoad(options) {
@@ -42,6 +44,9 @@ Page({
     }
 
     try {
+      if (!Object.keys(this.data.featureMap).length) {
+        await this.loadFeatureMap();
+      }
       const res = await wx.cloud.callFunction({
         name: "quickstartFunctions",
         data: { type: "getTask", data: { taskId: this.data.taskId } },
@@ -60,7 +65,7 @@ Page({
       this.setData({
         task: {
           ...task,
-          displayName: getTaskDisplayName(task.type),
+          displayName: getTaskDisplayName(task.type, this.data.featureMap),
           statusText: getTaskStatusText(task),
           statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
         },
@@ -71,6 +76,15 @@ Page({
       });
     } catch (err) {
       this.setData({ loading: false, error: "网络错误，请稍后重试" });
+    }
+  },
+
+  async loadFeatureMap() {
+    try {
+      const features = await fetchFeatureList();
+      this.setData({ featureMap: buildFeatureMap(features) });
+    } catch (e) {
+      console.error("加载功能配置失败:", e);
     }
   },
 

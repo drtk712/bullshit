@@ -174,23 +174,29 @@ page {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 64rpx;
-  margin-right: var(--ui-gap-sm);
-  padding: 0 32rpx;
+  min-height: 36rpx;
+  margin-right: 12rpx;
+  padding: 0 18rpx;
   border-radius: var(--ui-radius-full);
-  background: var(--ui-surface-low);
+  border: 1rpx solid rgba(108, 123, 111, 0.14);
+  background: rgba(232, 240, 231, 0.72);
   color: var(--ui-text-soft);
-  font-size: 24rpx;
+  font-size: 20rpx;
   font-weight: 600;
 }
 
 .category-chip text + text {
-  margin-left: 8rpx;
+  margin-left: 6rpx;
+}
+
+.category-chip text:first-child {
+  font-size: 20rpx;
+  line-height: 1;
 }
 
 .category-chip.active {
-  border: 1rpx solid var(--ui-primary);
-  background: var(--ui-primary-soft);
+  border-color: rgba(21, 199, 122, 0.9);
+  background: rgba(101, 254, 170, 0.12);
   color: var(--ui-primary-dark);
 }
 

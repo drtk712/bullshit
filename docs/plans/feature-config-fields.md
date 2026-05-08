@@ -10,7 +10,7 @@
 ```
 feature_configs
 ├── _id              # 文档 ID（随机字符串）
-├── type             # 玩法标识：palm / hair / profile / doodle / soul
+├── type             # 玩法标识，如 palm / hair / profile / doodle / crayon / soul
 ├── enabled          # 是否启用
 ├── order            # 排序权重（MongoDB EJSON: {"$numberDouble": "10.0"}）
 ├── public           # 公开可见字段（小程序端可读取）
@@ -36,6 +36,7 @@ feature_configs
 | 字段 | 类型 | 必填 | 说明 | 示例 |
 |------|------|------|------|------|
 | `public.title` | string | ✅ | 玩法完整标题 | `"看手相"` |
+| `public.category` | string | ✅ | 首页分类名称，固定可选：`趣味` / `人像` / `风格化` / `创意` / `工具` / `营销` | `"趣味"` |
 | `public.description` | string | ✅ | 玩法描述（详情/卡片展示） | `"上传清晰手掌照片，生成趣味手相解读海报"` |
 | `public.homeDesc` | string | | 首页一句话描述 | `"看看你的手相"` |
 | `public.uploadTitle` | string | ✅ | 上传页标题 | `"上传手掌照片"` |
@@ -113,6 +114,7 @@ feature_configs
   "order": 10.0,
   "public": {
     "title": "看手相",
+    "category": "趣味",
     "description": "上传清晰手掌照片，生成趣味手相解读海报",
     "homeDesc": "看看你的手相",
     "uploadTitle": "上传手掌照片",

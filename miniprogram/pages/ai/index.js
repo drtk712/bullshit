@@ -79,7 +79,7 @@ Page({
   buildDetailTags(tags) {
     const normalized = (tags || [])
       .map((tag) => {
-        if (typeof tag === "string") return { icon: "", text: tag };
+        if (typeof tag === "string") return { text: tag };
         return {
           text: tag.text || tag.title || "",
         };

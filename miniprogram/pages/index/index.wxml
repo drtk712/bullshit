@@ -41,7 +41,7 @@
     </view>
 
     <scroll-view scroll-x class="category-row" enable-flex>
-      <view class="category-chip {{index === activeCategory ? 'active' : ''}}" wx:for="{{categories}}" wx:key="text" data-index="{{index}}" bindtap="onCategoryTap">
+      <view class="category-chip {{item.key === activeCategory ? 'active' : ''}}" wx:for="{{categories}}" wx:key="key" data-category="{{item.key}}" bindtap="onCategoryTap">
         <text>{{item.icon}}</text>
         <text>{{item.text}}</text>
       </view>
