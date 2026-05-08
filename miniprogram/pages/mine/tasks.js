@@ -5,6 +5,7 @@ const {
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
+const { saveImageFile } = require('../../utils/previewImage');
 
 const PAGE_SIZE = 20;
 
@@ -65,14 +66,14 @@ Page({
       if (res.result && res.result.success) {
         const { tasks, hasMore } = res.result.data;
         const processed = (tasks || []).map(t => {
-          const displayName = getTaskDisplayName(t.type, this.data.featureMap);
+          const displayName = getTaskDisplayName(t, this.data.featureMap);
           const progressPercent = t.status === 'processing' ? (t.progress || 65) : 0;
           const statusText = getTaskStatusText(t);
           return {
             ...t,
             displayName,
             displayInitial: displayName.slice(0, 1),
-            displayDesc: getTaskDisplayDesc(t.type, this.data.featureMap),
+            displayDesc: getTaskDisplayDesc(t, this.data.featureMap),
             thumbImage: t.posterFileID || '',
             progressPercent,
             progressStyle: `width: ${progressPercent}%;`,
@@ -152,7 +153,7 @@ Page({
       return;
     }
 
-    this.savePosterFile(task.posterFileID);
+    saveImageFile(task.posterFileID);
   },
 
   retryTask(e) {
@@ -189,71 +190,6 @@ Page({
   getTaskById(taskId) {
     if (!taskId) return null;
     return this.data.allTasks.find((task) => task._id === taskId) || null;
-  },
-
-  savePosterFile(posterFileID) {
-    wx.getSetting({
-      success: (settingRes) => {
-        if (settingRes.authSetting['scope.writePhotosAlbum']) {
-          this.downloadAndSavePoster(posterFileID);
-          return;
-        }
-
-        wx.authorize({
-          scope: 'scope.writePhotosAlbum',
-          success: () => this.downloadAndSavePoster(posterFileID),
-          fail: () => {
-            wx.showModal({
-              title: '需要相册权限',
-              content: '请在设置中开启相册权限以保存图片',
-              confirmText: '去设置',
-              success: (modalRes) => {
-                if (!modalRes.confirm) return;
-
-                wx.openSetting({
-                  success: (openRes) => {
-                    if (openRes.authSetting['scope.writePhotosAlbum']) {
-                      this.downloadAndSavePoster(posterFileID);
-                    }
-                  },
-                });
-              },
-            });
-          },
-        });
-      },
-    });
-  },
-
-  downloadAndSavePoster(posterFileID) {
-    wx.showLoading({ title: '保存中...' });
-
-    wx.cloud.downloadFile({
-      fileID: posterFileID,
-      success: (downloadRes) => {
-        if (!downloadRes.tempFilePath) {
-          wx.hideLoading();
-          wx.showToast({ title: '下载失败', icon: 'none' });
-          return;
-        }
-
-        wx.saveImageToPhotosAlbum({
-          filePath: downloadRes.tempFilePath,
-          success: () => {
-            wx.hideLoading();
-            wx.showToast({ title: '已保存到相册', icon: 'success' });
-          },
-          fail: () => {
-            wx.hideLoading();
-            wx.showToast({ title: '保存失败', icon: 'none' });
-          },
-        });
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: '下载失败', icon: 'none' });
-      },
-    });
   },
 
   onShareAppMessage(options = {}) {

@@ -5,12 +5,17 @@ const TASK_STATUS_CLASSES = {
   completed: "status-completed",
 };
 
-function getTaskDisplayName(type, featureMap = {}) {
-  return featureMap[type]?.title || "生成记录";
+function getTaskDisplayName(task, featureMap = {}) {
+  const type = typeof task === "string" ? task : task?.type;
+  const snapshotTitle = typeof task === "object" ? task?.featureTitle : "";
+  return snapshotTitle || featureMap[type]?.title || "生成记录";
 }
 
-function getTaskDisplayDesc(type, featureMap = {}) {
-  return featureMap[type]?.homeDesc || featureMap[type]?.description || "趣味生成";
+function getTaskDisplayDesc(task, featureMap = {}) {
+  const type = typeof task === "string" ? task : task?.type;
+  const snapshotHomeDesc = typeof task === "object" ? task?.featureHomeDesc : "";
+  const snapshotDescription = typeof task === "object" ? task?.featureDescription : "";
+  return snapshotHomeDesc || snapshotDescription || featureMap[type]?.homeDesc || featureMap[type]?.description || "趣味生成";
 }
 
 function getTaskStatusText(task) {

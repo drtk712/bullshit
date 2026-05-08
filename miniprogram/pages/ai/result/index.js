@@ -4,6 +4,7 @@ const {
   getTaskStatusClass,
 } = require("../../../utils/taskDisplay");
 const { buildFeatureMap, fetchFeatureList } = require("../../../utils/featureConfigClient");
+const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
 
 Page({
   data: {
@@ -60,12 +61,12 @@ Page({
       const task = res.result.data.task;
       const posterState = await this.createPosterState(task);
       const originalImageUrl = task.fileID
-        ? await this.getFileTempURL(task.fileID).catch(() => "")
+        ? await getTempFileURL(task.fileID).catch(() => "")
         : "";
       this.setData({
         task: {
           ...task,
-          displayName: getTaskDisplayName(task.type, this.data.featureMap),
+          displayName: getTaskDisplayName(task, this.data.featureMap),
           statusText: getTaskStatusText(task),
           statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
         },
@@ -93,24 +94,11 @@ Page({
       return { posterPreviewUrl: "", posterError: "图片尚未生成完成" };
     }
     try {
-      const posterPreviewUrl = await this.getPosterTempFileURL(task.posterFileID);
+      const posterPreviewUrl = await getTempFileURL(task.posterFileID);
       return { posterPreviewUrl, posterError: "" };
     } catch (err) {
       return { posterPreviewUrl: "", posterError: "图片加载失败，点击记录重试" };
     }
-  },
-
-  async getPosterTempFileURL(fileID) {
-    return this.getFileTempURL(fileID);
-  },
-
-  async getFileTempURL(fileID) {
-    const result = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-    const fileInfo = result.fileList && result.fileList[0];
-    if (!fileInfo || fileInfo.status !== 0 || !fileInfo.tempFileURL) {
-      throw new Error(fileInfo?.errMsg || "获取图片链接失败");
-    }
-    return fileInfo.tempFileURL;
   },
 
   async viewPoster() {
@@ -128,65 +116,7 @@ Page({
       return;
     }
 
-    wx.getSetting({
-      success: (settingRes) => {
-        if (settingRes.authSetting["scope.writePhotosAlbum"]) {
-          this.downloadAndSavePoster(posterFileID);
-          return;
-        }
-
-        wx.authorize({
-          scope: "scope.writePhotosAlbum",
-          success: () => this.downloadAndSavePoster(posterFileID),
-          fail: () => {
-            wx.showModal({
-              title: "需要相册权限",
-              content: "请在设置中开启相册权限以保存图片",
-              confirmText: "去设置",
-              success: (modalRes) => {
-                if (!modalRes.confirm) return;
-                wx.openSetting({
-                  success: (openRes) => {
-                    if (openRes.authSetting["scope.writePhotosAlbum"]) {
-                      this.downloadAndSavePoster(posterFileID);
-                    }
-                  },
-                });
-              },
-            });
-          },
-        });
-      },
-    });
-  },
-
-  downloadAndSavePoster(posterFileID) {
-    wx.showLoading({ title: "保存中" });
-    wx.cloud.downloadFile({
-      fileID: posterFileID,
-      success: (downloadRes) => {
-        if (!downloadRes.tempFilePath) {
-          wx.hideLoading();
-          wx.showToast({ title: "下载失败", icon: "none" });
-          return;
-        }
-        wx.saveImageToPhotosAlbum({
-          filePath: downloadRes.tempFilePath,
-          success: () => {
-            wx.hideLoading();
-            wx.showToast({ title: "已保存到相册", icon: "success" });
-          },
-          fail: () => {
-            wx.hideLoading();
-            wx.showToast({ title: "保存失败", icon: "none" });
-          },
-        });
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: "下载失败", icon: "none" });
-      },
-    });
+    saveImageFile(posterFileID, { loadingTitle: "保存中" });
   },
 
   onShareAppMessage() {

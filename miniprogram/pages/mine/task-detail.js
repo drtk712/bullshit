@@ -5,6 +5,7 @@ const {
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
+const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
 
 Page({
   data: {
@@ -90,7 +91,7 @@ Page({
         const task = res.result.data.task;
         const posterState = await this.createPosterState(task);
 
-        const displayName = getTaskDisplayName(task.type, this.data.featureMap);
+        const displayName = getTaskDisplayName(task, this.data.featureMap);
         this.setData({
           task: {
             ...task,
@@ -210,7 +211,7 @@ Page({
     if (!posterFileID) return;
 
     try {
-      const tempUrl = this.data.posterPreviewUrl || await this.getPosterTempFileURL(posterFileID);
+      const tempUrl = this.data.posterPreviewUrl || await getTempFileURL(posterFileID);
       wx.previewImage({
         urls: [tempUrl],
         current: tempUrl
@@ -227,70 +228,7 @@ Page({
       return;
     }
 
-    wx.getSetting({
-      success: (settingRes) => {
-        if (settingRes.authSetting['scope.writePhotosAlbum']) {
-          this.downloadAndSavePoster(posterFileID);
-          return;
-        }
-
-        wx.authorize({
-          scope: 'scope.writePhotosAlbum',
-          success: () => {
-            this.downloadAndSavePoster(posterFileID);
-          },
-          fail: () => {
-            wx.showModal({
-              title: '需要相册权限',
-              content: '请在设置中开启相册权限以保存图片',
-              confirmText: '去设置',
-              success: (modalRes) => {
-                if (!modalRes.confirm) return;
-
-                wx.openSetting({
-                  success: (openRes) => {
-                    if (openRes.authSetting['scope.writePhotosAlbum']) {
-                      this.downloadAndSavePoster(posterFileID);
-                    }
-                  },
-                });
-              },
-            });
-          },
-        });
-      },
-    });
-  },
-
-  downloadAndSavePoster(posterFileID) {
-    wx.showLoading({ title: '保存中...' });
-
-    wx.cloud.downloadFile({
-      fileID: posterFileID,
-      success: (downloadRes) => {
-        if (!downloadRes.tempFilePath) {
-          wx.hideLoading();
-          wx.showToast({ title: '下载失败', icon: 'none' });
-          return;
-        }
-
-        wx.saveImageToPhotosAlbum({
-          filePath: downloadRes.tempFilePath,
-          success: () => {
-            wx.hideLoading();
-            wx.showToast({ title: '已保存到相册', icon: 'success' });
-          },
-          fail: () => {
-            wx.hideLoading();
-            wx.showToast({ title: '保存失败', icon: 'none' });
-          },
-        });
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: '下载失败', icon: 'none' });
-      },
-    });
+    saveImageFile(posterFileID);
   },
 
   async createPosterState(task) {
@@ -299,22 +237,11 @@ Page({
     }
 
     try {
-      const posterPreviewUrl = await this.getPosterTempFileURL(task.posterFileID);
+      const posterPreviewUrl = await getTempFileURL(task.posterFileID);
       return { posterPreviewUrl, posterError: '' };
     } catch (err) {
       return { posterPreviewUrl: '', posterError: '图片加载失败，点击查看大图重试' };
     }
-  },
-
-  async getPosterTempFileURL(fileID) {
-    const result = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-    const fileInfo = result.fileList && result.fileList[0];
-
-    if (!fileInfo || fileInfo.status !== 0 || !fileInfo.tempFileURL) {
-      throw new Error(fileInfo?.errMsg || '获取图片链接失败');
-    }
-
-    return fileInfo.tempFileURL;
   },
 
   isActiveTask(status) {

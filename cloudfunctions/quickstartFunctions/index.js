@@ -202,6 +202,9 @@ const toPublicTransaction = (transaction) => ({
 const toPublicTask = (task) => ({
   _id: task._id,
   type: task.type,
+  featureTitle: task.featureTitle || "",
+  featureHomeDesc: task.featureHomeDesc || "",
+  featureDescription: task.featureDescription || "",
   status: task.status,
   fileID: task.fileID || null,
   posterFileID: task.posterFileID || null,
@@ -558,6 +561,9 @@ const validateAndCreateJob = async (event) => {
     const taskResult = await db.collection(JOBS_COLLECTION).add({
       data: {
         type,
+        featureTitle: featureConfig.public?.title || "",
+        featureHomeDesc: featureConfig.public?.homeDesc || "",
+        featureDescription: featureConfig.public?.description || "",
         fileID,
         serverTaskId: null,
         status: "init",
