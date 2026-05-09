@@ -35,17 +35,6 @@
       <view class="poster-watermark">玩图局</view>
     </view>
 
-    <view class="reward-card">
-      <view class="reward-left">
-        <view class="reward-icon">◎</view>
-        <view>
-          <text class="reward-title">本次生成奖励</text>
-          <text class="reward-sub">每日首次生成均可获得</text>
-        </view>
-      </view>
-      <text class="reward-points">+1 积分</text>
-    </view>
-
     <view class="result-dock">
       <button class="save-btn" bindtap="savePoster">↓ 保存到相册</button>
       <button class="share-btn" open-type="share">↗ {{shareRewardCopy.buttonText}}</button>

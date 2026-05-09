@@ -73,7 +73,6 @@ page {
 .progress-card,
 .check-card,
 .poster-card,
-.reward-card,
 .modal-card {
   border-radius: 32rpx;
   background: #ffffff;
@@ -649,64 +648,6 @@ page {
   font-size: 22rpx;
   font-weight: 800;
   box-shadow: var(--ui-shadow);
-}
-
-.reward-card {
-  margin-top: 48rpx;
-  padding: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: var(--ui-radius-lg);
-  background: var(--ui-card);
-  box-shadow: var(--ui-shadow);
-}
-
-.reward-left {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-
-.reward-icon {
-  flex: 0 0 auto;
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  background: rgba(246, 165, 18, 0.16);
-  color: var(--ui-accent);
-  text-align: center;
-  font-size: 48rpx;
-  line-height: 80rpx;
-}
-
-.reward-title,
-.reward-sub,
-.reward-points {
-  display: block;
-}
-
-.reward-title {
-  color: var(--ui-text);
-  font-size: 32rpx;
-  font-weight: 800;
-  line-height: 44rpx;
-}
-
-.reward-sub {
-  margin-top: 4rpx;
-  color: var(--ui-text-soft);
-  font-size: 22rpx;
-  line-height: 32rpx;
-}
-
-.reward-points {
-  flex: 0 0 auto;
-  color: var(--ui-accent);
-  font-size: 34rpx;
-  font-weight: 800;
-  line-height: 44rpx;
 }
 
 .result-tabs {

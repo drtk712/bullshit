@@ -1,5 +1,6 @@
 const { fetchFeatureList } = require("../../utils/featureConfigClient");
 const { previewImages } = require("../../utils/previewImage");
+const { saveUserProfile } = require("../../utils/profile");
 
 Page({
   data: {
@@ -147,46 +148,15 @@ Page({
   },
 
   async onSaveProfile() {
-    const nickName = (this.data.profileNickName || "").trim();
-    const avatarPath = this.data.profileAvatarTempPath;
-
-    if (!avatarPath) {
-      this.setData({ profileError: "请先选择头像" });
-      return;
-    }
-    if (!nickName) {
-      this.setData({ profileError: "请填写昵称" });
-      return;
-    }
-
     this.setData({ profileSaving: true, profileError: "" });
     wx.showLoading({ title: "保存中", mask: true });
 
     try {
-      const extMatch = avatarPath.match(/\.(png|jpg|jpeg|webp)$/i);
-      const ext = extMatch ? extMatch[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
-      const cloudPath = `user-avatars/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-      const uploadRes = await wx.cloud.uploadFile({
-        cloudPath,
-        filePath: avatarPath,
+      const user = await saveUserProfile({
+        nickName: this.data.profileNickName,
+        avatarPath: this.data.profileAvatarTempPath,
       });
 
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: {
-          type: "updateUserProfile",
-          data: {
-            nickName,
-            avatarFileID: uploadRes.fileID,
-          },
-        },
-      });
-
-      if (!res.result || !res.result.success) {
-        throw new Error(res.result?.errMsg || "保存失败");
-      }
-
-      const user = res.result.data.user;
       getApp().globalData.user = user;
       this.setData({
         user,
