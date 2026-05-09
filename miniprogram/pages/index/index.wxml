@@ -56,16 +56,21 @@
         bindtap="onClickFeature"
       >
         <view class="feature-media">
-          <image
-            wx:if="{{item.previewImageHD}}"
-            class="feature-preview"
-            src="{{item.previewImageHD}}"
-            mode="aspectFill"
-            lazy-load
-            data-index="{{index}}"
-            catchtap="onPreviewImageTap"
-          />
-          <text class="feature-emoji">▧</text>
+          <block wx:if="{{item.previewImageHD}}">
+            <image
+              class="feature-preview"
+              src="{{item.previewImageHD}}"
+              mode="aspectFill"
+              lazy-load
+            />
+            <view
+              class="feature-preview-button"
+              data-index="{{index}}"
+              catchtap="onPreviewImageTap"
+              aria-label="预览"
+            >⌕</view>
+          </block>
+          <text wx:else class="feature-emoji">▧</text>
         </view>
         <view class="feature-info">
           <text class="feature-title">{{item.title}}</text>

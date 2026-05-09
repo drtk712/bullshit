@@ -13,7 +13,6 @@ const THUMB_STYLE_NAME = '2jpg';
 Page({
   data: {
     tasks: [],
-    allTasks: [],
     featureMap: {},
     loading: true,
     loadingMore: false,
@@ -31,10 +30,11 @@ Page({
   },
 
   onShow() {
-    // tabBar 页面切换回来时刷新数据
-    if (this.data.allTasks.length > 0) {
-      this.loadTasks(1);
-    }
+    const app = getApp();
+    if (!app.globalData.shouldRefreshTasks || this.data.loading) return;
+
+    app.globalData.shouldRefreshTasks = false;
+    this.loadTasks(1);
   },
 
   async loadFeatureMap() {
@@ -50,7 +50,7 @@ Page({
     const wasRefreshing = this.data.refreshing;
 
     if (page === 1) {
-      this.setData({ loading: true, error: '' });
+      this.setData({ loading: !wasRefreshing, error: '' });
     } else {
       this.setData({ loadingMore: true });
     }
@@ -60,7 +60,11 @@ Page({
         name: 'quickstartFunctions',
         data: {
           type: 'getTasks',
-          data: { page, pageSize: PAGE_SIZE }
+          data: {
+            page,
+            pageSize: PAGE_SIZE,
+            filter: this.data.activeFilter,
+          }
         }
       });
 
@@ -89,14 +93,15 @@ Page({
 
         this.setData({
           tasks: page === 1 ? processed : [...this.data.tasks, ...processed],
-          allTasks: page === 1 ? processed : [...this.data.allTasks, ...processed],
           page,
           hasMore,
           loading: false,
           loadingMore: false,
           refreshing: false,
         });
-        this.applyFilter();
+        if (page === 1) {
+          getApp().globalData.shouldRefreshTasks = false;
+        }
       } else {
         this.setData({
           loading: false,
@@ -148,8 +153,9 @@ Page({
 
   onFilterTap(e) {
     const filter = e.currentTarget.dataset.filter;
-    this.setData({ activeFilter: filter });
-    this.applyFilter();
+    if (filter === this.data.activeFilter) return;
+    this.setData({ activeFilter: filter, page: 1, hasMore: true });
+    this.loadTasks(1);
   },
 
   onShareTask(e) {
@@ -174,22 +180,6 @@ Page({
     wx.navigateTo({ url: `/pages/ai/upload/index?type=${type}` });
   },
 
-  applyFilter() {
-    const filter = this.data.activeFilter;
-    const allTasks = this.data.allTasks;
-    let filtered = allTasks;
-
-    if (filter === 'processing') {
-      filtered = allTasks.filter(t => t.status === 'init' || t.status === 'pending' || t.status === 'processing');
-    } else if (filter === 'completed') {
-      filtered = allTasks.filter(t => t.status === 'completed');
-    } else if (filter === 'failed') {
-      filtered = allTasks.filter(t => t.status === 'failed');
-    }
-
-    this.setData({ tasks: filtered });
-  },
-
   formatTime(timestamp) {
     if (!timestamp) return '';
     const date = new Date(timestamp);
@@ -202,7 +192,7 @@ Page({
 
   getTaskById(taskId) {
     if (!taskId) return null;
-    return this.data.allTasks.find((task) => task._id === taskId) || null;
+    return this.data.tasks.find((task) => task._id === taskId) || null;
   },
 
   onShareAppMessage(options = {}) {

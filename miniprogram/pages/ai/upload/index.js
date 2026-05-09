@@ -83,7 +83,7 @@ Page({
   },
 
   compressAndUpload(tempFilePath) {
-    wx.showLoading({ title: "处理图片" });
+    wx.showLoading({ title: "校验图片" });
     wx.compressImage({
       src: tempFilePath,
       quality: 70,
@@ -107,7 +107,6 @@ Page({
   },
 
   createJob(fileID) {
-    const g = getApp().globalData;
     wx.cloud.callFunction({
       name: "quickstartFunctions",
       data: {
@@ -115,13 +114,12 @@ Page({
         data: {
           type: this.data.feature.type,
           fileID,
-          test: !!g.testMode,
-          skipPointsDeduction: !!g.skipPointsDeduction,
         },
       },
       success: (resp) => {
         wx.hideLoading();
         if (resp.result?.success) {
+          getApp().globalData.shouldRefreshTasks = true;
           wx.redirectTo({
             url: `/pages/ai/progress/index?id=${resp.result.data.taskId}&type=${this.data.feature.type}`,
           });

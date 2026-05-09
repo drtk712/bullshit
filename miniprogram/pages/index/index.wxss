@@ -240,6 +240,35 @@ page {
   height: 100%;
 }
 
+.feature-preview-button {
+  position: absolute;
+  left: 16rpx;
+  top: 16rpx;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0;
+  padding: 0;
+  border: 1rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: var(--ui-radius-full);
+  background: rgba(20, 32, 27, 0.28);
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 72rpx;
+  transform: none;
+  box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(16rpx);
+}
+
+.feature-preview-button:active {
+  background: rgba(20, 32, 27, 0.38);
+  transform: scale(0.96);
+}
+
 .feature-emoji {
   position: absolute;
   left: 0;

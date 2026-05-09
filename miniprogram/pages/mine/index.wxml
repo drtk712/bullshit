@@ -94,30 +94,6 @@
     </view>
   </view>
 
-  <view class="settings-card">
-    <view class="setting-row">
-      <view class="setting-left">
-        <view class="setting-icon">⚗</view>
-        <view>
-          <text class="setting-title">试玩模式</text>
-          <text class="setting-sub">体验最新实验性功能</text>
-        </view>
-      </view>
-      <switch checked="{{testMode}}" bindchange="onTestModeChange" color="#15c77a" />
-    </view>
-    <view class="setting-divider"></view>
-    <view class="setting-row">
-      <view class="setting-left">
-        <view class="setting-icon">◆</view>
-        <view>
-          <text class="setting-title">不扣积分</text>
-          <text class="setting-sub">开发版真实生成不消耗积分</text>
-        </view>
-      </view>
-      <switch checked="{{skipPointsDeduction}}" bindchange="onSkipPointsChange" color="#15c77a" />
-    </view>
-  </view>
-
   <view wx:if="{{showCheckInModal}}" class="modal-mask">
     <view class="modal-card">
       <view class="modal-close" bindtap="hideCheckInModal">×</view>

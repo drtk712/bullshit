@@ -1,27 +1,55 @@
 const { createTaskPoller } = require("../../../utils/taskPoller");
 
+const PROGRESS_STAGES = {
+  init: { min: 8, max: 20, title: "正在提交任务" },
+  pending: { min: 20, max: 45, title: "正在排队处理" },
+  processing: { min: 45, max: 92 },
+};
+const PROCESSING_START_PROGRESS = 45;
+const CHECK_PROGRESS_STEP = 10;
+
 Page({
   data: {
     taskId: "",
     type: "",
-    progress: 65,
-    remainText: "20 秒",
+    progress: 8,
+    remainText: "约 60 秒",
     progressTitle: "",
     progressChecks: [],
   },
 
   poller: null,
   progressTimer: null,
+  progressStage: PROGRESS_STAGES.init,
+  configuredProgressTitle: "",
+
+  goBack() {
+    wx.showModal({
+      title: "确认离开？",
+      content: "作品会继续生成。离开后可在「生成记录」查看进度和结果。",
+      cancelText: "继续等待",
+      confirmText: "离开",
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.navigateBack({
+          fail: () => wx.switchTab({ url: "/pages/mine/tasks" }),
+        });
+      },
+    });
+  },
 
   onLoad(options) {
     const type = options.type || "palm";
     const ui = this.getFeatureUI(type);
+    const configuredProgressTitle = ui.progressTitle || "正在生成作品";
+    this.configuredProgressTitle = configuredProgressTitle;
 
     this.setData({
       taskId: options.id || "",
       type,
-      progressTitle: ui.progressTitle || "生成中",
-      progressChecks: ui.progressChecks || [],
+      progress: PROGRESS_STAGES.init.min,
+      progressTitle: PROGRESS_STAGES.init.title,
+      progressChecks: this.buildProgressChecks(ui.progressChecks || []),
     });
     this.startFakeProgress();
     this.startPolling();
@@ -36,26 +64,79 @@ Page({
 
   startFakeProgress() {
     this.progressTimer = setInterval(() => {
-      const next = Math.min(this.data.progress + 7, 92);
-      this.setData({
-        progress: next,
-        remainText: next > 80 ? "约 20 秒" : "约 50 秒",
-      });
+      const stage = this.progressStage || PROGRESS_STAGES.init;
+      const step = stage.max <= 20 ? 2 : stage.max <= 45 ? 3 : 4;
+      const next = Math.min(this.data.progress + step, stage.max);
+      this.updateProgress(next);
     }, 2200);
+  },
+
+  buildProgressChecks(checks) {
+    return (checks || []).map((item, index) => ({
+      title: item.title || `生成步骤 ${index + 1}`,
+      done: false,
+      displayStatus: "等待中",
+    }));
+  },
+
+  progressCheckDoneCount(progress) {
+    if (progress < PROCESSING_START_PROGRESS) return 0;
+    return Math.min(
+      this.data.progressChecks.length,
+      Math.floor((progress - PROCESSING_START_PROGRESS) / CHECK_PROGRESS_STEP)
+    );
+  },
+
+  updateProgress(progress) {
+    const doneCount = this.progressCheckDoneCount(progress);
+    const progressChecks = this.data.progressChecks.map((item, index) => {
+      if (index < doneCount) {
+        return { ...item, done: true, displayStatus: "完成" };
+      }
+      if (index === doneCount && progress >= PROCESSING_START_PROGRESS) {
+        return { ...item, done: false, displayStatus: "进行中" };
+      }
+      return { ...item, done: false, displayStatus: "等待中" };
+    });
+
+    this.setData({
+      progress,
+      progressChecks,
+      remainText: progress > 80 ? "约 20 秒" : progress > 45 ? "约 40 秒" : "约 60 秒",
+    });
+  },
+
+  syncProgressByStatus(status) {
+    const stage = PROGRESS_STAGES[status];
+    if (!stage) return;
+
+    this.progressStage = {
+      ...stage,
+      title: status === "processing"
+        ? this.configuredProgressTitle
+        : stage.title,
+    };
+
+    this.setData({
+      progressTitle: this.progressStage.title,
+    });
+    this.updateProgress(Math.max(this.data.progress, this.progressStage.min));
   },
 
   startPolling() {
     if (!this.data.taskId) return;
 
     this.poller = createTaskPoller({
-      initialDelay: 2500,
       onStatus: (status) => {
         if (status.status === "completed") {
+          this.setData({ progress: 100, remainText: "即将完成" });
           this.cleanup();
           wx.redirectTo({ url: `/pages/ai/result/index?id=${this.data.taskId}` });
         } else if (status.status === "failed") {
           this.cleanup();
           wx.redirectTo({ url: `/pages/mine/task-detail?id=${this.data.taskId}` });
+        } else {
+          this.syncProgressByStatus(status.status);
         }
       },
       onError: () => {

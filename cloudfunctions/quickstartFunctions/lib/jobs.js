@@ -34,14 +34,20 @@ const getTasks = async (event) => {
 
     const page = Math.max(1, parseInt(event.data?.page) || 1);
     const pageSize = Math.min(50, Math.max(1, parseInt(event.data?.pageSize) || 20));
+    const filter = String(event.data?.filter || "all");
     const skip = (page - 1) * pageSize;
+    const query = { openid };
+
+    if (["pending", "processing", "completed", "failed"].includes(filter)) {
+      query.status = filter;
+    }
 
     const countResult = await db.collection(JOBS_COLLECTION)
-      .where({ openid })
+      .where(query)
       .count();
 
     const result = await db.collection(JOBS_COLLECTION)
-      .where({ openid })
+      .where(query)
       .orderBy("createdAt", "desc")
       .skip(skip)
       .limit(pageSize)

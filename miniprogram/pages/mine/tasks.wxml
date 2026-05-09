@@ -10,7 +10,8 @@
   <scroll-view scroll-x class="filter-scroll" enable-flex show-scrollbar="{{false}}">
     <view class="filter-row">
       <text class="filter-chip {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onFilterTap">全部</text>
-      <text class="filter-chip {{activeFilter === 'processing' ? 'active' : ''}}" data-filter="processing" bindtap="onFilterTap">进行中</text>
+      <text class="filter-chip {{activeFilter === 'pending' ? 'active' : ''}}" data-filter="pending" bindtap="onFilterTap">排队中</text>
+      <text class="filter-chip {{activeFilter === 'processing' ? 'active' : ''}}" data-filter="processing" bindtap="onFilterTap">生成中</text>
       <text class="filter-chip {{activeFilter === 'completed' ? 'active' : ''}}" data-filter="completed" bindtap="onFilterTap">已完成</text>
       <text class="filter-chip {{activeFilter === 'failed' ? 'active' : ''}}" data-filter="failed" bindtap="onFilterTap">已失败</text>
     </view>
@@ -27,6 +28,12 @@
   </view>
 
   <block wx:else>
+    <view class="refresh-hint {{refreshing ? 'active' : ''}}">
+      <view wx:if="{{refreshing}}" class="mini-spinner"></view>
+      <text wx:else class="refresh-icon">↓</text>
+      <text>{{refreshing ? '正在同步最新状态' : '下拉刷新同步最新状态'}}</text>
+    </view>
+
     <view class="record-list">
       <view wx:for="{{tasks}}" wx:key="_id" class="task-card" bindtap="goToTaskDetail" data-id="{{item._id}}">
         <view class="task-top">

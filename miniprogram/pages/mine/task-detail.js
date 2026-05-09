@@ -12,6 +12,9 @@ Page({
     task: null,
     posterPreviewUrl: '',
     posterError: '',
+    originalImageUrl: '',
+    originalImageError: '',
+    activeTab: 'result',
     loading: true,
     error: '',
     polling: false,
@@ -90,6 +93,7 @@ Page({
       if (res.result && res.result.success) {
         const task = res.result.data.task;
         const posterState = await this.createPosterState(task);
+        const originalState = await this.createOriginalImageState(task);
 
         const displayName = getTaskDisplayName(task, this.data.featureMap);
         this.setData({
@@ -104,6 +108,7 @@ Page({
             friendlyErrMsg: this.getFriendlyErrMsg(task.errMsg),
           },
           ...posterState,
+          ...originalState,
           loading: false,
           syncError: '',
         });
@@ -157,6 +162,7 @@ Page({
   async applyPolledTaskStatus(taskStatus) {
     if (!this.data.task) return;
 
+    const wasActive = this.isActiveTask(this.data.task.status);
     const nextTask = {
       ...this.data.task,
       status: taskStatus.status || this.data.task.status,
@@ -181,6 +187,9 @@ Page({
     });
 
     if (!this.isActiveTask(nextTask.status)) {
+      if (wasActive) {
+        getApp().globalData.shouldRefreshTasks = true;
+      }
       await this.loadTask({ silent: true });
     }
   },
@@ -206,12 +215,21 @@ Page({
     this.setData({ polling: false });
   },
 
+  switchTab(e) {
+    this.setData({ activeTab: e.currentTarget.dataset.tab || 'result' });
+  },
+
   async viewPoster() {
-    const posterFileID = this.data.task?.posterFileID;
-    if (!posterFileID) return;
+    const fileID = this.data.activeTab === 'original'
+      ? this.data.task?.fileID
+      : this.data.task?.posterFileID;
+    if (!fileID) return;
 
     try {
-      const tempUrl = this.data.posterPreviewUrl || await getTempFileURL(posterFileID);
+      const cachedUrl = this.data.activeTab === 'original'
+        ? this.data.originalImageUrl
+        : this.data.posterPreviewUrl;
+      const tempUrl = cachedUrl || await getTempFileURL(fileID);
       wx.previewImage({
         urls: [tempUrl],
         current: tempUrl
@@ -241,6 +259,19 @@ Page({
       return { posterPreviewUrl, posterError: '' };
     } catch (err) {
       return { posterPreviewUrl: '', posterError: '图片加载失败，点击查看大图重试' };
+    }
+  },
+
+  async createOriginalImageState(task) {
+    if (!task.fileID) {
+      return { originalImageUrl: '', originalImageError: '原图不存在' };
+    }
+
+    try {
+      const originalImageUrl = await getTempFileURL(task.fileID);
+      return { originalImageUrl, originalImageError: '' };
+    } catch (err) {
+      return { originalImageUrl: '', originalImageError: '原图加载失败，点击重试' };
     }
   },
 
@@ -315,6 +346,7 @@ Page({
           wx.hideLoading();
 
           if (result.result && result.result.success) {
+            getApp().globalData.shouldRefreshTasks = true;
             wx.showToast({ title: '删除成功', icon: 'success' });
             setTimeout(() => {
               wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/mine/tasks' }) });

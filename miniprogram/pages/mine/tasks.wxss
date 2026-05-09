@@ -98,6 +98,37 @@ page {
   font-weight: 900;
 }
 
+.refresh-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  min-height: 56rpx;
+  margin: -8rpx 0 20rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--ui-text-soft);
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+}
+
+.refresh-hint.active {
+  background: rgba(21, 199, 122, 0.08);
+  color: var(--ui-primary-dark);
+}
+
+.refresh-hint .mini-spinner {
+  width: 28rpx;
+  height: 28rpx;
+  border-width: 3rpx;
+}
+
+.refresh-icon {
+  font-size: 26rpx;
+  line-height: 1;
+}
+
 .record-list {
   display: flex;
   flex-direction: column;
@@ -262,16 +293,17 @@ page {
 }
 
 .task-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 16rpx;
 }
 
 .task-action-btn {
-  width: 100%;
+  width: 148rpx;
   height: 64rpx;
   margin: 0;
-  padding: 0;
+  padding: 0 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;

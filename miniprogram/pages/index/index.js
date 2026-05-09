@@ -35,7 +35,7 @@ Page({
       const featureList = await fetchFeatureList();
       const homeFeatureList = this.createHomeFeatureList(featureList);
       const recommendedFeature =
-        homeFeatureList.find((item) => item.type === "palm") || homeFeatureList[0] || null;
+        homeFeatureList.find((item) => item.type === "doodle") || homeFeatureList[0] || null;
       getApp().globalData.featureList = featureList;
       this.setData({
         featureList,

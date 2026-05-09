@@ -31,17 +31,34 @@
         </view>
       </view>
 
+      <view wx:if="{{task.status === 'completed'}}" class="image-tabs">
+        <text class="image-tab {{activeTab === 'result' ? 'active' : ''}}" data-tab="result" bindtap="switchTab">结果</text>
+        <text class="image-tab {{activeTab === 'original' ? 'active' : ''}}" data-tab="original" bindtap="switchTab">原图</text>
+      </view>
+
       <view wx:if="{{task.status === 'completed'}}" class="task-preview" bindtap="viewPoster">
-        <image wx:if="{{posterPreviewUrl}}" class="task-preview-image" src="{{posterPreviewUrl}}" mode="aspectFill"></image>
-        <view wx:else class="poster-placeholder-text">{{posterError || '图片加载中'}}</view>
+        <block wx:if="{{activeTab === 'result'}}">
+          <image wx:if="{{posterPreviewUrl}}" class="task-preview-image" src="{{posterPreviewUrl}}" mode="aspectFill"></image>
+          <view wx:else class="poster-placeholder-text">{{posterError || '图片加载中'}}</view>
+        </block>
+        <block wx:elif="{{activeTab === 'original'}}">
+          <image wx:if="{{originalImageUrl}}" class="task-preview-image" src="{{originalImageUrl}}" mode="aspectFill"></image>
+          <view wx:else class="poster-placeholder-text">{{originalImageError || '原图加载中'}}</view>
+        </block>
         <view class="preview-mask">
-          <text>查看大图</text>
+          <text>查看{{activeTab === 'original' ? '原图' : '大图'}}</text>
         </view>
       </view>
 
       <view wx:if="{{task.status === 'completed'}}" class="task-actions">
-        <button class="task-action ghost" open-type="share">↗ 分享</button>
-        <button class="task-action primary" bindtap="savePoster">↓ 保存相册</button>
+        <button class="task-action primary" bindtap="savePoster">
+          <text class="action-icon">↓</text>
+          <text>保存相册</text>
+        </button>
+        <button class="task-action ghost" open-type="share">
+          <text class="action-icon">↗</text>
+          <text>分享作品</text>
+        </button>
       </view>
 
       <view wx:elif="{{task.status === 'failed'}}" class="error-panel">

@@ -1,8 +1,6 @@
 <view class="progress-page flow-page">
   <view class="flow-nav progress-nav">
-    <view class="flow-grid-icon">
-      <view></view><view></view><view></view><view></view>
-    </view>
+    <view class="flow-back" bindtap="goBack">‹</view>
     <text class="flow-title">玩图局</text>
     <view class="flow-spacer"></view>
   </view>
@@ -31,9 +29,9 @@
         <view class="progress-fill" style="width: {{progress}}%;"></view>
       </view>
       <view class="check-row" wx:for="{{progressChecks}}" wx:key="title">
-        <text class="check-icon {{item.status === 'progress' ? 'pending' : ''}}">{{item.status === 'progress' && progress <= 70 ? '◴' : '✓'}}</text>
+        <text class="check-icon {{item.done ? '' : 'pending'}}">{{item.done ? '✓' : '◴'}}</text>
         <text class="check-title">{{item.title}}</text>
-        <text class="check-sub {{item.status === 'progress' ? 'muted' : ''}}">{{item.status === 'progress' ? (progress > 70 ? '完成' : '进行中') : item.status}}</text>
+        <text class="check-sub {{item.done ? '' : 'muted'}}">{{item.displayStatus}}</text>
       </view>
     </view>
   </view>

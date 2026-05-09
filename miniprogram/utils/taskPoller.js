@@ -1,5 +1,4 @@
 const DEFAULT_INITIAL_DELAY_MS = 5000;
-const DEFAULT_MAX_DELAY_MS = 15000;
 const DEFAULT_MAX_DURATION_MS = 15 * 60 * 1000;
 
 function isActiveTaskStatus(status) {
@@ -7,15 +6,12 @@ function isActiveTaskStatus(status) {
 }
 
 function createTaskPoller(options) {
-  const initialDelay = options.initialDelay || DEFAULT_INITIAL_DELAY_MS;
-  const maxDelay = options.maxDelay || DEFAULT_MAX_DELAY_MS;
+  const interval = options.interval || DEFAULT_INITIAL_DELAY_MS;
   const maxDuration = options.maxDuration || DEFAULT_MAX_DURATION_MS;
 
   let taskId = "";
   let timer = null;
   let startedAt = 0;
-  let currentDelay = initialDelay;
-  let lastStatus = "";
   let polling = false;
   let inFlight = false;
   let runId = 0;
@@ -38,8 +34,7 @@ function createTaskPoller(options) {
     if (!polling) return;
 
     clearTimer();
-    timer = setTimeout(pollOnce, currentDelay);
-    currentDelay = Math.min(currentDelay * 2, maxDelay);
+    timer = setTimeout(pollOnce, interval);
   };
 
   const pollOnce = async () => {
@@ -75,11 +70,6 @@ function createTaskPoller(options) {
 
       const taskStatus = resp.result.data || {};
 
-      if (taskStatus.status !== lastStatus) {
-        lastStatus = taskStatus.status;
-        currentDelay = initialDelay;
-      }
-
       if (options.onStatus) await options.onStatus(taskStatus);
 
       if (isActiveTaskStatus(taskStatus.status)) {
@@ -105,8 +95,6 @@ function createTaskPoller(options) {
     stop();
     taskId = nextTaskId;
     startedAt = Date.now();
-    currentDelay = initialDelay;
-    lastStatus = "";
     polling = true;
     pollOnce();
   };
@@ -126,8 +114,6 @@ function createTaskPoller(options) {
     stop();
     taskId = "";
     startedAt = 0;
-    currentDelay = initialDelay;
-    lastStatus = "";
   };
 
   return {

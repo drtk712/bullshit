@@ -15,13 +15,9 @@ Page({
     profileSaving: false,
     profileError: '',
 
-    // Dev switches
-    testMode: false,
-    skipPointsDeduction: false,
   },
 
   onShow() {
-    this.loadDevSwitches();
     this.loadUserProfile();
   },
 
@@ -138,24 +134,6 @@ Page({
 
   hideCheckInModal() {
     this.setData({ showCheckInModal: false });
-  },
-
-  loadDevSwitches() {
-    const g = getApp().globalData;
-    this.setData({
-      testMode: !!g.testMode,
-      skipPointsDeduction: !!g.skipPointsDeduction,
-    });
-  },
-
-  onTestModeChange(e) {
-    getApp().globalData.testMode = e.detail.value;
-    this.setData({ testMode: e.detail.value });
-  },
-
-  onSkipPointsChange(e) {
-    getApp().globalData.skipPointsDeduction = e.detail.value;
-    this.setData({ skipPointsDeduction: e.detail.value });
   },
 
   onEditProfile() {
