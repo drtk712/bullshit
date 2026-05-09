@@ -56,7 +56,11 @@ Page({
   },
 
   goToTasks() {
-    wx.navigateTo({ url: '/pages/mine/tasks' });
+    wx.switchTab({ url: '/pages/mine/tasks' });
+  },
+
+  onFavorite() {
+    wx.showToast({ title: '功能开发中', icon: 'none' });
   },
 
   async handleShareEarnPoints() {

@@ -41,6 +41,16 @@ async function getTempFileURL(fileID) {
   return fileInfo.tempFileURL;
 }
 
+function applyImageStyle(url, styleName) {
+  if (!url || !styleName) return url;
+  return `${String(url).replace(/\/+$/, "")}/${styleName}`;
+}
+
+async function getStyledTempFileURL(fileID, styleName) {
+  const tempFileURL = await getTempFileURL(fileID);
+  return isCloudFileID(fileID) ? applyImageStyle(tempFileURL, styleName) : tempFileURL;
+}
+
 async function resolvePreviewUrls(urls) {
   const validUrls = urls.filter(Boolean);
   const cloudFileIDs = Array.from(new Set(
@@ -161,6 +171,7 @@ function saveImageFile(fileID, options = {}) {
 
 module.exports = {
   getTempFileURL,
+  getStyledTempFileURL,
   previewImages,
   resolvePreviewUrls,
   saveImageFile,

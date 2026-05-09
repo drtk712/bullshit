@@ -273,32 +273,10 @@ page {
   margin-top: 40rpx;
 }
 
-.earn-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24rpx;
-}
-
-.earn-title,
-.earn-points,
 .earn-name,
 .earn-reward,
 .modal-points {
   display: block;
-}
-
-.earn-title {
-  color: var(--ui-text);
-  font-size: 36rpx;
-  font-weight: 800;
-  line-height: 52rpx;
-}
-
-.earn-points {
-  color: var(--ui-primary-dark);
-  font-size: 24rpx;
-  font-weight: 800;
 }
 
 .earn-list {

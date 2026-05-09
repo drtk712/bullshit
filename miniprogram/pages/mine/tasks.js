@@ -5,9 +5,10 @@ const {
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
-const { saveImageFile } = require('../../utils/previewImage');
+const { getStyledTempFileURL, saveImageFile } = require('../../utils/previewImage');
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
+const THUMB_STYLE_NAME = '2jpg';
 
 Page({
   data: {
@@ -74,7 +75,7 @@ Page({
             displayName,
             displayInitial: displayName.slice(0, 1),
             displayDesc: getTaskDisplayDesc(t, this.data.featureMap),
-            thumbImage: t.posterFileID || '',
+            thumbImage: '',
             progressPercent,
             progressStyle: `width: ${progressPercent}%;`,
             statusText,
@@ -84,6 +85,7 @@ Page({
             errMsgText: t.errMsg || '生成失败，请重新上传照片再试一次。',
           };
         });
+        await this.attachThumbImages(processed);
 
         this.setData({
           tasks: page === 1 ? processed : [...this.data.tasks, ...processed],
@@ -115,6 +117,17 @@ Page({
     if (wasRefreshing) {
       wx.stopPullDownRefresh();
     }
+  },
+
+  async attachThumbImages(tasks) {
+    await Promise.all((tasks || []).map(async (task) => {
+      if (!task.posterFileID) return;
+      try {
+        task.thumbImage = await getStyledTempFileURL(task.posterFileID, THUMB_STYLE_NAME);
+      } catch (err) {
+        task.thumbImage = '';
+      }
+    }));
   },
 
   onPullDownRefresh() {
