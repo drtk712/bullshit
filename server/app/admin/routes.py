@@ -7,6 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Request
+from starlette.datastructures import UploadFile
 
 from app.admin.views import (
     COOKIE_NAME,
@@ -31,9 +32,24 @@ from app.admin.views import (
 from app.cloudbase.client import CloudBaseError
 from app.cloudbase.nosql import get_feature_store, get_user_store
 from app.cloudbase.storage import get_storage
+from app.services.preview_composer import SUPPORTED_IMAGE_EXTENSIONS, compose_preview_image, safe_preview_object_id
 
 
 router = APIRouter()
+MAX_PREVIEW_UPLOAD_BYTES = 12 * 1024 * 1024
+
+
+def _validate_preview_upload(upload: UploadFile, label: str) -> None:
+    suffix = f".{str(upload.filename or '').rsplit('.', 1)[-1].lower()}" if "." in str(upload.filename or "") else ""
+    if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
+        raise ValueError(f"{label} 仅支持 JPG、PNG、WebP")
+    upload.file.seek(0, 2)
+    size = upload.file.tell()
+    upload.file.seek(0)
+    if size <= 0:
+        raise ValueError(f"{label} 文件为空")
+    if size > MAX_PREVIEW_UPLOAD_BYTES:
+        raise ValueError(f"{label} 不能超过 12MB")
 
 
 @router.get("/")
@@ -276,6 +292,44 @@ async def storage_upload_info(request: Request):
         info = get_storage().get_upload_info([object_id])
         return _storage_page(object_id=object_id, upload_info=info)
     except (CloudBaseError, ValueError) as exc:
+        return _storage_page(object_id=object_id, error=str(exc))
+
+
+@router.post("/storage/compose-preview")
+async def storage_compose_preview(request: Request):
+    auth_redirect = _require_auth(request)
+    if auth_redirect:
+        return auth_redirect
+    form = await request.form()
+    original = form.get("original_image")
+    generated = form.get("generated_image")
+    object_id = str(form.get("object_id", "")).strip().lstrip("/")
+    try:
+        if not isinstance(original, UploadFile) or not original.filename:
+            raise ValueError("请上传原图")
+        if not isinstance(generated, UploadFile) or not generated.filename:
+            raise ValueError("请上传生成后的图片")
+        _validate_preview_upload(original, "原图")
+        _validate_preview_upload(generated, "生成后的图片")
+        if not object_id:
+            object_id = safe_preview_object_id(generated.filename)
+        if not object_id.lower().endswith((".jpg", ".jpeg")):
+            object_id = f"{object_id.rsplit('.', 1)[0]}.jpg" if "." in object_id else f"{object_id}.jpg"
+
+        original.file.seek(0)
+        generated.file.seek(0)
+        image_bytes = compose_preview_image(original_file=original.file, generated_file=generated.file)
+        cloud_object_id = get_storage().upload_bytes(object_id, image_bytes, content_type="image/jpeg")
+        download_url = get_storage().get_download_url(cloud_object_id)
+        return _storage_page(
+            object_id=object_id,
+            composed_preview={
+                "cloud_object_id": cloud_object_id,
+                "download_url": download_url,
+                "size": len(image_bytes),
+            },
+        )
+    except (CloudBaseError, ValueError, OSError, RuntimeError) as exc:
         return _storage_page(object_id=object_id, error=str(exc))
 
 

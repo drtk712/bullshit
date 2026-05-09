@@ -953,6 +953,7 @@ def _storage_page(
     object_id: str = "",
     download_info: list[dict[str, Any]] | None = None,
     upload_info: list[dict[str, Any]] | None = None,
+    composed_preview: dict[str, Any] | None = None,
     error: str | None = None,
 ) -> HTMLResponse:
     download_rows = [
@@ -972,7 +973,7 @@ def _storage_page(
     ]
     return _page(
         "云存储",
-        Div("云存储工具页只获取上传/下载授权信息，不会直接上传或删除文件。", cls="banner"),
+        Div("云存储工具页支持获取授权信息，也支持生成玩法预览图并上传到云存储。", cls="banner"),
         Div(error, cls="error") if error else "",
         Div(
             H1("云存储"),
@@ -1007,4 +1008,36 @@ def _storage_page(
             Table(Thead(Tr(Th("Object ID"), Th("Cloud Object ID"), Th("下载地址"))), Tbody(*upload_rows)),
             cls="panel",
         ) if upload_info is not None else "",
+        Div(
+            H2("玩法预览图合成"),
+            P("上传原图和生成后的图片，系统会把原图缩小后叠到生成图右上角，并上传为 JPG。", cls="muted"),
+            Form(
+                Label("原图", Input(type="file", name="original_image", accept="image/*", required=True)),
+                Label("生成后的图片", Input(type="file", name="generated_image", accept="image/*", required=True)),
+                _field("保存路径", "object_id", object_id or f"ai-preview-image/feature-preview-{uuid4().hex[:8]}.jpg"),
+                Div(Button("合成并上传", type="submit"), cls="actions"),
+                method="post",
+                action="/admin/storage/compose-preview",
+                enctype="multipart/form-data",
+                cls="stack",
+            ),
+            cls="panel",
+        ),
+        _composed_preview_result(composed_preview) if composed_preview else "",
+    )
+
+
+def _composed_preview_result(composed_preview: dict[str, Any]) -> Any:
+    cloud_object_id = str(composed_preview.get("cloud_object_id", ""))
+    download_url = str(composed_preview.get("download_url", ""))
+    return Div(
+        H2("合成结果"),
+        P("Cloud Object ID：", Code(cloud_object_id)),
+        P("文件大小：", str(composed_preview.get("size", 0)), " bytes"),
+        Div(
+            A("打开预览", href=download_url, target="_blank", cls="button") if download_url else "",
+            cls="actions",
+        ),
+        Img(src=download_url, style="max-width:360px;border-radius:8px;border:1px solid #dfe4ea;") if download_url else "",
+        cls="panel",
     )

@@ -11,5 +11,6 @@ dependencies = [
     "python-dotenv",
     "python-fasthtml>=0.13.4",
     "itsdangerous>=2.2.0",
+    "pillow>=12.2.0",
 ]
 
