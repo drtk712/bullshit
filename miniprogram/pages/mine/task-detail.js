@@ -321,9 +321,14 @@ Page({
 
   onShareAppMessage() {
     this.handleShareEarnPoints();
+    const task = this.data.task || {};
+    const path = task.status === 'completed' && this.taskId
+      ? `/pages/share/task/index?id=${this.taskId}`
+      : '/pages/index/index';
+
     return {
       title: `我在玩图局生成了${this.data.task?.displayName || '趣味图'}`,
-      path: '/pages/index/index',
+      path,
       imageUrl: this.data.posterPreviewUrl || '',
     };
   },

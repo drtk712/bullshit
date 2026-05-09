@@ -140,9 +140,14 @@ Page({
 
   onShareAppMessage() {
     this.handleShareEarnPoints();
+    const task = this.data.task || {};
+    const path = task.status === "completed" && this.data.taskId
+      ? `/pages/share/task/index?id=${this.data.taskId}`
+      : "/pages/index/index";
+
     return {
       title: `我用「玩图局」生成了${this.data.task?.displayName || "趣味图"}，快来试试！`,
-      path: "/pages/index/index",
+      path,
       imageUrl: this.data.posterPreviewUrl || "",
     };
   },

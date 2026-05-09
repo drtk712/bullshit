@@ -5,6 +5,7 @@
     "pages/ai/upload/index",
     "pages/ai/progress/index",
     "pages/ai/result/index",
+    "pages/share/task/index",
     "pages/mine/tasks",
     "pages/mine/index",
     "pages/mine/transactions",

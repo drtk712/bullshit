@@ -26,6 +26,17 @@ const toPublicTask = (task) => ({
   updatedAt: task.updatedAt,
 });
 
+const toSharedTask = (task, taskId) => ({
+  _id: task._id || taskId,
+  type: task.type,
+  featureTitle: task.featureTitle || "",
+  featureHomeDesc: task.featureHomeDesc || "",
+  featureDescription: task.featureDescription || "",
+  status: task.status,
+  posterFileID: task.posterFileID || null,
+  createdAt: task.createdAt,
+});
+
 const getTasks = async (event) => {
   try {
     const wxContext = cloud.getWXContext();
@@ -66,6 +77,35 @@ const getTasks = async (event) => {
   } catch (e) {
     console.error("getTasks 错误:", e.message);
     return { success: false, errMsg: e.message || "获取生成记录失败" };
+  }
+};
+
+const getSharedTask = async (event) => {
+  try {
+    const { taskId } = event.data || {};
+
+    if (!taskId) {
+      return { success: false, errMsg: "缺少任务ID" };
+    }
+
+    await ensureCollection();
+
+    const taskDoc = await db.collection(JOBS_COLLECTION).doc(taskId).get();
+    const task = taskDoc.data;
+
+    if (!task || task.status !== "completed" || !task.posterFileID) {
+      return { success: false, errMsg: "作品暂不可查看" };
+    }
+
+    return {
+      success: true,
+      data: {
+        task: toSharedTask(task, taskId),
+      },
+    };
+  } catch (e) {
+    console.error("getSharedTask 错误:", e.message);
+    return { success: false, errMsg: e.message || "获取分享作品失败" };
   }
 };
 
@@ -475,6 +515,7 @@ const cleanupStaleTasks = async () => {
 module.exports = {
   cleanupStaleTasks,
   deleteTask,
+  getSharedTask,
   getTask,
   getTasks,
   getTaskStatus,

@@ -1,0 +1,39 @@
+<view class="share-task-page">
+  <view class="share-task-nav">
+    <view class="share-task-back" bindtap="goBack">‹</view>
+    <text class="share-task-nav-title">分享作品</text>
+    <view class="share-task-nav-spacer"></view>
+  </view>
+
+  <view wx:if="{{loading}}" class="state-card">
+    <view class="mini-spinner"></view>
+    <text class="state-text">正在加载作品</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="state-card">
+    <view class="state-icon">!</view>
+    <text class="state-text error">{{error}}</text>
+    <button class="retry-btn" bindtap="retryLoad">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="poster-card" bindtap="viewPoster">
+      <image wx:if="{{posterPreviewUrl}}" class="poster-image" src="{{posterPreviewUrl}}" mode="aspectFill"></image>
+      <view wx:else class="poster-placeholder">图片加载中</view>
+      <view class="preview-mask">查看大图</view>
+    </view>
+
+    <view class="info-card">
+      <text class="feature-title">{{task.displayName}}</text>
+      <text class="feature-desc">{{task.displayDesc}}</text>
+      <text class="feature-time">生成于 {{task.timeText}}</text>
+    </view>
+
+    <view class="action-card">
+      <button class="primary-action" bindtap="goTryFeature">我也要玩</button>
+      <button class="secondary-action" bindtap="savePoster">保存图片</button>
+    </view>
+
+    <button class="home-btn" bindtap="goHome">回到首页</button>
+  </block>
+</view>

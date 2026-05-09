@@ -5,7 +5,7 @@ const {
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
-const { getStyledTempFileURL, saveImageFile } = require('../../utils/previewImage');
+const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
 const {
   buildShareRewardCopy,
   canClaimShareReward,
@@ -15,6 +15,11 @@ const {
 
 const PAGE_SIZE = 5;
 const THUMB_STYLE_NAME = '2jpg';
+
+function applyThumbStyle(url) {
+  if (!url) return '';
+  return `${String(url).replace(/\/+$/, '')}/${THUMB_STYLE_NAME}`;
+}
 
 Page({
   data: {
@@ -99,6 +104,7 @@ Page({
             displayInitial: displayName.slice(0, 1),
             displayDesc: getTaskDisplayDesc(t, this.data.featureMap),
             thumbImage: '',
+            shareImage: '',
             progressPercent,
             progressStyle: `width: ${progressPercent}%;`,
             statusText,
@@ -147,9 +153,12 @@ Page({
     await Promise.all((tasks || []).map(async (task) => {
       if (!task.posterFileID) return;
       try {
-        task.thumbImage = await getStyledTempFileURL(task.posterFileID, THUMB_STYLE_NAME);
+        const tempFileURL = await getTempFileURL(task.posterFileID);
+        task.shareImage = tempFileURL;
+        task.thumbImage = applyThumbStyle(tempFileURL);
       } catch (err) {
         task.thumbImage = '';
+        task.shareImage = '';
       }
     }));
   },
@@ -216,12 +225,17 @@ Page({
 
   onShareAppMessage(options = {}) {
     this.handleShareEarnPoints();
-    const taskId = options.target?.dataset?.id;
-    const task = this.getTaskById(taskId) || this.data.shareTask;
+    const isButtonShare = options.from === 'button';
+    const taskId = isButtonShare ? options.target?.dataset?.id : '';
+    const task = isButtonShare ? (this.getTaskById(taskId) || this.data.shareTask) : null;
+    const path = task?.status === 'completed' && task?._id
+      ? `/pages/share/task/index?id=${task._id}`
+      : '/pages/index/index';
+
     return {
       title: `我在玩图局生成了${task?.displayName || '趣味图'}`,
-      path: '/pages/index/index',
-      imageUrl: task?.thumbImage || '',
+      path,
+      imageUrl: task?.shareImage || '',
     };
   },
 
