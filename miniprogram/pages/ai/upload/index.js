@@ -132,13 +132,22 @@ Page({
         if (errMsg.includes("积分不足")) {
           this.setData({ showPointsModal: true });
         } else {
-          wx.showToast({ title: errMsg, icon: "none" });
+          this.showValidationError(errMsg);
         }
       },
       fail: () => {
         wx.hideLoading();
         wx.showToast({ title: "网络错误", icon: "none" });
       },
+    });
+  },
+
+  showValidationError(message) {
+    wx.showModal({
+      title: "图片不符合要求",
+      content: message || "请重新上传符合要求的图片",
+      confirmText: "重新上传",
+      showCancel: false,
     });
   },
 

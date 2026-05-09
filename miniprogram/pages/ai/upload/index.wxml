@@ -46,10 +46,6 @@
 
     <view class="upload-dock">
       <button class="generate-btn" bindtap="chooseImage">开始生成</button>
-      <view class="upload-footnote">
-        <text class="lock-icon">▣</text>
-        <text>图片仅用于本次生成，生成后自动删除</text>
-      </view>
     </view>
 
     <view wx:if="{{showPointsModal}}" class="modal-mask">

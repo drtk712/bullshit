@@ -93,6 +93,49 @@ const getTask = async (event) => {
   }
 };
 
+const stripThinkingText = (content) => {
+  let answerText = String(content || "");
+  const tagIndex = answerText.lastIndexOf("</think>");
+  if (tagIndex > -1) {
+    answerText = answerText.slice(tagIndex + "</think>".length);
+  }
+  return answerText.trim();
+};
+
+const buildValidationPrompt = (requirement) => `
+快速的分析这张图片是否符合下面的要求。
+要求：${String(requirement || "").trim()}
+
+如果符合，请只回答：
+是
+
+如果不符合，请回答：
+否｜原因：一句简短中文原因,不超过40个中文字符
+`.trim();
+
+const parseValidationResult = (content, fallbackReason) => {
+  const fallback = fallbackReason || "图片不符合要求，请重新上传";
+  const text = stripThinkingText(content)
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("");
+
+  if (text.startsWith("是")) {
+    return { passed: true, reason: "" };
+  }
+
+  if (text.startsWith("否")) {
+    const reasonMatch = text.match(/原因\s*[:：]\s*(.+)$/) || text.match(/^否\s*[|｜]\s*(.+)$/);
+    const rawReason = reasonMatch ? String(reasonMatch[1] || "") : "";
+    const reason = rawReason.replace(/^原因\s*[:：]\s*/, "").trim().slice(0, 40);
+    return { passed: false, reason: reason || fallback };
+  }
+
+  return { passed: false, reason: "验证服务响应格式异常，请稍后重试" };
+};
+
 const validateImage = async (fileID, featureConfig) => {
   const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
 
@@ -108,7 +151,7 @@ const validateImage = async (fileID, featureConfig) => {
   const imageUrl = fileInfo.tempFileURL;
 
   const validationConfig = featureConfig.validation;
-  const prompt = validationConfig.prompt;
+  const prompt = buildValidationPrompt(validationConfig.prompt);
 
   try {
     const res = await axios.post(
@@ -141,33 +184,7 @@ const validateImage = async (fileID, featureConfig) => {
       return { passed: false, reason: "图片验证服务异常，请稍后重试" };
     }
 
-    let answerText = content;
-    const thinkEndTag = "endencies>";
-    const tagIndex = content.indexOf(thinkEndTag);
-    if (tagIndex > -1) {
-      answerText = content.slice(tagIndex + thinkEndTag.length);
-    }
-    answerText = answerText.replace(/\s+/g, "");
-
-    const lastYesIndex = answerText.lastIndexOf("是");
-    const lastNoIndex = answerText.lastIndexOf("否");
-
-    let hasYes = lastYesIndex > -1;
-    let hasNo = lastNoIndex > -1;
-
-    if (hasYes && hasNo) {
-      hasYes = lastYesIndex > lastNoIndex;
-      hasNo = !hasYes;
-    }
-
-    if (!hasYes && !hasNo) {
-      return { passed: false, reason: "验证服务响应格式异常，请稍后重试" };
-    }
-
-    return {
-      passed: hasYes,
-      reason: hasNo ? validationConfig.failMessage : "",
-    };
+    return parseValidationResult(content, validationConfig.failMessage);
   } catch (e) {
     console.error("validateImage 错误:", e.code, e.message);
 
