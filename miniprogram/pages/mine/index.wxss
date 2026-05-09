@@ -204,7 +204,7 @@ page {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 32rpx;
+  gap: 24rpx;
 }
 
 .points-copy {
@@ -241,6 +241,25 @@ page {
   font-size: 22rpx;
   font-weight: 700;
   line-height: 32rpx;
+}
+
+.points-detail-btn {
+  flex: 0 0 132rpx;
+  width: 132rpx;
+  height: 64rpx;
+  margin: 0 0 10rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  background: var(--ui-surface-high);
+  color: var(--ui-text-soft);
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 64rpx;
+}
+
+.points-detail-btn::after {
+  border: 0;
 }
 
 .checkin-btn {
@@ -299,6 +318,7 @@ page {
 }
 
 .earn-left {
+  flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -341,11 +361,12 @@ page {
 }
 
 .earn-btn {
-  flex: 0 0 auto;
-  min-width: 128rpx;
+  flex: 0 0 50%;
+  width: 50%;
+  min-width: 0;
   height: 64rpx;
   margin: 0;
-  padding: 0 28rpx;
+  padding: 0 16rpx;
   border: 0;
   border-radius: 999rpx;
   background: var(--ui-primary);

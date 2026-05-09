@@ -1,4 +1,4 @@
-const { cloud, db, _, USERS_COLLECTION } = require("./cloudbase");
+const { cloud, db, _, USERS_COLLECTION, POINT_TRANSACTIONS_COLLECTION } = require("./cloudbase");
 const { ensureCollection } = require("./collections");
 const { createPointTransaction } = require("./points");
 const { ensureUser } = require("./users");
@@ -77,7 +77,52 @@ const dailyCheckIn = async () => {
 };
 
 const SHARE_POINTS_LIMIT_PER_DAY = 3;
-const SHARE_MIN_INTERVAL_MS = 60 * 1000;
+
+class ShareRewardLimitError extends Error {
+  constructor(status) {
+    super("今日分享次数已达上限");
+    this.name = "ShareRewardLimitError";
+    this.status = status;
+  }
+}
+
+const getShareRewardData = (user) => {
+  const todayStr = getShanghaiDateString();
+  const shareCountToday = user.lastShareDate === todayStr
+    ? Number(user.shareCountToday || 0)
+    : 0;
+  const remainingToday = Math.max(0, SHARE_POINTS_LIMIT_PER_DAY - shareCountToday);
+
+  return {
+    shareRewardPoints: 1,
+    shareLimitPerDay: SHARE_POINTS_LIMIT_PER_DAY,
+    shareCountToday,
+    remainingToday,
+    canEarnSharePoints: remainingToday > 0,
+    points: user.points || 0,
+  };
+};
+
+const getShareRewardStatus = async () => {
+  try {
+    const wxContext = cloud.getWXContext();
+    const openid = wxContext.OPENID;
+    await ensureCollection();
+
+    const user = await ensureUser(openid);
+
+    return {
+      success: true,
+      data: getShareRewardData(user),
+    };
+  } catch (e) {
+    console.error("getShareRewardStatus 错误:", e.message);
+    return {
+      success: false,
+      errMsg: e.message || "获取分享奖励状态失败",
+    };
+  }
+};
 
 const shareEarnPoints = async () => {
   try {
@@ -87,71 +132,71 @@ const shareEarnPoints = async () => {
 
     const user = await ensureUser(openid);
     const todayStr = getShanghaiDateString();
-    const now = Date.now();
+    let resultData = null;
 
-    if (user.lastShareDate !== todayStr) {
-      user.shareCountToday = 0;
-      user.lastShareDate = todayStr;
-    } else if (!user.shareCountToday) {
-      user.shareCountToday = 0;
-    }
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.collection(USERS_COLLECTION).doc(user._id).get();
+      const latestUser = userDoc.data || {};
+      const status = getShareRewardData(latestUser);
 
-    if (user.shareCountToday >= SHARE_POINTS_LIMIT_PER_DAY) {
-      return {
-        success: false,
-        errMsg: "今日分享次数已达上限",
-        data: {
-          shareCountToday: user.shareCountToday,
-          remainingToday: 0,
-          points: user.points,
-        },
-      };
-    }
+      if (!status.canEarnSharePoints) {
+        throw new ShareRewardLimitError(status);
+      }
 
-    if (user.lastShareAt && now - user.lastShareAt < SHARE_MIN_INTERVAL_MS) {
-      return {
-        success: false,
-        errMsg: "操作过于频繁，请稍后再试",
-        data: {
-          shareCountToday: user.shareCountToday,
-          remainingToday: SHARE_POINTS_LIMIT_PER_DAY - user.shareCountToday,
-          points: user.points,
-        },
-      };
-    }
-
-    await db.collection(USERS_COLLECTION).doc(user._id).update({
-      data: {
-        points: _.inc(1),
-        totalGrantedPoints: _.inc(1),
-        shareCountToday: user.shareCountToday + 1,
+      const now = Date.now();
+      const nextPoints = Number(latestUser.points || 0) + 1;
+      const nextUser = {
+        ...latestUser,
+        points: nextPoints,
+        totalGrantedPoints: Number(latestUser.totalGrantedPoints || 0) + 1,
+        shareCountToday: status.shareCountToday + 1,
         lastShareDate: todayStr,
         lastShareAt: now,
         updatedAt: now,
-      },
-    });
+      };
 
-    const updatedUser = await db.collection(USERS_COLLECTION).doc(user._id).get();
+      await transaction.collection(USERS_COLLECTION).doc(user._id).update({
+        data: {
+          points: _.inc(1),
+          totalGrantedPoints: _.inc(1),
+          shareCountToday: nextUser.shareCountToday,
+          lastShareDate: todayStr,
+          lastShareAt: now,
+          updatedAt: now,
+        },
+      });
 
-    await createPointTransaction({
-      openid,
-      type: "grant",
-      amount: 1,
-      balanceAfter: updatedUser.data.points,
-      reason: "share_reward",
-      taskId: null,
+      await transaction.collection(POINT_TRANSACTIONS_COLLECTION).add({
+        data: {
+          openid,
+          type: "grant",
+          amount: 1,
+          balanceAfter: nextPoints,
+          reason: "share_reward",
+          taskId: null,
+          createdAt: now,
+        },
+      });
+
+      resultData = {
+        pointsGained: 1,
+        ...getShareRewardData(nextUser),
+      };
     });
 
     return {
       success: true,
-      data: {
-        pointsGained: 1,
-        shareCountToday: user.shareCountToday + 1,
-        remainingToday: SHARE_POINTS_LIMIT_PER_DAY - user.shareCountToday - 1,
-        points: updatedUser.data.points,
-      },
+      data: resultData,
     };
   } catch (e) {
+    if (e instanceof ShareRewardLimitError) {
+      return {
+        success: false,
+        errMsg: e.message,
+        data: e.status,
+      };
+    }
+
     console.error("shareEarnPoints 错误:", e.message);
     return {
       success: false,
@@ -163,5 +208,6 @@ const shareEarnPoints = async () => {
 module.exports = {
   dailyCheckIn,
   getShanghaiDateString,
+  getShareRewardStatus,
   shareEarnPoints,
 };

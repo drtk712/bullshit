@@ -333,8 +333,9 @@ page {
 .modal-card {
   position: relative;
   width: 100%;
-  max-width: 600rpx;
-  padding: 48rpx 34rpx 34rpx;
+  max-width: 560rpx;
+  box-sizing: border-box;
+  padding: 44rpx 36rpx 36rpx;
   border-radius: var(--ui-radius-lg);
   text-align: center;
 }
@@ -348,15 +349,15 @@ page {
 }
 
 .coin-art {
-  width: 128rpx;
-  height: 128rpx;
-  margin: 0 auto 24rpx;
+  width: 104rpx;
+  height: 104rpx;
+  margin: 0 auto 22rpx;
   border-radius: 999rpx;
   background: #ffd45d;
   color: #9b7210;
-  font-size: 78rpx;
+  font-size: 64rpx;
   font-weight: 900;
-  line-height: 128rpx;
+  line-height: 104rpx;
 }
 
 .coin-art.error {
@@ -366,39 +367,41 @@ page {
 
 .modal-title {
   color: var(--ui-text);
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: 800;
-  line-height: 56rpx;
+  line-height: 50rpx;
 }
 
 .modal-desc {
   margin-top: 12rpx;
   color: var(--ui-text-soft);
-  font-size: 26rpx;
-  line-height: 38rpx;
+  font-size: 25rpx;
+  line-height: 36rpx;
 }
 
 .modal-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
-  margin-top: 32rpx;
+  display: flex;
+  gap: 14rpx;
+  margin-top: 30rpx;
 }
 
 .modal-btn,
 .modal-secondary {
-  height: 84rpx;
+  flex: 1;
+  min-width: 0;
+  height: 76rpx;
   margin: 0;
-  padding: 0;
+  padding: 0 24rpx;
   border-radius: 999rpx;
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 800;
-  line-height: 84rpx;
+  line-height: 76rpx;
+  box-sizing: border-box;
 }
 
 .modal-btn {
   background: var(--ui-primary);
-  color: var(--ui-primary-dark);
+  color: #ffffff;
 }
 
 .modal-secondary {

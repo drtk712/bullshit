@@ -1,4 +1,12 @@
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
+
+const SYSTEM_REASON_MAP = {
+  first_login: '首次登录赠送',
+  daily_check_in: '每日签到',
+  share_reward: '分享奖励',
+  create_ai_job: '生成消耗',
+  job_failed_refund: '失败退款',
+};
 
 Page({
   data: {
@@ -15,11 +23,17 @@ Page({
     this.loadTransactions(1);
   },
 
+  goBack() {
+    wx.navigateBack({
+      fail: () => wx.switchTab({ url: '/pages/mine/index' }),
+    });
+  },
+
   async loadTransactions(page) {
     const wasRefreshing = this.data.refreshing;
 
     if (page === 1) {
-      this.setData({ loading: true, error: '' });
+      this.setData({ loading: !wasRefreshing, error: '' });
     } else {
       this.setData({ loadingMore: true });
     }
@@ -38,7 +52,8 @@ Page({
         const processed = (transactions || []).map(t => ({
           ...t,
           amountText: this.formatAmount(t.amount),
-          typeText: this.getTransactionTypeText(t),
+          typeText: this.getTransactionTitle(t),
+          reasonText: this.getTransactionReason(t),
           amountClass: t.amount >= 0 ? 'amount-plus' : 'amount-minus',
           timeText: this.formatTime(t.createdAt)
         }));
@@ -99,13 +114,15 @@ Page({
     return String(amount || 0);
   },
 
-  getTransactionTypeText(transaction) {
-    const reasonMap = {
-      first_login: '首次登录赠送',
-      create_ai_job: '生成消耗',
-      job_failed_refund: '失败退款',
-      manual_adjust: '积分调整'
-    };
-    return reasonMap[transaction.reason] || '积分变动';
+  getTransactionTitle(transaction) {
+    if (transaction.type === 'adjust') return '积分调整';
+    return SYSTEM_REASON_MAP[transaction.reason] || '积分变动';
+  },
+
+  getTransactionReason(transaction) {
+    const reason = String(transaction.reason || '').trim();
+    if (!reason) return '';
+    if (transaction.type === 'adjust') return reason;
+    return SYSTEM_REASON_MAP[reason] ? '' : reason;
   },
 });

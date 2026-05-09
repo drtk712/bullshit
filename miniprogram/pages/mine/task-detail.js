@@ -6,6 +6,12 @@ const {
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
 const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
+const {
+  buildShareRewardCopy,
+  canClaimShareReward,
+  claimShareReward,
+  getShareRewardStatus,
+} = require('../../utils/shareReward');
 
 Page({
   data: {
@@ -20,6 +26,8 @@ Page({
     polling: false,
     syncError: '',
     featureMap: {},
+    shareRewardStatus: null,
+    shareRewardCopy: buildShareRewardCopy(),
   },
 
   taskPoller: null,
@@ -54,6 +62,7 @@ Page({
   onLoad(options) {
     this.taskId = options.id;
     this.loadTask();
+    this.loadShareRewardStatus();
   },
 
   goBack() {
@@ -144,6 +153,16 @@ Page({
     } catch (e) {
       console.error('加载功能配置失败:', e);
     }
+  },
+
+  async loadShareRewardStatus() {
+    try {
+      const status = await getShareRewardStatus();
+      this.setData({
+        shareRewardStatus: status,
+        shareRewardCopy: buildShareRewardCopy(status),
+      });
+    } catch (e) {}
   },
 
   startPolling() {
@@ -301,11 +320,26 @@ Page({
   },
 
   onShareAppMessage() {
+    this.handleShareEarnPoints();
     return {
       title: `我在玩图局生成了${this.data.task?.displayName || '趣味图'}`,
       path: '/pages/index/index',
       imageUrl: this.data.posterPreviewUrl || '',
     };
+  },
+
+  async handleShareEarnPoints() {
+    if (!canClaimShareReward(this.data.shareRewardStatus)) return;
+
+    try {
+      const res = await claimShareReward();
+      if (res.status) {
+        this.setData({
+          shareRewardStatus: res.status,
+          shareRewardCopy: buildShareRewardCopy(res.status),
+        });
+      }
+    } catch (err) {}
   },
 
 

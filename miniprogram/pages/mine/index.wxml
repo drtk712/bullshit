@@ -38,9 +38,7 @@
           <text class="tomorrow-badge">明日可得 +1</text>
         </view>
       </view>
-      <button class="checkin-btn {{checkedIn ? 'checked' : ''}}" loading="{{checkInLoading}}" bindtap="handleCheckIn">
-        {{checkedIn ? '已签到' : '每日签到'}}
-      </button>
+      <button class="points-detail-btn" bindtap="goToTransactions">明细</button>
     </view>
   </view>
 
@@ -62,11 +60,11 @@
         <view class="earn-left">
           <view class="earn-icon share">↗</view>
           <view>
-            <text class="earn-name">邀请好友</text>
-            <text class="earn-reward">+1 积分</text>
+            <text class="earn-name">{{shareRewardCopy.title}}</text>
+            <text class="earn-reward">{{shareRewardCopy.rewardText}}</text>
           </view>
         </view>
-        <button class="earn-btn secondary" open-type="share">去分享</button>
+        <button class="earn-btn secondary" open-type="share">{{shareRewardCopy.shortButtonText}}</button>
       </view>
     </view>
   </view>
@@ -84,8 +82,8 @@
     </view>
     <button class="service-card share-service" open-type="share">
       <view class="service-icon share">↗</view>
-      <text class="service-title">分享赚积分</text>
-      <text class="service-sub">邀请好友体验</text>
+      <text class="service-title">{{shareRewardCopy.title}}</text>
+      <text class="service-sub">{{shareRewardCopy.desc}}</text>
     </button>
     <view class="service-card" bindtap="onSettings">
       <view class="service-icon settings">⚙</view>

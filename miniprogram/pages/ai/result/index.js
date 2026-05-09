@@ -5,6 +5,12 @@ const {
 } = require("../../../utils/taskDisplay");
 const { buildFeatureMap, fetchFeatureList } = require("../../../utils/featureConfigClient");
 const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
+const {
+  buildShareRewardCopy,
+  canClaimShareReward,
+  claimShareReward,
+  getShareRewardStatus,
+} = require("../../../utils/shareReward");
 
 Page({
   data: {
@@ -17,11 +23,14 @@ Page({
     activeTab: "result",
     originalImageUrl: "",
     featureMap: {},
+    shareRewardStatus: null,
+    shareRewardCopy: buildShareRewardCopy(),
   },
 
   onLoad(options) {
     this.setData({ taskId: options.id || "" });
     this.loadTask();
+    this.loadShareRewardStatus();
   },
 
   goBack() {
@@ -89,6 +98,16 @@ Page({
     }
   },
 
+  async loadShareRewardStatus() {
+    try {
+      const status = await getShareRewardStatus();
+      this.setData({
+        shareRewardStatus: status,
+        shareRewardCopy: buildShareRewardCopy(status),
+      });
+    } catch (err) {}
+  },
+
   async createPosterState(task) {
     if (task.status !== "completed" || !task.posterFileID) {
       return { posterPreviewUrl: "", posterError: "图片尚未生成完成" };
@@ -129,13 +148,15 @@ Page({
   },
 
   async handleShareEarnPoints() {
+    if (!canClaimShareReward(this.data.shareRewardStatus)) return;
+
     try {
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: { type: "shareEarnPoints", data: {} },
-      });
-      if (res.result?.success) {
-        wx.showToast({ title: "分享成功 +1 积分", icon: "success" });
+      const res = await claimShareReward();
+      if (res.status) {
+        this.setData({
+          shareRewardStatus: res.status,
+          shareRewardCopy: buildShareRewardCopy(res.status),
+        });
       }
     } catch (err) {}
   },

@@ -48,7 +48,7 @@
 
     <view class="result-dock">
       <button class="save-btn" bindtap="savePoster">↓ 保存到相册</button>
-      <button class="share-btn" open-type="share">↗ 分享得积分</button>
+      <button class="share-btn" open-type="share">↗ {{shareRewardCopy.buttonText}}</button>
     </view>
   </block>
 </view>

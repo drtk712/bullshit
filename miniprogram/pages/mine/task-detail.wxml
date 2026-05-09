@@ -57,7 +57,7 @@
         </button>
         <button class="task-action ghost" open-type="share">
           <text class="action-icon">↗</text>
-          <text>分享作品</text>
+          <text>{{shareRewardCopy.buttonText}}</text>
         </button>
       </view>
 

@@ -1,4 +1,10 @@
 const { fetchFeature } = require("../../../utils/featureConfigClient");
+const {
+  buildShareRewardCopy,
+  canClaimShareReward,
+  claimShareReward,
+  getShareRewardStatus,
+} = require("../../../utils/shareReward");
 
 Page({
   data: {
@@ -8,6 +14,8 @@ Page({
     tips: [],
     points: 0,
     showPointsModal: false,
+    shareRewardStatus: { remainingToday: 0 },
+    shareRewardCopy: buildShareRewardCopy(),
   },
 
   goBack() {
@@ -43,7 +51,7 @@ Page({
       configLoading: false,
       configError: "",
     });
-    this.loadPoints();
+    this.loadShareRewardStatus();
   },
 
   getFeatureFromCache(type) {
@@ -52,20 +60,27 @@ Page({
     return list.find((f) => f.type === type) || null;
   },
 
-  async loadPoints() {
+  async loadShareRewardStatus() {
     try {
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: { type: "getUserProfile", data: {} },
+      const status = await getShareRewardStatus();
+      this.setData({
+        points: status.points,
+        shareRewardStatus: status,
+        shareRewardCopy: buildShareRewardCopy(status),
       });
-      if (res.result?.success) {
-        this.setData({ points: res.result.data.user?.points || 0 });
-      }
+      return status;
     } catch (err) {}
+    return this.data.shareRewardStatus;
   },
 
-  chooseImage() {
+  async chooseImage() {
     if (!this.data.feature) return;
+
+    const status = await this.loadShareRewardStatus();
+    if (Number(status?.points || 0) < 1) {
+      this.setData({ showPointsModal: true });
+      return;
+    }
 
     wx.chooseMedia({
       count: 1,
@@ -116,7 +131,7 @@ Page({
           fileID,
         },
       },
-      success: (resp) => {
+      success: async (resp) => {
         wx.hideLoading();
         if (resp.result?.success) {
           getApp().globalData.shouldRefreshTasks = true;
@@ -128,6 +143,7 @@ Page({
 
         const errMsg = resp.result?.errMsg || "生成失败";
         if (errMsg.includes("积分不足")) {
+          await this.loadShareRewardStatus();
           this.setData({ showPointsModal: true });
         } else {
           this.showValidationError(errMsg);
@@ -162,14 +178,18 @@ Page({
   },
 
   async handleShareEarnPoints() {
+    if (!canClaimShareReward(this.data.shareRewardStatus)) return;
+
     try {
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: { type: "shareEarnPoints", data: {} },
-      });
-      if (res.result?.success) {
-        wx.showToast({ title: "+1 积分", icon: "success" });
-        this.loadPoints();
+      const res = await claimShareReward();
+      if (res.status) {
+        this.setData({
+          shareRewardStatus: res.status,
+          shareRewardCopy: buildShareRewardCopy(res.status),
+        });
+      }
+      if (res.success) {
+        this.setData({ points: res.status.points });
       }
     } catch (err) {}
   },

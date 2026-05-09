@@ -10,7 +10,7 @@ for (const varName of REQUIRED_ENV_VARS) {
 const { getFeatureConfig } = require("./lib/features");
 const { validateAndCreateJob, getTaskStatus, getTasks, getTask, cleanupStaleTasks, deleteTask } = require("./lib/jobs");
 const { getTransactions } = require("./lib/points");
-const { dailyCheckIn, shareEarnPoints } = require("./lib/rewards");
+const { dailyCheckIn, getShareRewardStatus, shareEarnPoints } = require("./lib/rewards");
 const { login, getUserProfile, updateUserProfile } = require("./lib/users");
 
 const handlers = {
@@ -21,6 +21,7 @@ const handlers = {
   getTask,
   getTasks,
   getTaskStatus,
+  getShareRewardStatus,
   getTransactions,
   getUserProfile,
   login,

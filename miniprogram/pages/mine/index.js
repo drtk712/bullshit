@@ -1,3 +1,10 @@
+const {
+  buildShareRewardCopy,
+  canClaimShareReward,
+  claimShareReward,
+  getShareRewardStatus,
+} = require('../../utils/shareReward');
+
 Page({
   data: {
     // User card
@@ -14,10 +21,26 @@ Page({
     profileNickName: '',
     profileSaving: false,
     profileError: '',
+    shareRewardStatus: null,
+    shareRewardCopy: buildShareRewardCopy(),
 
   },
 
   onShow() {
+    const app = getApp();
+    const cachedUser = app.globalData.user;
+    if (cachedUser && !app.globalData.shouldRefreshUserProfile) {
+      this.applyUserProfile(cachedUser);
+      this.loadShareRewardStatus();
+      return;
+    }
+
+    if (this.data.user) {
+      this.setData({ userLoading: false, userError: '' });
+      this.loadShareRewardStatus();
+      return;
+    }
+
     this.loadUserProfile();
   },
 
@@ -29,16 +52,9 @@ Page({
         data: { type: 'getUserProfile', data: {} }
       });
       if (res.result && res.result.success) {
-        const checkedIn = this.checkIfCheckedIn(res.result.data.user);
-        getApp().globalData.user = res.result.data.user;
-        this.setData({ 
-          user: res.result.data.user, 
-          userLoading: false,
-          checkedIn,
-          showProfileGate: !res.result.data.user.profileCompleted,
-          profileNickName: res.result.data.user.nickName || '',
-          profileAvatarTempPath: res.result.data.user.avatarFileID || '',
-        });
+        getApp().globalData.shouldRefreshUserProfile = false;
+        this.applyUserProfile(res.result.data.user);
+        this.loadShareRewardStatus();
       } else {
         this.setData({ 
           userLoading: false, 
@@ -51,8 +67,45 @@ Page({
     }
   },
 
+  applyUserProfile(user) {
+    const checkedIn = this.checkIfCheckedIn(user);
+    getApp().globalData.user = user;
+    this.setData({
+      user,
+      userLoading: false,
+      userError: '',
+      checkedIn,
+      showProfileGate: !user.profileCompleted,
+      profileNickName: user.nickName || '',
+      profileAvatarTempPath: user.avatarFileID || '',
+    });
+  },
+
+  async loadShareRewardStatus() {
+    try {
+      const status = await getShareRewardStatus();
+      const user = this.data.user || getApp().globalData.user;
+      if (user) {
+        this.applyUserProfile({
+          ...user,
+          points: status.points,
+        });
+      }
+      this.setData({
+        shareRewardStatus: status,
+        shareRewardCopy: buildShareRewardCopy(status),
+      });
+    } catch (err) {
+      console.error('加载分享奖励状态失败:', err);
+    }
+  },
+
   goToTasks() {
     wx.switchTab({ url: '/pages/mine/tasks' });
+  },
+
+  goToTransactions() {
+    wx.navigateTo({ url: '/pages/mine/transactions' });
   },
 
   onFavorite() {
@@ -60,20 +113,28 @@ Page({
   },
 
   async handleShareEarnPoints() {
-    try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: { type: 'shareEarnPoints', data: {} }
-      });
+    if (!canClaimShareReward(this.data.shareRewardStatus)) return null;
 
-      if (res.result && res.result.success) {
-        wx.showToast({ title: '分享成功 +1 积分', icon: 'success' });
-        this.loadUserProfile();
-        return res.result.data;
-      } else {
-        wx.showToast({ title: res.result?.errMsg || '今日分享次数已达上限', icon: 'none' });
-        return null;
+    try {
+      const res = await claimShareReward();
+      if (res.status) {
+        this.setData({
+          shareRewardStatus: res.status,
+          shareRewardCopy: buildShareRewardCopy(res.status),
+        });
       }
+      if (res.success) {
+        const user = this.data.user
+          ? { ...this.data.user, points: res.status.points }
+          : null;
+        if (user) {
+          this.applyUserProfile(user);
+        } else {
+          getApp().globalData.shouldRefreshUserProfile = true;
+        }
+        return res.status;
+      }
+      return null;
     } catch (err) {
       console.error('分享奖励获取失败:', err);
       return null;
@@ -115,9 +176,22 @@ Page({
       });
       
       if (res.result && res.result.success) {
-        this.setData({ checkedIn: true });
+        const data = res.result.data || {};
+        const user = this.data.user
+          ? {
+              ...this.data.user,
+              points: data.points ?? this.data.user.points,
+              lastCheckInAt: data.checkInAt || Date.now(),
+              checkInDays: Number(this.data.user.checkInDays || 0) + 1,
+            }
+          : null;
+        if (user) {
+          this.applyUserProfile(user);
+        } else {
+          this.setData({ checkedIn: true });
+          getApp().globalData.shouldRefreshUserProfile = true;
+        }
         this.setData({ showCheckInModal: true });
-        this.loadUserProfile();
       } else if (res.result && res.result.data?.checkedIn) {
         this.setData({ checkedIn: true });
         wx.showToast({ title: '今日已签到', icon: 'none' });
@@ -202,13 +276,13 @@ Page({
       }
 
       const user = res.result.data.user;
-      getApp().globalData.user = user;
+      getApp().globalData.shouldRefreshUserProfile = false;
       this.setData({
-        user,
         showProfileGate: false,
         profileSaving: false,
         profileError: '',
       });
+      this.applyUserProfile(user);
       wx.showToast({ title: '资料已保存', icon: 'success' });
     } catch (err) {
       this.setData({

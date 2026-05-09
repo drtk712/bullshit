@@ -1,8 +1,8 @@
-<view class="list-page">
-  <view class="list-hero points">
-    <text class="hero-kicker">Points</text>
-    <text class="hero-title">积分明细</text>
-    <text class="hero-desc">签到、分享和生成消耗都在这里</text>
+<view class="transactions-page ui-page">
+  <view class="transactions-nav">
+    <view class="transactions-back" bindtap="goBack">‹</view>
+    <text class="transactions-title">积分明细</text>
+    <view class="transactions-nav-spacer"></view>
   </view>
 
   <view wx:if="{{loading}}" class="state-card">
@@ -16,14 +16,24 @@
   </view>
 
   <block wx:else>
+    <view class="refresh-hint {{refreshing ? 'active' : ''}}">
+      <view wx:if="{{refreshing}}" class="mini-spinner"></view>
+      <text wx:else class="refresh-icon">↓</text>
+      <text>{{refreshing ? '正在同步最新明细' : '下拉刷新同步积分明细'}}</text>
+    </view>
+
     <view class="record-list">
       <view wx:for="{{transactions}}" wx:key="_id" class="transaction-item">
-        <view class="coin-thumb">分</view>
+        <view class="coin-thumb {{item.amount >= 0 ? 'income' : 'expense'}}">{{item.amount >= 0 ? '+' : '-'}}</view>
         <view class="transaction-main">
           <text class="transaction-title">{{item.typeText}}</text>
+          <text wx:if="{{item.reasonText}}" class="transaction-reason">{{item.reasonText}}</text>
           <text class="transaction-time">{{item.timeText}}</text>
         </view>
-        <text class="transaction-amount {{item.amountClass}}">{{item.amountText}}</text>
+        <view class="transaction-side">
+          <text class="transaction-amount {{item.amountClass}}">{{item.amountText}}</text>
+          <text class="transaction-balance">余额 {{item.balanceAfter}}</text>
+        </view>
       </view>
     </view>
 

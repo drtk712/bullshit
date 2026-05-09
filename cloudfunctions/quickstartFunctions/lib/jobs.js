@@ -228,12 +228,6 @@ const validateAndCreateJob = async (event) => {
     }
 
     const featureConfig = featureResult.data[0];
-    const validation = await validateImage(fileID, featureConfig);
-    if (!validation.passed) {
-      await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
-      return { success: false, errMsg: validation.reason };
-    }
-
     const wxContext = cloud.getWXContext();
     const openid = wxContext.OPENID;
     const shouldConsumePoints = !skipPointsDeduction;
@@ -242,6 +236,12 @@ const validateAndCreateJob = async (event) => {
     if (shouldConsumePoints && user.points < 1) {
       await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
       return { success: false, errMsg: "积分不足，请先获取积分" };
+    }
+
+    const validation = await validateImage(fileID, featureConfig);
+    if (!validation.passed) {
+      await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+      return { success: false, errMsg: validation.reason };
     }
 
     const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
