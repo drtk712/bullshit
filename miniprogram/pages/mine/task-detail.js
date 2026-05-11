@@ -18,6 +18,7 @@ Page({
     task: null,
     posterPreviewUrl: '',
     posterError: '',
+    resultUrls: [],
     originalImageUrl: '',
     originalImageError: '',
     activeTab: 'result',
@@ -102,6 +103,7 @@ Page({
       if (res.result && res.result.success) {
         const task = res.result.data.task;
         const posterState = await this.createPosterState(task);
+        const resultUrls = await this.createResultUrls(task);
         const originalState = await this.createOriginalImageState(task);
 
         const displayName = getTaskDisplayName(task, this.data.featureMap);
@@ -117,6 +119,7 @@ Page({
             friendlyErrMsg: this.getFriendlyErrMsg(task.errMsg),
           },
           ...posterState,
+          resultUrls,
           ...originalState,
           loading: false,
           syncError: '',
@@ -268,6 +271,22 @@ Page({
     saveImageFile(posterFileID);
   },
 
+  viewResultPiece(e) {
+    const current = e.currentTarget.dataset.url;
+    if (!current) return;
+    wx.previewImage({ urls: this.data.resultUrls, current });
+  },
+
+  saveResultPiece(e) {
+    const index = Number(e.currentTarget.dataset.index || 0);
+    const fileID = this.data.task?.resultFileIDs?.[index];
+    if (!fileID) {
+      wx.showToast({ title: '图片未生成完成', icon: 'none' });
+      return;
+    }
+    saveImageFile(fileID);
+  },
+
   async createPosterState(task) {
     if (task.status !== 'completed' || !task.posterFileID) {
       return { posterPreviewUrl: '', posterError: '' };
@@ -292,6 +311,13 @@ Page({
     } catch (err) {
       return { originalImageUrl: '', originalImageError: '原图加载失败，点击重试' };
     }
+  },
+
+  async createResultUrls(task) {
+    const fileIDs = Array.isArray(task.resultFileIDs) ? task.resultFileIDs.filter(Boolean) : [];
+    if (task.status !== 'completed' || !fileIDs.length) return [];
+    const results = await Promise.all(fileIDs.map((fileID) => getTempFileURL(fileID).catch(() => '')));
+    return results.filter(Boolean);
   },
 
   isActiveTask(status) {

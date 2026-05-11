@@ -50,6 +50,19 @@
         </view>
       </view>
 
+      <view wx:if="{{task.status === 'completed' && activeTab === 'result' && resultUrls.length > 0}}" class="result-pieces">
+        <view class="pieces-heading">
+          <text class="pieces-title">切分结果</text>
+          <text class="pieces-count">{{resultUrls.length}} 张</text>
+        </view>
+        <view class="pieces-grid">
+          <view class="piece-card" wx:for="{{resultUrls}}" wx:key="*this">
+            <image class="piece-image" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="viewResultPiece"></image>
+            <view class="piece-save" data-index="{{index}}" bindtap="saveResultPiece">保存</view>
+          </view>
+        </view>
+      </view>
+
       <view wx:if="{{task.status === 'completed'}}" class="task-actions">
         <button class="task-action primary" bindtap="savePoster">
           <text class="action-icon">↓</text>

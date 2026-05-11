@@ -35,6 +35,19 @@
       <view class="poster-watermark">玩图局</view>
     </view>
 
+    <view wx:if="{{activeTab === 'result' && resultUrls.length > 0}}" class="result-pieces">
+      <view class="pieces-heading">
+        <text class="pieces-title">切分结果</text>
+        <text class="pieces-count">{{resultUrls.length}} 张</text>
+      </view>
+      <view class="pieces-grid">
+        <view class="piece-card" wx:for="{{resultUrls}}" wx:key="*this">
+          <image class="piece-image" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="viewResultPiece"></image>
+          <view class="piece-save" data-index="{{index}}" bindtap="saveResultPiece">保存</view>
+        </view>
+      </view>
+    </view>
+
     <view class="result-dock">
       <button class="save-btn" bindtap="savePoster">↓ 保存到相册</button>
       <button class="share-btn" open-type="share">↗ {{shareRewardCopy.buttonText}}</button>

@@ -39,6 +39,24 @@ class CloudBaseStorage:
                     return str(value)
         return ""
 
+    def delete_objects(self, cloud_object_ids: list[str]) -> list[dict[str, Any]]:
+        objects = [
+            {"cloudObjectId": item}
+            for item in cloud_object_ids
+            if isinstance(item, str) and item.startswith("cloud://")
+        ]
+        if not objects:
+            return []
+        response = self.client.request("POST", "/v1/storages/delete-objects", json=objects)
+        if isinstance(response, list):
+            return response
+        if isinstance(response, dict):
+            for key in ("data", "fileList", "list"):
+                value = response.get(key)
+                if isinstance(value, list):
+                    return value
+        return []
+
     def get_upload_info(self, object_ids: list[str]) -> list[dict[str, Any]]:
         objects = [{"objectId": item} for item in object_ids if item]
         if not objects:

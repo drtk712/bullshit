@@ -89,53 +89,77 @@ Page({
       return;
     }
 
+    const isMultiImage = this.isMultiImageFeature(this.data.feature.type);
     wx.chooseMedia({
-      count: 1,
+      count: isMultiImage ? 9 : 1,
       mediaType: ["image"],
       sourceType: ["camera", "album"],
       success: (res) => {
-        const tempFilePath = res.tempFiles?.[0]?.tempFilePath;
-        if (!tempFilePath) {
+        const tempFilePaths = (res.tempFiles || [])
+          .map((item) => item.tempFilePath)
+          .filter(Boolean);
+        if (!tempFilePaths.length) {
           wx.showToast({ title: "图片选择失败", icon: "none" });
           return;
         }
-        this.compressAndUpload(tempFilePath);
+        if (isMultiImage && tempFilePaths.length < 2) {
+          wx.showToast({ title: "请至少选择2张图片", icon: "none" });
+          return;
+        }
+        this.compressAndUpload(tempFilePaths);
       },
     });
   },
 
-  compressAndUpload(tempFilePath) {
+  async compressAndUpload(tempFilePaths) {
     wx.showLoading({ title: "校验图片" });
-    wx.compressImage({
-      src: tempFilePath,
-      quality: 70,
-      success: (res) => this.uploadAndCreateJob(res.tempFilePath),
-      fail: () => this.uploadAndCreateJob(tempFilePath),
+    const paths = Array.isArray(tempFilePaths) ? tempFilePaths : [tempFilePaths];
+    try {
+      const fileIDs = [];
+      for (const filePath of paths) {
+        const compressedPath = await this.compressImage(filePath);
+        fileIDs.push(await this.uploadImage(compressedPath));
+      }
+      this.createJob(this.isMultiImageFeature(this.data.feature.type) ? fileIDs : fileIDs[0]);
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: err.message || "上传失败", icon: "none" });
+    }
+  },
+
+  compressImage(filePath) {
+    return new Promise((resolve) => {
+      wx.compressImage({
+        src: filePath,
+        quality: 70,
+        success: (res) => resolve(res.tempFilePath),
+        fail: () => resolve(filePath),
+      });
     });
   },
 
-  uploadAndCreateJob(filePath) {
+  uploadImage(filePath) {
     const cloudPath = `ai-upload/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-
-    wx.cloud.uploadFile({
-      cloudPath,
-      filePath,
-      success: (res) => this.createJob(res.fileID),
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: "上传失败", icon: "none" });
-      },
+    return new Promise((resolve, reject) => {
+      wx.cloud.uploadFile({
+        cloudPath,
+        filePath,
+        success: (res) => resolve(res.fileID),
+        fail: () => reject(new Error("上传失败")),
+      });
     });
   },
 
-  createJob(fileID) {
+  createJob(fileIDOrFileIDs) {
+    const fileIDs = Array.isArray(fileIDOrFileIDs) ? fileIDOrFileIDs : [fileIDOrFileIDs];
     wx.cloud.callFunction({
       name: "quickstartFunctions",
       data: {
         type: "validateAndCreateJob",
         data: {
           type: this.data.feature.type,
-          fileID,
+          fileID: fileIDs[0],
+          fileIDs,
           param: this.buildJobParam(),
         },
       },
@@ -204,9 +228,27 @@ Page({
           ],
         },
       ],
+      split: [
+        {
+          key: "grid",
+          label: "切分规格",
+          type: "select",
+          required: true,
+          options: [
+            { label: "2 x 2", value: "2x2" },
+            { label: "3 x 3", value: "3x3" },
+            { label: "1 x 3", value: "1x3" },
+            { label: "3 x 1", value: "3x1" },
+          ],
+        },
+      ],
     };
 
     return fieldMap[type] || [];
+  },
+
+  isMultiImageFeature(type) {
+    return type === "long_image";
   },
 
   getDefaultParamValues(fields) {

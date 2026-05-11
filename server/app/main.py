@@ -17,6 +17,9 @@ from app.services.jobs import accept_job, process_job
 from app.services.poster import mask_url
 
 
+IMAGE_TOOL_TYPES = {"split", "long_image"}
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(message)s",
@@ -31,7 +34,9 @@ app.include_router(admin_router, prefix="/admin")
 class JobRequest(BaseModel):
     taskId: str
     imageUrl: str
+    imageUrls: list[str] | None = None
     sourceFileID: str
+    sourceFileIDs: list[str] | None = None
     type: str
     generationPrompt: str
     param: dict[str, Any] | None = None
@@ -53,7 +58,7 @@ async def create_job(
         raise HTTPException(status_code=400, detail="无效的类型参数")
 
     prompt = render_prompt_template(job.generationPrompt.strip(), job.param)
-    if not prompt:
+    if not prompt and job.type not in IMAGE_TOOL_TYPES:
         raise HTTPException(status_code=400, detail="缺少生成提示词")
     if len(prompt) > 4000:
         raise HTTPException(status_code=400, detail="生成提示词过长")
@@ -77,6 +82,9 @@ async def create_job(
         job.sourceFileID,
         job.type,
         prompt,
+        job.param,
+        job.imageUrls,
+        job.sourceFileIDs,
         job.test,
         job.testPosterFileID,
     )

@@ -22,6 +22,7 @@ Page({
     error: "",
     activeTab: "result",
     originalImageUrl: "",
+    resultUrls: [],
     featureMap: {},
     shareRewardStatus: null,
     shareRewardCopy: buildShareRewardCopy(),
@@ -69,6 +70,7 @@ Page({
 
       const task = res.result.data.task;
       const posterState = await this.createPosterState(task);
+      const resultUrls = await this.createResultUrls(task);
       const originalImageUrl = task.fileID
         ? await getTempFileURL(task.fileID).catch(() => "")
         : "";
@@ -80,6 +82,7 @@ Page({
           statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
         },
         ...posterState,
+        resultUrls,
         originalImageUrl,
         loading: false,
         error: "",
@@ -120,12 +123,25 @@ Page({
     }
   },
 
+  async createResultUrls(task) {
+    const fileIDs = Array.isArray(task.resultFileIDs) ? task.resultFileIDs.filter(Boolean) : [];
+    if (task.status !== "completed" || !fileIDs.length) return [];
+    const results = await Promise.all(fileIDs.map((fileID) => getTempFileURL(fileID).catch(() => "")));
+    return results.filter(Boolean);
+  },
+
   async viewPoster() {
     const url = this.data.activeTab === "original"
       ? this.data.originalImageUrl
       : this.data.posterPreviewUrl;
     if (!url) return;
     wx.previewImage({ urls: [url], current: url });
+  },
+
+  viewResultPiece(e) {
+    const current = e.currentTarget.dataset.url;
+    if (!current) return;
+    wx.previewImage({ urls: this.data.resultUrls, current });
   },
 
   savePoster() {
@@ -136,6 +152,16 @@ Page({
     }
 
     saveImageFile(posterFileID, { loadingTitle: "保存中" });
+  },
+
+  saveResultPiece(e) {
+    const index = Number(e.currentTarget.dataset.index || 0);
+    const fileID = this.data.task?.resultFileIDs?.[index];
+    if (!fileID) {
+      wx.showToast({ title: "图片未生成完成", icon: "none" });
+      return;
+    }
+    saveImageFile(fileID, { loadingTitle: "保存中" });
   },
 
   onShareAppMessage() {

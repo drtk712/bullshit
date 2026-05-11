@@ -17,7 +17,10 @@ const toPublicTask = (task) => ({
   featureDescription: task.featureDescription || "",
   status: task.status,
   fileID: task.fileID || null,
+  fileIDs: Array.isArray(task.fileIDs) ? task.fileIDs : [],
   posterFileID: task.posterFileID || null,
+  resultMode: task.resultMode || "single",
+  resultFileIDs: Array.isArray(task.resultFileIDs) ? task.resultFileIDs : [],
   errMsg: task.errMsg || "",
   pointsCost: task.pointsCost || 0,
   pointsConsumed: !!task.pointsConsumed,
@@ -47,6 +50,38 @@ const normalizeJobParam = (input) => {
     acc[key] = text.slice(0, 200);
     return acc;
   }, {});
+};
+
+const MULTI_IMAGE_TYPES = new Set(["long_image"]);
+
+const normalizeFileIDs = (input) => {
+  const values = Array.isArray(input) ? input : [input];
+  return values
+    .map((item) => String(item || "").trim())
+    .filter((item) => item.startsWith("cloud://"))
+    .slice(0, 9);
+};
+
+const resolveTempFileUrls = async (fileIDs) => {
+  const tempFileResult = await cloud.getTempFileURL({ fileList: fileIDs });
+
+  if (!tempFileResult.fileList || tempFileResult.fileList.length === 0) {
+    throw new Error("获取图片链接失败");
+  }
+
+  const urlMap = {};
+  for (const fileInfo of tempFileResult.fileList) {
+    if (fileInfo.status !== 0 || !fileInfo.tempFileURL) {
+      throw new Error("图片链接生成失败");
+    }
+    urlMap[fileInfo.fileID] = fileInfo.tempFileURL;
+  }
+
+  const imageUrls = fileIDs.map((fileID) => urlMap[fileID]).filter(Boolean);
+  if (imageUrls.length !== fileIDs.length) {
+    throw new Error("图片链接生成失败");
+  }
+  return imageUrls;
 };
 
 const getTasks = async (event) => {
@@ -266,8 +301,11 @@ const validateAndCreateJob = async (event) => {
 
     const { type, fileID, test, skipPointsDeduction = false } = event.data;
     const param = normalizeJobParam(event.data?.param);
+    const isMultiImage = MULTI_IMAGE_TYPES.has(type);
+    const fileIDs = normalizeFileIDs(isMultiImage ? event.data?.fileIDs : fileID);
+    const primaryFileID = fileIDs[0] || "";
 
-    if (!type || !fileID) {
+    if (!type || !primaryFileID || (isMultiImage && fileIDs.length < 2)) {
       return { success: false, errMsg: "缺少必要参数" };
     }
 
@@ -287,28 +325,18 @@ const validateAndCreateJob = async (event) => {
     const user = await ensureUser(openid);
 
     if (shouldConsumePoints && user.points < 1) {
-      await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+      await cloud.deleteFile({ fileList: fileIDs }).catch(() => {});
       return { success: false, errMsg: "积分不足，请先获取积分" };
     }
 
-    const validation = await validateImage(fileID, featureConfig);
+    const validation = await validateImage(primaryFileID, featureConfig);
     if (!validation.passed) {
-      await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+      await cloud.deleteFile({ fileList: fileIDs }).catch(() => {});
       return { success: false, errMsg: validation.reason };
     }
 
-    const tempFileResult = await cloud.getTempFileURL({ fileList: [fileID] });
-
-    if (!tempFileResult.fileList || tempFileResult.fileList.length === 0) {
-      return { success: false, errMsg: "获取图片链接失败" };
-    }
-
-    const fileInfo = tempFileResult.fileList[0];
-    if (fileInfo.status !== 0) {
-      return { success: false, errMsg: "图片链接生成失败" };
-    }
-
-    const imageUrl = fileInfo.tempFileURL;
+    const imageUrls = await resolveTempFileUrls(fileIDs);
+    const imageUrl = imageUrls[0];
 
     const taskResult = await db.collection(JOBS_COLLECTION).add({
       data: {
@@ -317,10 +345,13 @@ const validateAndCreateJob = async (event) => {
         featureHomeDesc: featureConfig.public?.homeDesc || "",
         featureDescription: featureConfig.public?.description || "",
         param,
-        fileID,
+        fileID: primaryFileID,
+        fileIDs,
         serverTaskId: null,
         status: "init",
         posterFileID: null,
+        resultMode: "single",
+        resultFileIDs: [],
         errMsg: "",
         openid,
         pointsCost: shouldConsumePoints ? 1 : 0,
@@ -341,7 +372,9 @@ const validateAndCreateJob = async (event) => {
       const serverResp = await axios.post(`${SERVER_URL}/api/job`, {
         taskId,
         imageUrl,
-        sourceFileID: fileID,
+        imageUrls,
+        sourceFileID: primaryFileID,
+        sourceFileIDs: fileIDs,
         type,
         test: test || false,
         generationPrompt: featureConfig.generation?.prompt || "",
@@ -434,6 +467,8 @@ const getTaskStatus = async (event) => {
       data: {
         status: task.status,
         posterFileID: task.posterFileID,
+        resultMode: task.resultMode || "single",
+        resultFileIDs: Array.isArray(task.resultFileIDs) ? task.resultFileIDs : [],
         errMsg: task.errMsg,
       },
     };
@@ -469,9 +504,14 @@ const deleteTask = async (event) => {
       return { success: false, errMsg: "进行中的任务不能删除" };
     }
 
-    if (task.posterFileID) {
+    const fileList = [
+      task.posterFileID,
+      ...(Array.isArray(task.resultFileIDs) ? task.resultFileIDs : []),
+    ].filter(Boolean);
+
+    if (fileList.length > 0) {
       try {
-        await cloud.deleteFile({ fileList: [task.posterFileID] });
+        await cloud.deleteFile({ fileList });
       } catch (e) {
         console.warn("删除海报文件失败（继续删除数据库记录）:", e.message);
       }
