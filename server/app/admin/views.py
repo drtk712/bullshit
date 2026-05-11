@@ -397,6 +397,7 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                     _field("校验失败提示", "validation.failMessage", _text(doc, "validation.failMessage"), multiline=True),
                     _field("校验提示词", "validation.prompt", _text(doc, "validation.prompt"), multiline=True),
                     _field("生成提示词", "generation.prompt", _text(doc, "generation.prompt"), multiline=True),
+                    _field("参数说明", "generation.paramHint", _text(doc, "generation.paramHint"), multiline=True),
                     _field("测试 Poster FileID", "test.posterFileID", _text(doc, "test.posterFileID")),
                     cls="stack",
                 ),
@@ -497,6 +498,7 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         "validation.prompt": str(form.get("validation.prompt", "")).strip(),
         "validation.failMessage": str(form.get("validation.failMessage", "")).strip(),
         "generation.prompt": str(form.get("generation.prompt", "")).strip(),
+        "generation.paramHint": str(form.get("generation.paramHint", "")).strip(),
         "test.posterFileID": str(form.get("test.posterFileID", "")).strip(),
     }
     _require_text(
@@ -578,7 +580,7 @@ def _blank_feature() -> dict[str, Any]:
             "prompt": "这张图片是否符合当前玩法？请只回答'是'或'否'。",
             "failMessage": "图片不符合要求，请重新上传",
         },
-        "generation": {"prompt": "Generate a test poster based on this image."},
+        "generation": {"prompt": "Generate a test poster based on this image.", "paramHint": ""},
         "test": {"posterFileID": ""},
         "createdAt": now,
     }

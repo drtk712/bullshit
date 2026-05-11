@@ -37,6 +37,18 @@ const toSharedTask = (task, taskId) => ({
   createdAt: task.createdAt,
 });
 
+const normalizeJobParam = (input) => {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+
+  return Object.entries(input).reduce((acc, [key, value]) => {
+    if (!/^[a-zA-Z0-9_]{1,32}$/.test(String(key))) return acc;
+    const text = String(value ?? "").trim();
+    if (!text) return acc;
+    acc[key] = text.slice(0, 200);
+    return acc;
+  }, {});
+};
+
 const getTasks = async (event) => {
   try {
     const wxContext = cloud.getWXContext();
@@ -253,6 +265,7 @@ const validateAndCreateJob = async (event) => {
     await ensureCollection();
 
     const { type, fileID, test, skipPointsDeduction = false } = event.data;
+    const param = normalizeJobParam(event.data?.param);
 
     if (!type || !fileID) {
       return { success: false, errMsg: "缺少必要参数" };
@@ -303,6 +316,7 @@ const validateAndCreateJob = async (event) => {
         featureTitle: featureConfig.public?.title || "",
         featureHomeDesc: featureConfig.public?.homeDesc || "",
         featureDescription: featureConfig.public?.description || "",
+        param,
         fileID,
         serverTaskId: null,
         status: "init",
@@ -331,6 +345,7 @@ const validateAndCreateJob = async (event) => {
         type,
         test: test || false,
         generationPrompt: featureConfig.generation?.prompt || "",
+        param,
         testPosterFileID: featureConfig.test?.posterFileID,
       }, {
         headers: {

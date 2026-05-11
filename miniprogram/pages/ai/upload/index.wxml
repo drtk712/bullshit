@@ -33,6 +33,40 @@
       </view>
     </view>
 
+    <view wx:if="{{paramFields.length > 0}}" class="param-card">
+      <view class="param-heading">
+        <text class="param-icon">✎</text>
+        <text class="param-title">生成参数</text>
+      </view>
+      <view class="param-item" wx:for="{{paramFields}}" wx:key="key">
+        <text class="param-label">{{item.label}}</text>
+        <picker
+          wx:if="{{item.type === 'select'}}"
+          mode="selector"
+          range="{{item.options}}"
+          range-key="label"
+          value="{{0}}"
+          data-index="{{index}}"
+          data-key="{{item.key}}"
+          bindchange="onParamSelect"
+        >
+          <view class="param-input param-select">
+            <text>{{paramValues[item.key]}}</text>
+            <text class="param-select-arrow">⌄</text>
+          </view>
+        </picker>
+        <input
+          wx:else
+          class="param-input"
+          value="{{paramValues[item.key]}}"
+          maxlength="{{item.maxLength || 60}}"
+          placeholder="{{item.placeholder}}"
+          data-key="{{item.key}}"
+          bindinput="onParamInput"
+        />
+      </view>
+    </view>
+
     <view class="balance-card">
       <view class="balance-left">
         <text class="balance-icon">✦</text>

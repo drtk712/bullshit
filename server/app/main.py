@@ -5,6 +5,7 @@ import asyncio
 import logging
 import re
 import time
+from typing import Any
 
 import requests
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
@@ -33,6 +34,7 @@ class JobRequest(BaseModel):
     sourceFileID: str
     type: str
     generationPrompt: str
+    param: dict[str, Any] | None = None
     test: bool = False
     testPosterFileID: str | None = None
 
@@ -50,7 +52,7 @@ async def create_job(
     if not re.fullmatch(r"[a-z][a-z0-9_-]{1,31}", job.type):
         raise HTTPException(status_code=400, detail="无效的类型参数")
 
-    prompt = job.generationPrompt.strip()
+    prompt = render_prompt_template(job.generationPrompt.strip(), job.param)
     if not prompt:
         raise HTTPException(status_code=400, detail="缺少生成提示词")
     if len(prompt) > 4000:
@@ -81,6 +83,20 @@ async def create_job(
 
     logger.info("[任务接管] task_id=%s, type=%s, status=%s, test=%s", job.taskId, job.type, accepted_task.get("status"), job.test)
     return {"taskId": job.taskId, "accepted": True}
+
+
+def render_prompt_template(prompt: str, param: dict[str, Any] | None = None) -> str:
+    """Render simple ${key} placeholders in generation prompts."""
+    values = param or {}
+
+    def replace(match: re.Match[str]) -> str:
+        key = match.group(1)
+        value = values.get(key)
+        if value is None:
+            value = ""
+        return str(value).strip()
+
+    return re.sub(r"\$\{([a-zA-Z0-9_]+)\}", replace, prompt)
 
 
 @app.get("/health")

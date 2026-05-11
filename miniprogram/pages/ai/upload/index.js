@@ -12,6 +12,8 @@ Page({
     configLoading: true,
     configError: "",
     tips: [],
+    paramFields: [],
+    paramValues: {},
     points: 0,
     showPointsModal: false,
     shareRewardStatus: { remainingToday: 0 },
@@ -45,9 +47,12 @@ Page({
     }
 
     wx.setNavigationBarTitle({ title: "上传照片" });
+    const paramFields = this.getParamFields(feature.type);
     this.setData({
       feature,
       tips: feature.ui?.requirements || [],
+      paramFields,
+      paramValues: this.getDefaultParamValues(paramFields),
       configLoading: false,
       configError: "",
     });
@@ -75,6 +80,8 @@ Page({
 
   async chooseImage() {
     if (!this.data.feature) return;
+
+    if (!this.validateParams()) return;
 
     const status = await this.loadShareRewardStatus();
     if (Number(status?.points || 0) < 1) {
@@ -129,6 +136,7 @@ Page({
         data: {
           type: this.data.feature.type,
           fileID,
+          param: this.buildJobParam(),
         },
       },
       success: async (resp) => {
@@ -167,6 +175,92 @@ Page({
 
   hidePointsModal() {
     this.setData({ showPointsModal: false });
+  },
+
+  getParamFields(type) {
+    const fieldMap = {
+      watermark: [
+        {
+          key: "param",
+          label: "水印文字",
+          placeholder: "请输入要添加的水印内容",
+          required: true,
+          maxLength: 40,
+        },
+      ],
+      filter: [
+        {
+          key: "param",
+          label: "滤镜风格",
+          type: "select",
+          required: true,
+          options: [
+            { label: "复古胶片", value: "复古胶片" },
+            { label: "清新日系", value: "清新日系" },
+            { label: "黑白高反差", value: "黑白高反差" },
+            { label: "暖阳柔光", value: "暖阳柔光" },
+            { label: "冷调电影感", value: "冷调电影感" },
+            { label: "高饱和鲜艳", value: "高饱和鲜艳" },
+          ],
+        },
+      ],
+    };
+
+    return fieldMap[type] || [];
+  },
+
+  getDefaultParamValues(fields) {
+    return (fields || []).reduce((acc, field) => {
+      if (field.type === "select" && Array.isArray(field.options) && field.options.length > 0) {
+        acc[field.key] = field.options[0].value;
+      }
+      return acc;
+    }, {});
+  },
+
+  onParamInput(e) {
+    const key = e.currentTarget.dataset.key;
+    if (!key) return;
+    this.setData({
+      [`paramValues.${key}`]: e.detail.value,
+    });
+  },
+
+  onParamSelect(e) {
+    const key = e.currentTarget.dataset.key;
+    const fieldIndex = Number(e.currentTarget.dataset.index || 0);
+    const optionIndex = Number(e.detail.value || 0);
+    const field = this.data.paramFields[fieldIndex];
+    const option = field?.options?.[optionIndex];
+    if (!key || !option) return;
+
+    this.setData({
+      [`paramValues.${key}`]: option.value,
+    });
+  },
+
+  validateParams() {
+    const fields = this.data.paramFields || [];
+    const values = this.data.paramValues || {};
+    const missingField = fields.find((field) => field.required && !String(values[field.key] || "").trim());
+
+    if (missingField) {
+      wx.showToast({ title: `请填写${missingField.label}`, icon: "none" });
+      return false;
+    }
+
+    return true;
+  },
+
+  buildJobParam() {
+    const values = this.data.paramValues || {};
+    const param = {};
+
+    (this.data.paramFields || []).forEach((field) => {
+      param[field.key] = String(values[field.key] || "").trim();
+    });
+
+    return param;
   },
 
   onShareAppMessage() {
