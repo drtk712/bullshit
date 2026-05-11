@@ -205,7 +205,7 @@ Page({
 
   retryTask(e) {
     const type = e.currentTarget.dataset.type || 'palm';
-    wx.navigateTo({ url: `/pages/ai/upload/index?type=${type}` });
+    wx.navigateTo({ url: `/pages/feature/upload/index?type=${type}` });
   },
 
   formatTime(timestamp) {

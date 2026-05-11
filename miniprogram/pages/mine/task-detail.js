@@ -74,7 +74,7 @@ Page({
 
   retryUpload() {
     const type = this.data.task?.type || 'palm';
-    wx.redirectTo({ url: `/pages/ai/upload/index?type=${type}` });
+    wx.redirectTo({ url: `/pages/feature/upload/index?type=${type}` });
   },
 
   onPullDownRefresh() {

@@ -1,4 +1,4 @@
-<view class="ai-page ui-page">
+<view class="feature-page ui-page">
   <view class="custom-nav">
     <view class="nav-icon" bindtap="goBack">‹</view>
     <text class="nav-title">{{feature.title}}</text>

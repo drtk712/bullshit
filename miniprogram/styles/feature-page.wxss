@@ -2,7 +2,7 @@ page {
   background: #f3fcf2;
 }
 
-.ai-page {
+.feature-page {
   min-height: 100vh;
   padding: 176rpx var(--ui-page-x) 220rpx;
   box-sizing: border-box;

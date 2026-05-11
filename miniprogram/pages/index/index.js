@@ -78,7 +78,7 @@ Page({
   },
 
   buildFeatureRoute(type) {
-    return type ? `/pages/ai/index?type=${type}` : "";
+    return type ? `/pages/feature/index?type=${type}` : "";
   },
 
   onClickFeature(e) {

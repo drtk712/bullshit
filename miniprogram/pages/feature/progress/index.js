@@ -131,7 +131,7 @@ Page({
         if (status.status === "completed") {
           this.setData({ progress: 100, remainText: "即将完成" });
           this.cleanup();
-          wx.redirectTo({ url: `/pages/ai/result/index?id=${this.data.taskId}` });
+          wx.redirectTo({ url: `/pages/feature/result/index?id=${this.data.taskId}` });
         } else if (status.status === "failed") {
           this.cleanup();
           wx.redirectTo({ url: `/pages/mine/task-detail?id=${this.data.taskId}` });

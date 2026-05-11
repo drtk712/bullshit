@@ -33,7 +33,7 @@ Page({
     }
 
     wx.navigateTo({
-      url: `/pages/ai/index?type=${type}`,
+      url: `/pages/feature/index?type=${type}`,
       fail: () => wx.switchTab({ url: "/pages/index/index" }),
     });
   },

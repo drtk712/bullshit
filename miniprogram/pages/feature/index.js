@@ -60,7 +60,7 @@ Page({
   startUpload() {
     const type = this.data.feature?.type;
     if (!type) return;
-    wx.navigateTo({ url: `/pages/ai/upload/index?type=${type}` });
+    wx.navigateTo({ url: `/pages/feature/upload/index?type=${type}` });
   },
 
   buildDetailAnalysis(items) {

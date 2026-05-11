@@ -22,7 +22,7 @@ Page({
 
   goBack() {
     wx.navigateBack({
-      fail: () => wx.redirectTo({ url: `/pages/ai/index?type=${this.data.feature?.type || "palm"}` }),
+      fail: () => wx.redirectTo({ url: `/pages/feature/index?type=${this.data.feature?.type || "palm"}` }),
     });
   },
 
@@ -139,7 +139,7 @@ Page({
   },
 
   uploadImage(filePath) {
-    const cloudPath = `ai-upload/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const cloudPath = `feature-upload/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
     return new Promise((resolve, reject) => {
       wx.cloud.uploadFile({
         cloudPath,
@@ -168,7 +168,7 @@ Page({
         if (resp.result?.success) {
           getApp().globalData.shouldRefreshTasks = true;
           wx.redirectTo({
-            url: `/pages/ai/progress/index?id=${resp.result.data.taskId}&type=${this.data.feature.type}`,
+            url: `/pages/feature/progress/index?id=${resp.result.data.taskId}&type=${this.data.feature.type}`,
           });
           return;
         }
