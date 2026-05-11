@@ -107,7 +107,7 @@
 
   <view wx:if="{{showProfileGate}}" class="modal-mask">
     <view class="modal-card profile-modal-card">
-      <view wx:if="{{user.profileCompleted}}" class="modal-close" bindtap="hideProfileGate">×</view>
+      <view class="modal-close" bindtap="hideProfileGate">×</view>
       <text class="modal-title">编辑头像昵称</text>
       <text class="modal-desc">头像和昵称会展示在个人资料与管理后台中。</text>
 

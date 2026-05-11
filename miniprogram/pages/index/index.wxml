@@ -83,27 +83,4 @@
     </view>
   </block>
 
-  <view wx:if="{{showProfileGate}}" class="profile-gate-mask">
-    <view class="profile-gate-card">
-      <text class="profile-gate-title">完善你的头像昵称</text>
-      <text class="profile-gate-desc">首次使用需要设置公开展示资料，完成后即可进入玩图局。</text>
-
-      <button class="profile-avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <image wx:if="{{profileAvatarTempPath}}" class="profile-avatar-preview" src="{{profileAvatarTempPath}}" mode="aspectFill" />
-        <text wx:else class="profile-avatar-placeholder">+</text>
-      </button>
-
-      <input
-        class="profile-nickname-input"
-        type="nickname"
-        value="{{profileNickName}}"
-        placeholder="填写昵称"
-        maxlength="24"
-        bindinput="onNickNameInput"
-      />
-
-      <text wx:if="{{profileError}}" class="profile-gate-error">{{profileError}}</text>
-      <button class="profile-save-button" loading="{{profileSaving}}" bindtap="onSaveProfile">进入玩图局</button>
-    </view>
-  </view>
 </view>

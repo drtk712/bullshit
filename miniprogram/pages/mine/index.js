@@ -3,8 +3,8 @@ const {
   canClaimShareReward,
   claimShareReward,
   getShareRewardStatus,
+  saveUserProfile,
 } = require('../../utils/shareReward');
-const { saveUserProfile } = require('../../utils/profile');
 
 Page({
   data: {
@@ -76,7 +76,6 @@ Page({
       userLoading: false,
       userError: '',
       checkedIn,
-      showProfileGate: !user.profileCompleted,
       profileNickName: user.nickName || '',
       profileAvatarTempPath: user.avatarFileID || '',
     });
@@ -221,7 +220,6 @@ Page({
   },
 
   hideProfileGate() {
-    if (!this.data.user?.profileCompleted) return;
     this.setData({ showProfileGate: false, profileError: '' });
   },
 

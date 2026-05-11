@@ -1,6 +1,5 @@
 const { fetchFeatureList } = require("../../utils/featureConfigClient");
 const { previewImages } = require("../../utils/previewImage");
-const { saveUserProfile } = require("../../utils/profile");
 
 Page({
   data: {
@@ -22,11 +21,6 @@ Page({
     featureError: "",
     user: null,
     loginError: "",
-    showProfileGate: false,
-    profileAvatarTempPath: "",
-    profileNickName: "",
-    profileSaving: false,
-    profileError: "",
   },
 
   async onLoad() {
@@ -67,8 +61,6 @@ Page({
         this.setData({
           user,
           loginError: "",
-          showProfileGate: !user.profileCompleted,
-          profileNickName: user.nickName || "",
         });
       } else {
         this.setData({ loginError: res.result?.errMsg || "登录失败" });
@@ -128,50 +120,4 @@ Page({
     }
   },
 
-  onChooseAvatar(e) {
-    const avatarUrl = e.detail?.avatarUrl || "";
-    if (!avatarUrl) {
-      this.setData({ profileError: "请选择头像" });
-      return;
-    }
-    this.setData({
-      profileAvatarTempPath: avatarUrl,
-      profileError: "",
-    });
-  },
-
-  onNickNameInput(e) {
-    this.setData({
-      profileNickName: e.detail.value,
-      profileError: "",
-    });
-  },
-
-  async onSaveProfile() {
-    this.setData({ profileSaving: true, profileError: "" });
-    wx.showLoading({ title: "保存中", mask: true });
-
-    try {
-      const user = await saveUserProfile({
-        nickName: this.data.profileNickName,
-        avatarPath: this.data.profileAvatarTempPath,
-      });
-
-      getApp().globalData.user = user;
-      this.setData({
-        user,
-        showProfileGate: false,
-        profileSaving: false,
-        profileError: "",
-      });
-      wx.showToast({ title: "资料已保存", icon: "success" });
-    } catch (err) {
-      this.setData({
-        profileSaving: false,
-        profileError: err.message || err.errMsg || "保存失败",
-      });
-    } finally {
-      wx.hideLoading();
-    }
-  },
 });
