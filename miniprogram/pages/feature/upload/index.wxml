@@ -79,7 +79,7 @@
     </view>
 
     <view class="upload-dock">
-      <button class="generate-btn" bindtap="chooseImage">开始生成</button>
+      <button class="generate-btn" bindtap="chooseImage">开始处理</button>
     </view>
 
     <view wx:if="{{showPointsModal}}" class="modal-mask">

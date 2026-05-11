@@ -32,7 +32,7 @@
       },
       {
         "pagePath": "pages/mine/tasks",
-        "text": "生成记录",
+        "text": "处理记录",
         "iconPath": "images/tab-record.png",
         "selectedIconPath": "images/tab-record-active.png"
       },

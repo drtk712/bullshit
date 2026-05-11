@@ -92,7 +92,7 @@ Page({
             statusDisplay: progressPercent ? `${statusText} ${progressPercent}%` : statusText,
             statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
             timeText: this.formatTime(t.createdAt),
-            errMsgText: t.errMsg || '生成失败，请重新上传照片再试一次。',
+            errMsgText: t.errMsg || '处理失败，请重新上传照片再试一次。',
           };
         });
         await this.attachThumbImages(processed);
@@ -177,7 +177,7 @@ Page({
   onSaveTaskPoster(e) {
     const task = this.getTaskById(e.currentTarget.dataset.id);
     if (!task?.posterFileID) {
-      wx.showToast({ title: '图片未生成完成', icon: 'none' });
+      wx.showToast({ title: '图片未处理完成', icon: 'none' });
       return;
     }
 
@@ -213,7 +213,7 @@ Page({
       : '/pages/index/index';
 
     return {
-      title: `我在玩图局生成了${task?.displayName || '趣味图'}`,
+      title: `我在玩图局处理了一张图片`,
       path,
       imageUrl: task?.shareImage || '',
     };

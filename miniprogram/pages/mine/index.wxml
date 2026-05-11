@@ -72,8 +72,8 @@
   <view class="service-grid">
     <view class="service-card" bindtap="goToTasks">
       <view class="service-icon history">↺</view>
-      <text class="service-title">生成记录</text>
-      <text class="service-sub">查看历史作品</text>
+      <text class="service-title">处理记录</text>
+      <text class="service-sub">查看历史图片</text>
     </view>
     <button class="service-card share-service" open-type="share">
       <view class="service-icon share">↗</view>

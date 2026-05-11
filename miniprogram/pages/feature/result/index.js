@@ -94,7 +94,7 @@ Page({
 
   async createPosterState(task) {
     if (task.status !== "completed" || !task.posterFileID) {
-      return { posterPreviewUrl: "", posterError: "图片尚未生成完成" };
+      return { posterPreviewUrl: "", posterError: "图片尚未处理完成" };
     }
     try {
       const posterPreviewUrl = await getTempFileURL(task.posterFileID);
@@ -128,7 +128,7 @@ Page({
   savePoster() {
     const posterFileID = this.data.task?.posterFileID;
     if (!posterFileID) {
-      wx.showToast({ title: "图片未生成完成", icon: "none" });
+      wx.showToast({ title: "图片未处理完成", icon: "none" });
       return;
     }
 
@@ -139,7 +139,7 @@ Page({
     const index = Number(e.currentTarget.dataset.index || 0);
     const fileID = this.data.task?.resultFileIDs?.[index];
     if (!fileID) {
-      wx.showToast({ title: "图片未生成完成", icon: "none" });
+      wx.showToast({ title: "图片未处理完成", icon: "none" });
       return;
     }
     saveImageFile(fileID, { loadingTitle: "保存中" });
@@ -152,7 +152,7 @@ Page({
       : "/pages/index/index";
 
     return {
-      title: `我用「玩图局」生成了${this.data.task?.displayName || "趣味图"}，快来试试！`,
+      title: `我用「玩图局」处理了一张图片，快来试试！`,
       path,
       imageUrl: this.data.posterPreviewUrl || "",
     };

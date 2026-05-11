@@ -166,7 +166,7 @@ Page({
           return;
         }
 
-        const errMsg = resp.result?.errMsg || "生成失败";
+        const errMsg = resp.result?.errMsg || "处理失败";
         if (errMsg.includes("积分不足")) {
           await this.loadShareRewardStatus();
           this.setData({ showPointsModal: true });
@@ -300,7 +300,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: "玩图局 - 选个玩法，生成你的专属趣味图",
+      title: "玩图局 - 实用图片处理工具",
       path: "/pages/index/index",
     };
   },

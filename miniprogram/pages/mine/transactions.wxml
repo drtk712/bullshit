@@ -39,7 +39,7 @@
 
     <view wx:if="{{transactions.length === 0}}" class="empty-state">
       <text class="empty-title">暂无积分记录</text>
-      <text class="empty-desc">生成、签到后会自动记录</text>
+      <text class="empty-desc">图片处理、签到后会自动记录</text>
     </view>
 
     <view wx:if="{{loadingMore}}" class="load-more">

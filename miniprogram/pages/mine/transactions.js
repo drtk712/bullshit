@@ -4,7 +4,7 @@ const SYSTEM_REASON_MAP = {
   first_login: '首次登录赠送',
   daily_check_in: '每日签到',
   share_reward: '分享奖励',
-  create_feature_job: '生成消耗',
+  create_feature_job: '处理消耗',
   job_failed_refund: '失败退款',
 };
 

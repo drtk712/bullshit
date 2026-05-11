@@ -41,7 +41,7 @@ Page({
       onTimeout: () => {
         this.stopPolling();
         this.setData({
-          error: '生成超时，请稍后查看任务记录',
+          error: '处理超时，请稍后查看任务记录',
         });
       },
       onTransientError: () => {
@@ -245,7 +245,7 @@ Page({
   savePoster() {
     const posterFileID = this.data.task?.posterFileID;
     if (!posterFileID) {
-      wx.showToast({ title: '图片未生成完成', icon: 'none' });
+      wx.showToast({ title: '图片未处理完成', icon: 'none' });
       return;
     }
 
@@ -262,7 +262,7 @@ Page({
     const index = Number(e.currentTarget.dataset.index || 0);
     const fileID = this.data.task?.resultFileIDs?.[index];
     if (!fileID) {
-      wx.showToast({ title: '图片未生成完成', icon: 'none' });
+      wx.showToast({ title: '图片未处理完成', icon: 'none' });
       return;
     }
     saveImageFile(fileID);
@@ -320,7 +320,7 @@ Page({
     }
 
     if (/API|model|\/v1\/|503|OpenAI|gpt|错误/i.test(errMsg)) {
-      return '生成服务暂时不可用，请稍后重试或重新上传。';
+      return '图片处理服务暂时不可用，请稍后重试或重新上传。';
     }
 
     return errMsg;
@@ -333,7 +333,7 @@ Page({
       : '/pages/index/index';
 
     return {
-      title: `我在玩图局生成了${this.data.task?.displayName || '趣味图'}`,
+      title: `我在玩图局处理了一张图片`,
       path,
       imageUrl: this.data.posterPreviewUrl || '',
     };

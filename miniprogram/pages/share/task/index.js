@@ -40,7 +40,7 @@ Page({
 
   async loadSharedTask(taskId) {
     if (!taskId) {
-      this.setData({ loading: false, error: "缺少作品 ID" });
+      this.setData({ loading: false, error: "缺少图片 ID" });
       return;
     }
 
@@ -55,7 +55,7 @@ Page({
       if (!res.result?.success) {
         this.setData({
           loading: false,
-          error: res.result?.errMsg || "作品暂不可查看",
+          error: res.result?.errMsg || "图片暂不可查看",
         });
         return;
       }
@@ -66,8 +66,8 @@ Page({
       this.setData({
         task: {
           ...task,
-          displayName: task.featureTitle || "趣味作品",
-          displayDesc: task.featureHomeDesc || task.featureDescription || "来自玩图局的趣味生成",
+          displayName: task.featureTitle || "图片处理",
+          displayDesc: task.featureHomeDesc || task.featureDescription || "来自玩图局的图片处理结果",
           timeText: this.formatTime(task.createdAt),
         },
         posterPreviewUrl,
@@ -116,7 +116,7 @@ Page({
       : "/pages/index/index";
 
     return {
-      title: `我在玩图局发现了${task?.displayName || "趣味作品"}`,
+      title: `我在玩图局处理了一张图片`,
       path,
       imageUrl: this.data.posterPreviewUrl || "",
     };

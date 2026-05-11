@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "生成记录",
+  "navigationBarTitleText": "处理记录",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark"
 }

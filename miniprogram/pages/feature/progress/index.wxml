@@ -6,8 +6,8 @@
   </view>
 
   <view class="progress-hero">
-    <text class="progress-title">生成中...</text>
-    <text class="progress-desc">正在努力创作你的专属作品</text>
+    <text class="progress-title">图片处理中...</text>
+    <text class="progress-desc">正在处理你上传的图片</text>
 
     <view class="progress-visual">
       <view class="ring-track"></view>
@@ -38,7 +38,7 @@
 
   <view class="progress-hint">
     <text>你可以稍后在</text>
-    <text class="hint-strong">生成记录</text>
+    <text class="hint-strong">处理记录</text>
     <text>中查看进度</text>
   </view>
 </view>

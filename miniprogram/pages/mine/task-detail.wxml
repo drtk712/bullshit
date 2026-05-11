@@ -21,7 +21,7 @@
         <view class="task-status-left">
           <view class="status-icon {{task.statusClass}}">{{task.status === 'failed' ? '!' : task.status === 'completed' ? '✓' : '◴'}}</view>
           <view>
-            <text class="task-state-title">{{task.status === 'failed' ? '生成失败' : task.status === 'completed' ? '生成完成' : task.statusText}}</text>
+            <text class="task-state-title">{{task.status === 'failed' ? '处理失败' : task.status === 'completed' ? '处理完成' : task.statusText}}</text>
             <text class="task-time">{{task.formattedTime}}</text>
           </view>
         </view>
@@ -88,7 +88,7 @@
         <view class="progress-orbit">
           <view class="progress-core">{{task.status === 'processing' ? '画' : '等'}}</view>
         </view>
-        <text class="progress-title">{{task.status === 'processing' ? '正在生成图片' : task.status === 'init' ? '正在提交任务' : '任务排队中'}}</text>
+        <text class="progress-title">{{task.status === 'processing' ? '正在处理图片' : task.status === 'init' ? '正在提交图片' : '任务排队中'}}</text>
         <text class="progress-desc">{{task.status === 'processing' ? '服务端正在处理，请稍候' : task.status === 'init' ? '任务已创建，正在交给服务端处理' : '任务已接收，正在等待开始处理'}}</text>
         <text wx:if="{{syncError}}" class="sync-error">{{syncError}}</text>
       </view>

@@ -1,7 +1,7 @@
 const { createTaskPoller } = require("../../../utils/taskPoller");
 
 const PROGRESS_STAGES = {
-  init: { min: 8, max: 20, title: "正在提交任务" },
+  init: { min: 8, max: 20, title: "正在提交图片" },
   pending: { min: 20, max: 45, title: "正在排队处理" },
   processing: { min: 45, max: 92 },
 };
@@ -26,7 +26,7 @@ Page({
   goBack() {
     wx.showModal({
       title: "确认离开？",
-      content: "作品会继续生成。离开后可在「生成记录」查看进度和结果。",
+      content: "图片会继续处理。离开后可在「处理记录」查看进度和结果。",
       cancelText: "继续等待",
       confirmText: "离开",
       success: (res) => {
@@ -41,7 +41,7 @@ Page({
   onLoad(options) {
     const type = options.type || "palm";
     const ui = this.getFeatureUI(type);
-    const configuredProgressTitle = ui.progressTitle || "正在生成作品";
+    const configuredProgressTitle = ui.progressTitle || "正在处理图片";
     this.configuredProgressTitle = configuredProgressTitle;
 
     this.setData({
@@ -73,7 +73,7 @@ Page({
 
   buildProgressChecks(checks) {
     return (checks || []).map((item, index) => ({
-      title: item.title || `生成步骤 ${index + 1}`,
+      title: item.title || `处理步骤 ${index + 1}`,
       done: false,
       displayStatus: "等待中",
     }));
