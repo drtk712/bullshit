@@ -36,7 +36,7 @@
     <view wx:if="{{paramFields.length > 0}}" class="param-card">
       <view class="param-heading">
         <text class="param-icon">✎</text>
-        <text class="param-title">生成参数</text>
+        <text class="param-title">参数</text>
       </view>
       <view class="param-item" wx:for="{{paramFields}}" wx:key="key">
         <text class="param-label">{{item.label}}</text>
