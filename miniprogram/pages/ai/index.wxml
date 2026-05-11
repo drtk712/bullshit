@@ -1,7 +1,7 @@
 <view class="ai-page ui-page">
   <view class="custom-nav">
     <view class="nav-icon" bindtap="goBack">‹</view>
-    <text class="nav-title">{{feature.title || '看手相'}}</text>
+    <text class="nav-title">{{feature.title}}</text>
     <view class="nav-spacer"></view>
   </view>
 

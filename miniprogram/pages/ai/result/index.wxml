@@ -1,7 +1,7 @@
 <view class="result-page flow-page">
   <view class="flow-nav result-nav">
     <view class="flow-back" bindtap="goBack">‹</view>
-    <text class="flow-title">{{task.displayName || '看手相'}}结果</text>
+    <text class="flow-title">{{task.displayName}}结果</text>
     <view class="flow-spacer"></view>
   </view>
 
