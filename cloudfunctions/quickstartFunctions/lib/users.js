@@ -18,6 +18,12 @@ const toPublicUser = (user, openid) => ({
   profileCompletedAt: user.profileCompletedAt || null,
 });
 
+const assertUserUsable = (user) => {
+  if (String(user.status || "active") === "blocked") {
+    throw new Error("账号已被限制使用");
+  }
+};
+
 const ensureUser = async (openid, options = {}) => {
   await ensureCollection();
 
@@ -29,6 +35,7 @@ const ensureUser = async (openid, options = {}) => {
 
   if (userResult.data && userResult.data.length > 0) {
     const user = userResult.data[0];
+    assertUserUsable(user);
     if (options.recordLogin) {
       await db.collection(USERS_COLLECTION).doc(user._id).update({
         data: {
@@ -176,6 +183,7 @@ const updateUserProfile = async (event) => {
 };
 
 module.exports = {
+  assertUserUsable,
   ensureUser,
   getUserProfile,
   login,

@@ -442,6 +442,63 @@ class UserAdminStore:
     def get_user(self, user_id: str) -> dict[str, Any]:
         return self.db.get_document(self.users_collection, user_id)
 
+    def block_user(self, user_id: str, reason: str = "", operator: str = "admin") -> dict[str, Any]:
+        now = int(time.time() * 1000)
+        return self.db.update_document(
+            self.users_collection,
+            user_id,
+            {
+                "status": "blocked",
+                "blockedAt": now,
+                "blockedReason": reason,
+                "blockedBy": operator,
+                "updatedAt": now,
+            },
+        )
+
+    def unblock_user(self, user_id: str, operator: str = "admin") -> dict[str, Any]:
+        now = int(time.time() * 1000)
+        return self.db.update_document(
+            self.users_collection,
+            user_id,
+            {
+                "status": "active",
+                "unblockedAt": now,
+                "unblockedBy": operator,
+                "blockedReason": "",
+                "updatedAt": now,
+            },
+        )
+
+    def _delete_many_by_filter(self, collection: str, filter_query: dict[str, Any]) -> int:
+        deleted = 0
+        while True:
+            docs = self.db.find_many(collection, filter_query, limit=100)
+            if not docs:
+                return deleted
+            for doc in docs:
+                doc_id = str(doc.get("_id") or "")
+                if not doc_id:
+                    continue
+                self.db.delete_document(collection, doc_id)
+                deleted += 1
+
+    def delete_user(self, user_id: str) -> dict[str, Any]:
+        user = self.get_user(user_id)
+        openid = str(user.get("openid") or "")
+        if not openid:
+            raise ValueError("用户缺少 openid，无法级联删除关联数据")
+
+        transactions_deleted = self._delete_many_by_filter(self.transactions_collection, {"openid": openid})
+        jobs_deleted = self._delete_many_by_filter(self.jobs_collection, {"openid": openid})
+        self.db.delete_document(self.users_collection, user_id)
+        return {
+            "userId": user_id,
+            "openid": openid,
+            "transactionsDeleted": transactions_deleted,
+            "jobsDeleted": jobs_deleted,
+        }
+
     def get_task(self, task_id: str) -> dict[str, Any]:
         return self.db.get_document(self.jobs_collection, task_id)
 

@@ -360,6 +360,55 @@ async def user_adjust_points(request: Request, user_id: str):
     return _redirect(f"/admin/users/{user_id}?status=points_adjusted")
 
 
+@router.post("/users/{user_id}/block")
+async def user_block(request: Request, user_id: str):
+    auth_redirect = _require_auth(request)
+    if auth_redirect:
+        return auth_redirect
+    store = get_user_store()
+    form = await request.form()
+    try:
+        reason = str(form.get("reason", "")).strip()
+        if len(reason) < 2:
+            raise ValueError("封禁原因至少 2 个字符")
+        operator = str(form.get("operator", "admin")).strip() or "admin"
+        store.block_user(user_id, reason, operator)
+    except (CloudBaseError, ValueError) as exc:
+        return _user_detail_page(store.get_user(user_id), error=str(exc))
+    return _redirect(f"/admin/users/{user_id}?status=user_blocked")
+
+
+@router.post("/users/{user_id}/unblock")
+async def user_unblock(request: Request, user_id: str):
+    auth_redirect = _require_auth(request)
+    if auth_redirect:
+        return auth_redirect
+    store = get_user_store()
+    form = await request.form()
+    try:
+        operator = str(form.get("operator", "admin")).strip() or "admin"
+        store.unblock_user(user_id, operator)
+    except CloudBaseError as exc:
+        return _user_detail_page(store.get_user(user_id), error=str(exc))
+    return _redirect(f"/admin/users/{user_id}?status=user_unblocked")
+
+
+@router.post("/users/{user_id}/delete")
+async def user_delete(request: Request, user_id: str):
+    auth_redirect = _require_auth(request)
+    if auth_redirect:
+        return auth_redirect
+    store = get_user_store()
+    form = await request.form()
+    try:
+        if str(form.get("confirm_user_id", "")).strip() != user_id:
+            raise ValueError("删除确认必须填写当前用户 ID")
+        store.delete_user(user_id)
+    except (CloudBaseError, ValueError) as exc:
+        return _user_detail_page(store.get_user(user_id), error=str(exc))
+    return _redirect("/admin/users?status=user_deleted")
+
+
 @router.get("/features")
 async def features(request: Request):
     auth_redirect = _require_auth(request)

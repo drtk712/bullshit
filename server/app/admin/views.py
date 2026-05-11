@@ -231,6 +231,9 @@ def _message(kind: str | None) -> str | None:
         "saved": "已保存玩法",
         "deleted": "已删除玩法",
         "points_adjusted": "已调整用户积分，并写入积分流水",
+        "user_blocked": "已封禁用户",
+        "user_unblocked": "已解除用户封禁",
+        "user_deleted": "已删除用户",
     }.get(kind or "")
 
 
@@ -698,6 +701,7 @@ def _user_detail_page(
 ) -> HTMLResponse:
     user_id = str(user.get("_id", ""))
     openid = str(user.get("openid", ""))
+    user_status = str(user.get("status") or "active")
     return _page(
         "用户详情",
         Div("用户详情会读取生产 users / point_transactions / feature_jobs；积分调整会写入余额和流水。", cls="banner"),
@@ -721,6 +725,9 @@ def _user_detail_page(
                 P("昵称：", str(user.get("nickName") or "-")),
                 P("头像：", _avatar_node(user), " ", Code(str(user.get("avatarFileID") or "-"))),
                 P("OpenID：", Code(str(user.get("openid", "-")))),
+                P("状态：", _user_status_pill(user)),
+                P("封禁原因：", str(user.get("blockedReason") or "-")) if user_status == "blocked" else "",
+                P("封禁时间：", _fmt_time(user.get("blockedAt"))) if user_status == "blocked" else "",
                 P("资料完成：", "是" if user.get("profileCompleted") else "否"),
                 P("资料完成时间：", _fmt_time(user.get("profileCompletedAt"))),
                 P("最近登录：", _fmt_time(user.get("lastLoginAt"))),
@@ -740,7 +747,15 @@ def _user_detail_page(
             cls="panel",
         ),
         _points_adjust_panel(user_id),
+        _user_moderation_panel(user),
     )
+
+
+def _user_status_pill(user: dict[str, Any]) -> Any:
+    status = str(user.get("status") or "active")
+    if status == "blocked":
+        return Span("已封禁", cls="pill failed")
+    return Span("正常", cls="pill done")
 
 
 def _avatar_node(user: dict[str, Any]) -> Any:
@@ -791,6 +806,34 @@ def _points_adjust_panel(user_id: str) -> Any:
             Div(Button("提交调整", type="submit"), cls="actions"),
             method="post",
             action=f"/admin/users/{user_id}/points",
+        ),
+        cls="panel danger-zone",
+    )
+
+
+def _user_moderation_panel(user: dict[str, Any]) -> Any:
+    user_id = str(user.get("_id", ""))
+    is_blocked = str(user.get("status") or "active") == "blocked"
+    return Div(
+        H2("用户状态"),
+        P("封禁会阻止该用户继续使用登录、积分奖励和图片处理入口；删除会同时删除用户、积分流水和处理记录。", cls="muted"),
+        Form(
+            Div(
+                _field("封禁原因", "reason", str(user.get("blockedReason") or "违规使用")),
+                _field("操作人", "operator", "admin"),
+                cls="grid",
+            ),
+            Div(Button("解除封禁" if is_blocked else "封禁用户", type="submit", cls="danger" if not is_blocked else None), cls="actions"),
+            method="post",
+            action=f"/admin/users/{user_id}/{'unblock' if is_blocked else 'block'}",
+        ),
+        H3("删除用户"),
+        P("危险操作：删除后用户再次进入小程序会被当作新用户重新创建，历史积分流水和处理记录也会被删除。请输入用户 ID 确认。", cls="muted"),
+        Form(
+            Input(type="text", name="confirm_user_id", placeholder=user_id),
+            Div(Button("删除用户", type="submit", cls="danger"), cls="actions"),
+            method="post",
+            action=f"/admin/users/{user_id}/delete",
         ),
         cls="panel danger-zone",
     )
