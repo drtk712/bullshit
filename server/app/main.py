@@ -5,15 +5,17 @@ import asyncio
 import logging
 import re
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 import requests
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from app.admin.routes import router as admin_router
 from app.config import settings
-from app.services.jobs import accept_job, process_job
+from app.services.job_queue import QueuedJob, job_queue
+from app.services.jobs import accept_job
 from app.services.poster import mask_url
 
 
@@ -27,7 +29,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Feature Poster Generator")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await job_queue.start()
+    try:
+        yield
+    finally:
+        await job_queue.stop()
+
+
+app = FastAPI(title="Feature Poster Generator", lifespan=lifespan)
 app.include_router(admin_router, prefix="/admin")
 
 
@@ -47,7 +59,6 @@ class JobRequest(BaseModel):
 @app.post("/api/job")
 async def create_job(
     job: JobRequest,
-    background_tasks: BackgroundTasks,
     x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
 ):
     """Accept a mini-program generation task and enqueue local processing."""
@@ -72,25 +83,32 @@ async def create_job(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     if not should_enqueue:
-        logger.info("[任务已接管] task_id=%s, status=%s", job.taskId, accepted_task.get("status"))
-        return {"taskId": job.taskId, "accepted": True, "alreadyAccepted": True}
+        status = str(accepted_task.get("status") or "")
+        if status == "pending" and not await job_queue.contains(job.taskId):
+            logger.warning("[任务恢复入队] task_id=%s status=pending", job.taskId)
+        else:
+            logger.info("[任务已接管] task_id=%s, status=%s", job.taskId, accepted_task.get("status"))
+            return {"taskId": job.taskId, "accepted": True, "alreadyAccepted": True, **job_queue.stats()}
 
-    background_tasks.add_task(
-        process_job,
-        job.taskId,
-        job.imageUrl,
-        job.sourceFileID,
-        job.type,
-        prompt,
-        job.param,
-        job.imageUrls,
-        job.sourceFileIDs,
-        job.test,
-        job.testPosterFileID,
+    queued_job = QueuedJob(
+        task_id=job.taskId,
+        image_url=job.imageUrl,
+        source_file_id=job.sourceFileID,
+        job_type=job.type,
+        generation_prompt=prompt,
+        param=job.param,
+        image_urls=job.imageUrls,
+        source_file_ids=job.sourceFileIDs,
+        is_test=job.test,
+        test_poster_file_id=job.testPosterFileID,
     )
+    queued = await job_queue.enqueue(queued_job)
+    if not queued:
+        logger.info("[任务已接管] task_id=%s, status=%s", job.taskId, accepted_task.get("status"))
+        return {"taskId": job.taskId, "accepted": True, "alreadyQueued": True, **job_queue.stats()}
 
-    logger.info("[任务接管] task_id=%s, type=%s, status=%s, test=%s", job.taskId, job.type, accepted_task.get("status"), job.test)
-    return {"taskId": job.taskId, "accepted": True}
+    logger.info("[任务入队] task_id=%s, type=%s, status=%s, test=%s, queue=%s", job.taskId, job.type, accepted_task.get("status"), job.test, job_queue.stats())
+    return {"taskId": job.taskId, "accepted": True, **job_queue.stats()}
 
 
 def render_prompt_template(prompt: str, param: dict[str, Any] | None = None) -> str:
@@ -121,5 +139,5 @@ async def health_check():
         "status": "ok" if api_available else "degraded",
         "timestamp": time.time(),
         "api": api_available,
-        "activeTasks": 0,
+        **job_queue.stats(),
     }

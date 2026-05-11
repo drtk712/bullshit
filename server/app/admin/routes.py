@@ -32,6 +32,7 @@ from app.admin.views import (
 from app.cloudbase.client import CloudBaseError
 from app.cloudbase.nosql import get_feature_store, get_user_store
 from app.cloudbase.storage import get_storage
+from app.services.job_queue import job_queue
 from app.services.preview_composer import SUPPORTED_IMAGE_EXTENSIONS, compose_preview_image, safe_preview_object_id
 
 
@@ -69,9 +70,9 @@ async def dashboard(request: Request):
         features = get_feature_store().list_features()
         features_enabled = len([item for item in features if item.get("enabled")])
         summary = get_user_store().dashboard()
-        return _dashboard_page(summary, len(features), features_enabled)
+        return _dashboard_page(summary, len(features), features_enabled, queue_stats=job_queue.stats())
     except CloudBaseError as exc:
-        return _dashboard_page({}, 0, 0, str(exc))
+        return _dashboard_page({}, 0, 0, str(exc), queue_stats=job_queue.stats())
 
 
 @router.get("/login")

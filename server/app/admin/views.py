@@ -253,9 +253,19 @@ def _dashboard_page(
     features_total: int,
     features_enabled: int,
     error: str | None = None,
+    queue_stats: dict[str, Any] | None = None,
 ) -> HTMLResponse:
     task_counts = summary.get("taskCounts", {})
     active_tasks = summary.get("activeTasks", [])
+    queue = queue_stats or {}
+    active_queue_ids = [str(task_id) for task_id in queue.get("activeTaskIds") or []]
+    active_queue_rows = [
+        Tr(
+            Td(Code(task_id)),
+            Td(A("查看", href=f"/admin/tasks?task_id={task_id}", cls="button secondary")),
+        )
+        for task_id in active_queue_ids
+    ]
     active_rows = [
         Tr(
             Td(Code(str(task.get("_id", "")))),
@@ -291,6 +301,23 @@ def _dashboard_page(
                 ),
                 cls="panel",
             ),
+        ),
+        Div(
+            H2("服务端队列"),
+            P("内存队列状态，仅代表当前服务进程；服务重启后队列会重新开始统计。", cls="muted"),
+            Div(
+                Div(Div("Worker", cls="muted"), Strong(f"{queue.get('aliveWorkers', 0)}/{queue.get('workerCount', 0)}"), cls="status-box"),
+                Div(Div("等待队列", cls="muted"), Strong(str(queue.get("queueSize", 0))), cls="status-box"),
+                Div(Div("已排队", cls="muted"), Strong(str(queue.get("queuedTasks", 0))), cls="status-box"),
+                Div(Div("处理中", cls="muted"), Strong(str(queue.get("activeTasks", 0))), cls="status-box"),
+                cls="status-strip",
+            ),
+            H3("当前 Worker 任务"),
+            Table(
+                Thead(Tr(Th("任务 ID"), Th("操作"))),
+                Tbody(*active_queue_rows) if active_queue_rows else Tbody(Tr(Td("当前没有 Worker 正在处理任务", colspan="2", cls="muted"))),
+            ),
+            cls="panel",
         ),
         Div(
             H2("当前正在处理的任务"),
