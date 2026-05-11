@@ -1,7 +1,7 @@
 [project]
 name = "poster-generator"
 version = "0.1.0"
-description = "微信小程序 AI 图片生成服务端"
+description = "微信小程序图片玩法服务端"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi",

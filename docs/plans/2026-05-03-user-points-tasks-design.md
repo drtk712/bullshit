@@ -1,6 +1,6 @@
 # User Login, Points, and Generation Records Design
 
-**Goal:** Add a lightweight user system for the WeChat mini-program: users log in through WeChat cloud `OPENID`, receive 3 points on first login, spend 1 point per real AI generation, get refunded automatically when generation fails, and view login info, points, and generation records from a new bottom-tab **Mine** page.
+**Goal:** Add a lightweight user system for the WeChat mini-program: users log in through WeChat cloud `OPENID`, receive 3 points on first login, spend 1 point per real feature generation, get refunded automatically when generation fails, and view login info, points, and generation records from a new bottom-tab **Mine** page.
 
 **Scope for v1:**
 
@@ -29,15 +29,15 @@ The mini-program does not need a separate account/password system.
 ### Points
 
 - Initial grant: `+3` points on first login.
-- Real AI generation: `-1` point when a task is created.
+- Real generation: `-1` point when a task is created.
 - Test mode: `0` points.
 - Development skip switch: `0` points for that request, while still using the real generation flow.
 - If generation fails after consuming points: refund `+1` point once.
-- If points are insufficient: do not create the AI generation task.
+- If points are insufficient: do not create the generation task.
 
 ### Generation Records
 
-A generation record is the existing `ai_poster_jobs` task enriched with user and points fields.
+A generation record is the existing `feature_jobs` task enriched with user and points fields.
 
 Statuses:
 
@@ -90,11 +90,11 @@ If icon assets are not ready, create simple local PNG icons first; tabBar icons 
 Home remains the feature discovery page.
 
 - It fetches public feature list from `getFeatureConfig`.
-- Feature cards still use `wx.navigateTo` to `/pages/ai/index?type=...` because `pages/ai/index` is not a tabBar page.
+- Feature cards still use `wx.navigateTo` to `/pages/feature/index?type=...` because `pages/feature/index` is not a tabBar page.
 - Add bottom padding so content does not collide with tabBar.
 - Optionally show a small points hint after login, but the authoritative points view lives in Mine.
 
-### AI Feature Page
+### Feature Page
 
 Add a second development-only switch below test mode:
 
@@ -108,8 +108,8 @@ Add a second development-only switch below test mode:
 
 Semantics:
 
-- `testMode=true`: test generation, no AI API, no points.
-- `skipPointsDeduction=true`: real generation, AI API called, no points consumed.
+- `testMode=true`: test generation, no generation API, no points.
+- `skipPointsDeduction=true`: real generation, generation API called, no points consumed.
 - `skipPointsDeduction` affects only the current request.
 - Cloud function trusts this request field as requested for development convenience.
 - Remove or hide this switch before production if needed.
@@ -132,7 +132,7 @@ Suggested layout:
    - Recent point transactions list or `积分明细 >` placeholder.
 
 3. **Generation records card**
-   - Recent tasks from `ai_poster_jobs`.
+   - Recent tasks from `feature_jobs`.
    - Show feature title/type, status, creation time, and points action.
    - Completed task can navigate to the result page or preview poster in a later iteration.
 
@@ -186,7 +186,7 @@ Indexes:
   type: "grant" | "consume" | "refund" | "adjust",
   amount: 3,
   balanceAfter: 3,
-  reason: "first_login" | "create_ai_job" | "job_failed_refund" | "manual_adjust",
+  reason: "first_login" | "create_feature_job" | "job_failed_refund" | "manual_adjust",
   taskId: null,
   createdAt
 }
@@ -198,7 +198,7 @@ Rules:
 - Negative `amount` for consume/adjust-down.
 - Always store `balanceAfter` for auditability.
 
-### Extend `ai_poster_jobs`
+### Extend `feature_jobs`
 
 Add fields:
 
@@ -355,11 +355,11 @@ if (shouldConsumePoints) {
   const consumeResult = await consumePoint({
     openid,
     amount: 1,
-    reason: "create_ai_job"
+    reason: "create_feature_job"
   });
 }
 
-// Create server job and then ai_poster_jobs document with points metadata.
+// Create server job and then feature_jobs document with points metadata.
 ```
 
 Important: use database transactions if the cloud database SDK/environment supports them. If transactions are unavailable, order operations carefully and make refund idempotent.
@@ -401,7 +401,7 @@ Refund must be idempotent: repeated polling must not refund twice.
 
 - On app start or home `onLoad`, call `login`.
 - Store user summary in page data or app global state.
-- Home does not need to block feature browsing on login, but AI generation will require user creation in cloud function anyway.
+- Home does not need to block feature browsing on login, but feature generation will require user creation in cloud function anyway.
 
 ### Mine
 
@@ -411,7 +411,7 @@ Refund must be idempotent: repeated polling must not refund twice.
   - `暂无积分记录`
   - `暂无生成记录`
 
-### AI Page
+### Feature Page
 
 Add data:
 
@@ -466,10 +466,10 @@ data: {
 ### Mini-Program
 
 - Bottom tabBar shows 首页 / 我的.
-- 首页 feature cards still navigate to `/pages/ai/index?type=...`.
+- 首页 feature cards still navigate to `/pages/feature/index?type=...`.
 - 我的 page displays masked user ID and current points.
 - 我的 page refreshes on `onShow` after generation.
-- AI page shows `测试模式` and `不扣积分` switches.
+- feature page shows `测试模式` and `不扣积分` switches.
 - Successful real generation updates Mine points and records.
 - Failed generation shows refunded state in Mine.
 
@@ -495,7 +495,7 @@ data: {
 4. Extend `getTaskStatus` with refund logic.
 5. Add `pages/mine/index.*`.
 6. Add `tabBar` and tab icons.
-7. Add `skipPointsDeduction` switch to AI page.
+7. Add `skipPointsDeduction` switch to feature page.
 8. Update README and run verification.
 
 ---

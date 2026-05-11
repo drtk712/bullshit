@@ -7,7 +7,7 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
-const JOBS_COLLECTION = "ai_poster_jobs";
+const JOBS_COLLECTION = "feature_jobs";
 const USERS_COLLECTION = "users";
 const POINT_TRANSACTIONS_COLLECTION = "point_transactions";
 const FEATURE_CONFIGS_COLLECTION = "feature_configs";

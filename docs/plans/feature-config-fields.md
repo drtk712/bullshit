@@ -16,7 +16,7 @@ feature_configs
 ├── public           # 公开可见字段（小程序端可读取）
 ├── ui               # UI 渲染配置
 ├── validation       # 图片验证配置
-├── generation       # AI 生成配置
+├── generation       # 生成配置
 └── test             # 测试数据
 ```
 
@@ -41,7 +41,7 @@ feature_configs
 | `public.homeDesc` | string | | 首页一句话描述 | `"看看你的手相"` |
 | `public.uploadTitle` | string | ✅ | 上传页标题 | `"上传手掌照片"` |
 | `public.cardSize` | string | | 卡片尺寸：`normal` / `wide` | `"normal"` |
-| `public.previewImageHD` | string | | 预览图云存储 ID | `"cloud://.../ai-preview-image/手相.png"` |
+| `public.previewImageHD` | string | | 预览图云存储 ID | `"cloud://.../preview-image/手相.png"` |
 
 ### ui（UI 渲染配置）
 
@@ -92,11 +92,11 @@ feature_configs
 | `validation.prompt` | string | ✅ | 验证 prompt（需返回"是"或"否"） |
 | `validation.failMessage` | string | ✅ | 验证失败提示 |
 
-### generation（AI 生成）
+### generation（生成）
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `generation.prompt` | string | ✅ | AI 生成 prompt |
+| `generation.prompt` | string | ✅ | 生成 prompt |
 
 ### test（测试数据）
 
@@ -119,7 +119,7 @@ feature_configs
     "homeDesc": "看看你的手相",
     "uploadTitle": "上传手掌照片",
     "cardSize": "normal",
-    "previewImageHD": "cloud://.../ai-preview-image/手相.png"
+    "previewImageHD": "cloud://.../preview-image/手相.png"
   },
   "ui": {
     "progressTitle": "正在解读手相...",
@@ -158,7 +158,7 @@ feature_configs
     "prompt": "Based on this palm photo, generate a beautiful palmistry analysis poster..."
   },
   "test": {
-    "posterFileID": "cloud://.../ai-posters/test-poster.png"
+    "posterFileID": "cloud://.../posters/test-poster.png"
   }
 }
 ```

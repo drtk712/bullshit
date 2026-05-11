@@ -36,7 +36,7 @@ TX_REASON_OPTIONS = [
     ("first_login", "首次登录"),
     ("daily_check_in", "每日签到"),
     ("share_reward", "分享奖励"),
-    ("create_ai_job", "生成任务扣分"),
+    ("create_feature_job", "生成任务扣分"),
     ("job_failed_refund", "失败退款"),
     ("manual_adjust", "人工调整"),
 ]
@@ -266,7 +266,7 @@ def _dashboard_page(
     ]
     return _page(
         "仪表盘",
-        Div("仪表盘读取正式 users / feature_configs / point_transactions / ai_poster_jobs。", cls="banner"),
+        Div("仪表盘读取正式 users / feature_configs / point_transactions / feature_jobs。", cls="banner"),
         Div(error, cls="error") if error else "",
         Div(
             Div(Div("用户总数", cls="muted"), Strong(str(summary.get("usersTotal", 0))), cls="metric"),
@@ -614,7 +614,7 @@ def _fmt_amount(amount: Any) -> str:
 def _reason_text(reason: str | None) -> str:
     return {
         "first_login": "首次登录赠送",
-        "create_ai_job": "生成消耗",
+        "create_feature_job": "生成消耗",
         "job_failed_refund": "失败退款",
         "manual_adjust": "人工调整",
         "daily_check_in": "每日签到",
@@ -660,7 +660,7 @@ def _users_page(
     ]
     return _page(
         "用户管理",
-        Div("用户管理当前为只读模式，会读取生产 users / point_transactions / ai_poster_jobs，但不会修改积分。", cls="banner"),
+        Div("用户管理当前为只读模式，会读取生产 users / point_transactions / feature_jobs，但不会修改积分。", cls="banner"),
         Div(error, cls="error") if error else "",
         Div(
             H1("用户管理"),
@@ -700,7 +700,7 @@ def _user_detail_page(
     openid = str(user.get("openid", ""))
     return _page(
         "用户详情",
-        Div("用户详情会读取生产 users / point_transactions / ai_poster_jobs；积分调整会写入余额和流水。", cls="banner"),
+        Div("用户详情会读取生产 users / point_transactions / feature_jobs；积分调整会写入余额和流水。", cls="banner"),
         Div(message, cls="success") if message else "",
         Div(error, cls="error") if error else "",
         Div(
@@ -888,7 +888,7 @@ def _tasks_page(
     ]
     return _page(
         "生成任务",
-        Div("生成任务读取生产 ai_poster_jobs，当前页只提供查询筛选。", cls="banner"),
+        Div("生成任务读取生产 feature_jobs，当前页只提供查询筛选。", cls="banner"),
         Div(error, cls="error") if error else "",
         _tasks_preview_modal(preview, filters) if preview else "",
         Div(
@@ -1016,7 +1016,7 @@ def _storage_page(
             Form(
                 Label("原图", Input(type="file", name="original_image", accept="image/*", required=True)),
                 Label("生成后的图片", Input(type="file", name="generated_image", accept="image/*", required=True)),
-                _field("保存路径", "object_id", object_id or f"ai-preview-image/feature-preview-{uuid4().hex[:8]}.jpg"),
+                _field("保存路径", "object_id", object_id or f"preview-image/feature-preview-{uuid4().hex[:8]}.jpg"),
                 Div(Button("合成并上传", type="submit"), cls="actions"),
                 method="post",
                 action="/admin/storage/compose-preview",

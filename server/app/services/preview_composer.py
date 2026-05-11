@@ -76,4 +76,4 @@ def safe_preview_object_id(filename: str) -> str:
     stem = Path(filename).stem.strip().lower()
     safe = "".join(char if char.isascii() and (char.isalnum() or char in {"-", "_"}) else "-" for char in stem)
     safe = "-".join(part for part in safe.split("-") if part)[:48] or "preview"
-    return f"ai-preview-image/{safe}-{uuid4().hex[:8]}.jpg"
+    return f"preview-image/{safe}-{uuid4().hex[:8]}.jpg"

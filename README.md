@@ -1,6 +1,6 @@
 # 玩图局
 
-基于微信小程序的 AI 图片玩法合集。用户上传照片，选择玩法，AI 自动生成/改造/解读图片内容，支持保存和分享。
+基于微信小程序的图片玩法合集。用户上传照片，选择玩法，系统自动生成/改造/解读图片内容，支持保存和分享。
 
 当前开放**看手相**和**设计发型**两大核心功能，未来可扩展至老照片修复、头像生成、风格转换、宠物拟人、节日写真等更多玩法。
 
@@ -22,7 +22,7 @@
 | 前端 | 微信小程序原生开发 |
 | 云开发 | 微信云开发（云函数 + 云数据库 + 云存储） |
 | 服务端 | Python 3.11 + FastAPI |
-| AI 能力 | memefast.top (gpt-image-2-all) |
+| 生成能力 | memefast.top (gpt-image-2-all) |
 
 ## 快速开始
 
@@ -66,7 +66,7 @@ VALIDATION_SERVICE_URL=http://36.156.154.98:8010/v1/chat/completions
 VALIDATION_MODEL=qwen3.6
 
 # 测试海报云文件 ID（与环境相关，需上传测试图到你的云存储）
-TEST_POSTER_FILE_ID=cloud://your-env-id.your-bucket/ai-posters/test-poster.png
+TEST_POSTER_FILE_ID=cloud://your-env-id.your-bucket/posters/test-poster.png
 ```
 
 `server/.env` 和 `cloudfunctions/quickstartFunctions/.env` 都不会提交到 Git。
@@ -80,7 +80,7 @@ TEST_POSTER_FILE_ID=cloud://your-env-id.your-bucket/ai-posters/test-poster.png
 
 | 集合名 | 用途 |
 |--------|------|
-| `ai_poster_jobs` | 生成任务记录 |
+| `feature_jobs` | 生成任务记录 |
 | `users` | 用户信息（openid、积分等） |
 | `point_transactions` | 积分流水（赠送/消耗/退款） |
 

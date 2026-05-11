@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="AI Poster Generator")
+app = FastAPI(title="Feature Poster Generator")
 app.include_router(admin_router, prefix="/admin")
 
 

@@ -34,7 +34,7 @@ async def process_job(
         if is_test:
             poster_file_id = (
                 test_poster_file_id
-                or "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-posters/0274fd6869f6176c00082cfb0eeefd94.png"
+                or "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/posters/0274fd6869f6176c00082cfb0eeefd94.png"
             )
             await asyncio.to_thread(
                 job_store.update_job,
@@ -77,7 +77,7 @@ async def process_job(
         poster_url = extract_url_from_response(poster_content)
         image_bytes = await asyncio.to_thread(download_image_bytes, poster_url)
         ext = guess_ext_from_url(poster_url)
-        poster_object_id = f"ai-posters/{task_id}{ext}"
+        poster_object_id = f"posters/{task_id}{ext}"
         poster_file_id = await asyncio.to_thread(get_storage().upload_bytes, poster_object_id, image_bytes)
         await asyncio.to_thread(
             job_store.update_job,

@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Refactor the WeChat mini-program frontend and AI feature configuration into a modern, minimal WeChat-style, cloud-config-driven framework where new AI capabilities such as makeup design can be adjusted mainly from cloud function config.
+**Goal:** Refactor the WeChat mini-program frontend and feature configuration into a modern, minimal WeChat-style, cloud-config-driven framework where new capabilities such as makeup design can be adjusted mainly from cloud function config.
 
-**Architecture:** The mini-program becomes a thin client: it fetches public feature metadata from the cloud function and renders a generic AI feature page. The cloud function owns the full feature registry, including public UI copy, image validation prompt, poster generation prompt, feature enablement, and ordering. The FastAPI server no longer hardcodes palm/hair prompts; it receives a generation prompt from the trusted cloud function when a job is created.
+**Architecture:** The mini-program becomes a thin client: it fetches public feature metadata from the cloud function and renders a generic feature page. The cloud function owns the full feature registry, including public UI copy, image validation prompt, poster generation prompt, feature enablement, and ordering. The FastAPI server no longer hardcodes palm/hair prompts; it receives a generation prompt from the trusted cloud function when a job is created.
 
 **Tech Stack:** WeChat Mini Program native WXML/WXSS/JavaScript, WeChat cloud functions with CommonJS modules, WeChat cloud database/storage, Python 3.11 + FastAPI.
 
@@ -12,14 +12,14 @@
 
 ## Why This Plan Changed
 
-The previous plan put `AI_FEATURES` in `miniprogram/utils/aiFeatures.js`. That reduces duplicated frontend code but still requires a mini-program release to adjust feature copy, validation rules, or generation prompts. This is not flexible enough.
+The previous plan put `FEATURE_CONFIGS` in `miniprogram/utils/featureConfigClient.js`. That reduces duplicated frontend code but still requires a mini-program release to adjust feature copy, validation rules, or generation prompts. This is not flexible enough.
 
 The improved design moves feature configuration into the cloud function:
 
 - Frontend receives only **public UI config**.
 - Cloud function keeps **private operational config** such as validation prompts and generation prompts.
 - FastAPI server receives the selected `generationPrompt` from cloud function, so prompt edits happen in one cloud-deployed location.
-- A generic `/pages/ai/index?type=palm` page removes the need to create one separate page per feature when UI flow is identical.
+- A generic `/pages/feature/index?type=palm` page removes the need to create one separate page per feature when UI flow is identical.
 
 ---
 
@@ -50,15 +50,15 @@ miniprogram/
 ├── app.wxss
 ├── pages/
 │   ├── index/                 # Home page fetches cloud feature list
-│   └── ai/                    # Generic AI feature page: /pages/ai/index?type=palm
+│   └── feature/               # Generic feature page: /pages/feature/index?type=palm
 │       ├── index.js
 │       ├── index.json
 │       ├── index.wxml
 │       └── index.wxss
 ├── styles/
-│   └── ai-page.wxss           # Shared minimal AI page styles
+│   └── feature-page.wxss           # Shared minimal feature page styles
 └── utils/
-    ├── aiPage.js              # Modify: generic factory reads feature type from data
+    ├── featurePage.js              # Modify: generic factory reads feature type from data
     └── featureConfigClient.js # Thin client for cloud getFeatureConfig
 
 cloudfunctions/
@@ -93,7 +93,7 @@ const FEATURE_CONFIGS = {
       uploadTitle: "上传手掌照片",
       uploadTip: "请确保手掌完整、纹路清晰、光线充足",
       retryText: "重新上传",
-      route: "/pages/ai/index?type=palm"
+      route: "/pages/feature/index?type=palm"
     },
     validation: {
       serviceUrl: process.env.VALIDATION_SERVICE_URL || "http://36.156.154.98:8010/v1/chat/completions",
@@ -108,7 +108,7 @@ Include: a traced palm outline with labeled lines (生命线/智慧线/感情线
 Text should be in Chinese. Format: vertical poster, clean layout, professional look.`
     },
     test: {
-      posterFileID: "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-posters/0274fd6869f6176c00082cfb0eeefd94.png"
+      posterFileID: "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/posters/0274fd6869f6176c00082cfb0eeefd94.png"
     }
   },
   hair: {
@@ -124,7 +124,7 @@ Text should be in Chinese. Format: vertical poster, clean layout, professional l
       uploadTitle: "上传正面照片",
       uploadTip: "请确保脸部正面清晰、无遮挡、光线充足",
       retryText: "重新上传",
-      route: "/pages/ai/index?type=hair"
+      route: "/pages/feature/index?type=hair"
     },
     validation: {
       serviceUrl: process.env.VALIDATION_SERVICE_URL || "http://36.156.154.98:8010/v1/chat/completions",
@@ -139,7 +139,7 @@ Include: person's photo with face analysis (脸型/发质/发色), recommended h
 Text should be in Chinese. Format: vertical poster, clean layout, professional look.`
     },
     test: {
-      posterFileID: "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-posters/0274fd6869f6176c00082cfb0eeefd94.png"
+      posterFileID: "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/posters/0274fd6869f6176c00082cfb0eeefd94.png"
     }
   }
 };
@@ -211,7 +211,7 @@ List response:
         uploadTitle: "上传手掌照片",
         uploadTip: "请确保手掌完整、纹路清晰、光线充足",
         retryText: "重新上传",
-        route: "/pages/ai/index?type=palm"
+        route: "/pages/feature/index?type=palm"
       }
     ]
   }
@@ -227,7 +227,7 @@ Single feature response:
     feature: {
       type: "palm",
       title: "看手相",
-      route: "/pages/ai/index?type=palm"
+      route: "/pages/feature/index?type=palm"
     }
   }
 }
@@ -524,7 +524,7 @@ Use configurable test poster:
 ```python
 if is_test:
     await asyncio.sleep(15)
-    poster_url = test_poster_file_id or "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-posters/0274fd6869f6176c00082cfb0eeefd94.png"
+    poster_url = test_poster_file_id or "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/posters/0274fd6869f6176c00082cfb0eeefd94.png"
 ```
 
 Start background task with prompt:
@@ -568,7 +568,7 @@ const FALLBACK_FEATURES = [
     uploadTitle: "上传手掌照片",
     uploadTip: "请确保手掌完整、纹路清晰、光线充足",
     retryText: "重新上传",
-    route: "/pages/ai/index?type=palm"
+    route: "/pages/feature/index?type=palm"
   },
   {
     type: "hair",
@@ -580,7 +580,7 @@ const FALLBACK_FEATURES = [
     uploadTitle: "上传正面照片",
     uploadTip: "请确保脸部正面清晰、无遮挡、光线充足",
     retryText: "重新上传",
-    route: "/pages/ai/index?type=hair"
+    route: "/pages/feature/index?type=hair"
   }
 ];
 
@@ -626,15 +626,15 @@ module.exports = {
 
 ---
 
-## Task 8: Replace Palm/Hair Pages With Generic AI Page
+## Task 8: Replace Palm/Hair Pages With Generic Feature Page
 
 **Files:**
 - Modify: `miniprogram/app.json`
-- Modify: `miniprogram/utils/aiPage.js`
-- Create: `miniprogram/pages/ai/index.js`
-- Create: `miniprogram/pages/ai/index.json`
-- Create: `miniprogram/pages/ai/index.wxml`
-- Create: `miniprogram/pages/ai/index.wxss`
+- Modify: `miniprogram/utils/featurePage.js`
+- Create: `miniprogram/pages/feature/index.js`
+- Create: `miniprogram/pages/feature/index.json`
+- Create: `miniprogram/pages/feature/index.wxml`
+- Create: `miniprogram/pages/feature/index.wxss`
 - Modify: `miniprogram/pages/palm/index.js` if keeping old route compatibility
 - Modify: `miniprogram/pages/hair/index.js` if keeping old route compatibility
 
@@ -644,7 +644,7 @@ module.exports = {
 {
   "pages": [
     "pages/index/index",
-    "pages/ai/index"
+    "pages/feature/index"
   ]
 }
 ```
@@ -655,7 +655,7 @@ If you want old routes to keep working during transition:
 {
   "pages": [
     "pages/index/index",
-    "pages/ai/index",
+    "pages/feature/index",
     "pages/palm/index",
     "pages/hair/index"
   ]
@@ -664,7 +664,7 @@ If you want old routes to keep working during transition:
 
 **Generic page JS:**
 
-`miniprogram/pages/ai/index.js` should combine the shared factory with async cloud config loading:
+`miniprogram/pages/feature/index.js` should combine the shared factory with async cloud config loading:
 
 ```javascript
 const { createAiPage } = require("../../utils/aiPage");
@@ -692,7 +692,7 @@ Page({
 });
 ```
 
-**Required `aiPage.js` changes:** update `createAiPage()` to support async config and remove the closure-only `type` dependency:
+**Required `featurePage.js` changes:** update `createAiPage()` to support async config and remove the closure-only `type` dependency:
 
 ```javascript
 function createAiPage() {
@@ -736,7 +736,7 @@ Keep the existing image selection, compression, upload, polling, save, and clean
 **Generic page WXML:**
 
 ```xml
-<view class="ai-page">
+<view class="feature-page">
   <view wx:if="{{configLoading}}" class="status-panel standalone">
     <view class="loading-spinner"></view>
     <text class="status-title">正在加载功能配置</text>
@@ -799,7 +799,7 @@ Keep the existing image selection, compression, upload, polling, save, and clean
 ```javascript
 Page({
   onLoad() {
-    wx.redirectTo({ url: "/pages/ai/index?type=palm" });
+    wx.redirectTo({ url: "/pages/feature/index?type=palm" });
   }
 });
 ```
@@ -809,14 +809,14 @@ Page({
 ```javascript
 Page({
   onLoad() {
-    wx.redirectTo({ url: "/pages/ai/index?type=hair" });
+    wx.redirectTo({ url: "/pages/feature/index?type=hair" });
   }
 });
 ```
 
 **Validation:**
-- `/pages/ai/index?type=palm` displays palm public config.
-- `/pages/ai/index?type=hair` displays hair public config.
+- `/pages/feature/index?type=palm` displays palm public config.
+- `/pages/feature/index?type=hair` displays hair public config.
 - Invalid type displays friendly error and no upload action.
 - `/pages/palm/index` redirects to the generic palm page.
 - `/pages/hair/index` redirects to the generic hair page.
@@ -871,8 +871,8 @@ Page({
 ## Task 10: Shared Minimal UI Styles
 
 **Files:**
-- Create: `miniprogram/styles/ai-page.wxss`
-- Modify: `miniprogram/pages/ai/index.wxss`
+- Create: `miniprogram/styles/feature-page.wxss`
+- Modify: `miniprogram/pages/feature/index.wxss`
 - Modify: `miniprogram/pages/index/index.wxss`
 
 **Direction:** Keep 极简微信风:
@@ -882,10 +882,10 @@ Page({
 - WeChat green `#07c160` for the primary action.
 - One upload/result card as page focal point.
 
-`pages/ai/index.wxss` should import:
+`pages/feature/index.wxss` should import:
 
 ```css
-@import "../../styles/ai-page.wxss";
+@import "../../styles/feature-page.wxss";
 ```
 
 ---
@@ -894,12 +894,12 @@ Page({
 
 **Files:**
 - Modify: `cloudfunctions/quickstartFunctions/index.js`
-- Modify: `miniprogram/utils/aiPage.js`
+- Modify: `miniprogram/utils/featurePage.js`
 
 **Why:** Normal generated posters are uploaded by the cloud function and returned to the mini-program as `posterFileID`. The test poster is also now a fixed cloud file ID:
 
 ```text
-cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/ai-posters/0274fd6869f6176c00082cfb0eeefd94.png
+cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/posters/0274fd6869f6176c00082cfb0eeefd94.png
 ```
 
 So the frontend should treat result images as cloud file IDs and should not keep an HTTP test-image branch.
@@ -926,7 +926,7 @@ if (serverStatus === "completed" && posterUrl) {
     };
   }
 
-  // Existing HTTP/HTTPS branch remains only for real AI API image URLs:
+  // Existing HTTP/HTTPS branch remains only for real generation API image URLs:
   // download posterUrl, upload to cloud storage, save uploadResult.fileID.
 }
 ```
@@ -965,11 +965,11 @@ wx.cloud.downloadFile({
 
 ## Task 12: Future Makeup Feature Contract
 
-Once this refactor is implemented, adding AI makeup should require:
+Once this refactor is implemented, adding makeup should require:
 
 1. Add `makeup` entry in `cloudfunctions/quickstartFunctions/featureConfig.js`.
 2. Include public copy:
-   - title: `AI设计妆容`
+   - title: `设计妆容`
    - upload tip: clear front-face image, no heavy obstruction.
 3. Include validation prompt:
    - Ask whether image contains clear front-face portrait suitable for makeup design.
@@ -1025,13 +1025,13 @@ Expected: HTTP 400.
 ### Mini-Program
 
 - Home page loads features from cloud function.
-- Feature cards navigate to `/pages/ai/index?type=...`.
-- Generic AI page loads feature config by `type`.
+- Feature cards navigate to `/pages/feature/index?type=...`.
+- Generic feature page loads feature config by `type`.
 - Test mode still works.
 - Upload → validate → create job → polling → poster display flow still works.
 - Saving a generated cloud poster works via `wx.cloud.downloadFile`.
 - Saving the fixed test-mode cloud poster works via `wx.cloud.downloadFile`.
-- Invalid `/pages/ai/index?type=unknown` shows friendly unavailable state.
+- Invalid `/pages/feature/index?type=unknown` shows friendly unavailable state.
 
 ### Static Checks
 
@@ -1077,7 +1077,7 @@ Environment variables required before deployment:
   - **Mitigation:** Keep fallback minimal and public-only; treat it as emergency UI only and update it whenever public cloud config changes.
 
 - **Risk:** Old shared links to `/pages/palm/index` or `/pages/hair/index` break after generic route migration.
-  - **Mitigation:** Keep old pages in `app.json` during transition and redirect them to `/pages/ai/index?type=...`.
+  - **Mitigation:** Keep old pages in `app.json` during transition and redirect them to `/pages/feature/index?type=...`.
 
 - **Risk:** Generic route cannot support radically different UX per feature.
   - **Mitigation:** Keep config fields for minor UI variation. If a future feature requires custom flow, add `renderMode` or a dedicated page then.
@@ -1086,12 +1086,12 @@ Environment variables required before deployment:
 
 ## Definition of Done
 
-- Feature list and AI page copy are driven by cloud function public config.
+- Feature list and feature page copy are driven by cloud function public config.
 - Validation prompts live in cloud function config, not frontend or inline conditional code.
 - Poster generation prompts live in cloud function config and are passed to FastAPI when creating jobs.
 - FastAPI has no palm/hair-specific prompt branches.
 - Home page has no hardcoded feature list except public fallback.
-- Generic AI page supports palm/hair and future makeup without duplicating page files.
+- Generic feature page supports palm/hair and future makeup without duplicating page files.
 - No private prompts or service URLs are returned to mini-program frontend.
 - Existing palm/hair test-mode and generation flows continue to work.
 - Generated cloud-storage posters and the fixed test-mode cloud poster can both be saved to the photo album.

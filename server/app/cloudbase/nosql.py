@@ -13,7 +13,7 @@ from app.cloudbase.client import CloudBaseClient
 FEATURE_CONFIG_COLLECTION = "feature_configs"
 USERS_COLLECTION = "users"
 POINT_TRANSACTIONS_COLLECTION = "point_transactions"
-AI_POSTER_JOBS_COLLECTION = "ai_poster_jobs"
+FEATURE_JOBS_COLLECTION = "feature_jobs"
 
 
 def from_ejson(value: Any) -> Any:
@@ -204,7 +204,7 @@ class CloudBaseNoSQL:
 
 
 class PosterJobStore:
-    collection = AI_POSTER_JOBS_COLLECTION
+    collection = FEATURE_JOBS_COLLECTION
 
     def __init__(self, db: CloudBaseNoSQL | None = None):
         self.db = db or CloudBaseNoSQL()
@@ -272,7 +272,7 @@ class PointLedger:
     def accept_job(self, task_id: str, amount: int = 1) -> tuple[dict[str, Any], bool]:
         transaction_id = self.db.begin_transaction()
         try:
-            task = self.db.get_document(AI_POSTER_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
+            task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
             status = str(task.get("status") or "")
             openid = str(task.get("openid") or "")
             skip_points = bool(task.get("skipPointsDeduction"))
@@ -308,7 +308,7 @@ class PointLedger:
                     tx_type="consume",
                     amount=-amount,
                     balance_after=balance_after,
-                    reason="create_ai_job",
+                    reason="create_feature_job",
                     task_id=task_id,
                     transaction_id=transaction_id,
                 )
@@ -321,7 +321,7 @@ class PointLedger:
                 "consumeTransactionId": consume_transaction_id,
                 "updatedAt": int(time.time() * 1000),
             }
-            self.db.update_document(AI_POSTER_JOBS_COLLECTION, task_id, patch, transaction_id=transaction_id)
+            self.db.update_document(FEATURE_JOBS_COLLECTION, task_id, patch, transaction_id=transaction_id)
             self.db.commit_transaction(transaction_id)
             return {**task, **patch}, True
         except Exception:
@@ -331,7 +331,7 @@ class PointLedger:
     def refund_failed_job(self, task_id: str, err_msg: str, amount: int = 1) -> None:
         transaction_id = self.db.begin_transaction()
         try:
-            task = self.db.get_document(AI_POSTER_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
+            task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
             refund_transaction_id = task.get("refundTransactionId")
             points_consumed = bool(task.get("pointsConsumed"))
             points_refunded = bool(task.get("pointsRefunded"))
@@ -364,7 +364,7 @@ class PointLedger:
                 points_refunded = True
 
             self.db.update_document(
-                AI_POSTER_JOBS_COLLECTION,
+                FEATURE_JOBS_COLLECTION,
                 task_id,
                 {
                     "status": "failed",
@@ -408,7 +408,7 @@ class FeatureConfigStore:
 class UserAdminStore:
     users_collection = USERS_COLLECTION
     transactions_collection = POINT_TRANSACTIONS_COLLECTION
-    jobs_collection = AI_POSTER_JOBS_COLLECTION
+    jobs_collection = FEATURE_JOBS_COLLECTION
 
     def __init__(self, db: CloudBaseNoSQL | None = None):
         self.db = db or CloudBaseNoSQL()
