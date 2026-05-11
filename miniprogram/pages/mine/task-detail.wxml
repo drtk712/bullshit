@@ -70,7 +70,7 @@
         </button>
         <button class="task-action ghost" open-type="share">
           <text class="action-icon">↗</text>
-          <text>{{shareRewardCopy.buttonText}}</text>
+          <text>分享给朋友</text>
         </button>
       </view>
 

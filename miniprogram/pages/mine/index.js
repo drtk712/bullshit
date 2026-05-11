@@ -108,10 +108,6 @@ Page({
     wx.navigateTo({ url: '/pages/mine/transactions' });
   },
 
-  onFavorite() {
-    wx.showToast({ title: '功能开发中', icon: 'none' });
-  },
-
   async handleShareEarnPoints() {
     if (!canClaimShareReward(this.data.shareRewardStatus)) return null;
 
@@ -264,7 +260,4 @@ Page({
     }
   },
 
-  onSettings() {
-    wx.showToast({ title: '设置中心功能开发中', icon: 'none' });
-  },
 });

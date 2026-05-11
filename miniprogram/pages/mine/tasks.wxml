@@ -58,7 +58,7 @@
         <view wx:if="{{item.status === 'completed'}}" class="task-actions">
           <button class="task-action-btn" open-type="share" data-id="{{item._id}}" catchtap="onShareTask">
             <text class="task-action-icon">↗</text>
-            <text>{{shareRewardCopy.canEarn ? '分享得分' : '分享'}}</text>
+            <text>分享</text>
           </button>
           <button class="task-action-btn" data-id="{{item._id}}" catchtap="onSaveTaskPoster">
             <text class="task-action-icon">↓</text>

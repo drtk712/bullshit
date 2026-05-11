@@ -1,10 +1,5 @@
 const { fetchFeature } = require("../../../utils/featureConfigClient");
-const {
-  buildShareRewardCopy,
-  canClaimShareReward,
-  claimShareReward,
-  getShareRewardStatus,
-} = require("../../../utils/shareReward");
+const { getShareRewardStatus } = require("../../../utils/shareReward");
 
 Page({
   data: {
@@ -17,7 +12,6 @@ Page({
     points: 0,
     showPointsModal: false,
     shareRewardStatus: { remainingToday: 0 },
-    shareRewardCopy: buildShareRewardCopy(),
   },
 
   goBack() {
@@ -71,7 +65,6 @@ Page({
       this.setData({
         points: status.points,
         shareRewardStatus: status,
-        shareRewardCopy: buildShareRewardCopy(status),
       });
       return status;
     } catch (err) {}
@@ -306,27 +299,9 @@ Page({
   },
 
   onShareAppMessage() {
-    this.handleShareEarnPoints();
     return {
       title: "玩图局 - 选个玩法，生成你的专属趣味图",
       path: "/pages/index/index",
     };
-  },
-
-  async handleShareEarnPoints() {
-    if (!canClaimShareReward(this.data.shareRewardStatus)) return;
-
-    try {
-      const res = await claimShareReward();
-      if (res.status) {
-        this.setData({
-          shareRewardStatus: res.status,
-          shareRewardCopy: buildShareRewardCopy(res.status),
-        });
-      }
-      if (res.success) {
-        this.setData({ points: res.status.points });
-      }
-    } catch (err) {}
   },
 });

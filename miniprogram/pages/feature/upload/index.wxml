@@ -87,11 +87,9 @@
         <view class="modal-close" bindtap="hidePointsModal">×</view>
         <view class="coin-art error">!</view>
         <text class="modal-title">积分不足</text>
-        <text class="modal-desc">{{shareRewardCopy.canEarn ? '今日还可通过分享获得 ' + shareRewardStatus.remainingToday + ' 积分' : '今日分享积分已达上限，请明日再来'}}</text>
+        <text class="modal-desc">当前积分不足，请前往我的页面查看积分获取方式。</text>
         <view class="modal-actions">
-          <button class="modal-secondary" bindtap="hidePointsModal">取消</button>
-          <button wx:if="{{shareRewardCopy.canEarn}}" class="modal-btn" open-type="share">分享得积分</button>
-          <button wx:else class="modal-btn" bindtap="hidePointsModal">知道了</button>
+          <button class="modal-btn" bindtap="hidePointsModal">知道了</button>
         </view>
       </view>
     </view>

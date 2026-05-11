@@ -6,12 +6,6 @@ const {
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
 const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
-const {
-  buildShareRewardCopy,
-  canClaimShareReward,
-  claimShareReward,
-  getShareRewardStatus,
-} = require('../../utils/shareReward');
 
 const PAGE_SIZE = 5;
 const THUMB_STYLE_NAME = '2jpg';
@@ -33,13 +27,10 @@ Page({
     refreshing: false,
     activeFilter: 'all',
     shareTask: null,
-    shareRewardStatus: null,
-    shareRewardCopy: buildShareRewardCopy(),
   },
 
   async onLoad() {
     await this.loadFeatureMap();
-    this.loadShareRewardStatus();
     this.loadTasks(1);
   },
 
@@ -58,16 +49,6 @@ Page({
     } catch (e) {
       console.error('加载功能配置失败:', e);
     }
-  },
-
-  async loadShareRewardStatus() {
-    try {
-      const status = await getShareRewardStatus();
-      this.setData({
-        shareRewardStatus: status,
-        shareRewardCopy: buildShareRewardCopy(status),
-      });
-    } catch (e) {}
   },
 
   async loadTasks(page) {
@@ -224,7 +205,6 @@ Page({
   },
 
   onShareAppMessage(options = {}) {
-    this.handleShareEarnPoints();
     const isButtonShare = options.from === 'button';
     const taskId = isButtonShare ? options.target?.dataset?.id : '';
     const task = isButtonShare ? (this.getTaskById(taskId) || this.data.shareTask) : null;
@@ -237,20 +217,6 @@ Page({
       path,
       imageUrl: task?.shareImage || '',
     };
-  },
-
-  async handleShareEarnPoints() {
-    if (!canClaimShareReward(this.data.shareRewardStatus)) return;
-
-    try {
-      const res = await claimShareReward();
-      if (res.status) {
-        this.setData({
-          shareRewardStatus: res.status,
-          shareRewardCopy: buildShareRewardCopy(res.status),
-        });
-      }
-    } catch (err) {}
   },
 
 });

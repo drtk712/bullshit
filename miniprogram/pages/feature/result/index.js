@@ -5,12 +5,6 @@ const {
 } = require("../../../utils/taskDisplay");
 const { buildFeatureMap, fetchFeatureList } = require("../../../utils/featureConfigClient");
 const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
-const {
-  buildShareRewardCopy,
-  canClaimShareReward,
-  claimShareReward,
-  getShareRewardStatus,
-} = require("../../../utils/shareReward");
 
 Page({
   data: {
@@ -24,14 +18,11 @@ Page({
     originalImageUrl: "",
     resultUrls: [],
     featureMap: {},
-    shareRewardStatus: null,
-    shareRewardCopy: buildShareRewardCopy(),
   },
 
   onLoad(options) {
     this.setData({ taskId: options.id || "" });
     this.loadTask();
-    this.loadShareRewardStatus();
   },
 
   goBack() {
@@ -101,16 +92,6 @@ Page({
     }
   },
 
-  async loadShareRewardStatus() {
-    try {
-      const status = await getShareRewardStatus();
-      this.setData({
-        shareRewardStatus: status,
-        shareRewardCopy: buildShareRewardCopy(status),
-      });
-    } catch (err) {}
-  },
-
   async createPosterState(task) {
     if (task.status !== "completed" || !task.posterFileID) {
       return { posterPreviewUrl: "", posterError: "图片尚未生成完成" };
@@ -165,7 +146,6 @@ Page({
   },
 
   onShareAppMessage() {
-    this.handleShareEarnPoints();
     const task = this.data.task || {};
     const path = task.status === "completed" && this.data.taskId
       ? `/pages/share/task/index?id=${this.data.taskId}`
@@ -176,19 +156,5 @@ Page({
       path,
       imageUrl: this.data.posterPreviewUrl || "",
     };
-  },
-
-  async handleShareEarnPoints() {
-    if (!canClaimShareReward(this.data.shareRewardStatus)) return;
-
-    try {
-      const res = await claimShareReward();
-      if (res.status) {
-        this.setData({
-          shareRewardStatus: res.status,
-          shareRewardCopy: buildShareRewardCopy(res.status),
-        });
-      }
-    } catch (err) {}
   },
 });
