@@ -6,6 +6,7 @@ const {
 const { buildFeatureMap, fetchFeatureList } = require("../../../utils/api/features");
 const { fetchTask } = require("../../../utils/api/tasks");
 const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
+const { buildTaskSharePayload } = require("../../../utils/share");
 
 Page({
   data: {
@@ -137,15 +138,9 @@ Page({
   },
 
   onShareAppMessage() {
-    const task = this.data.task || {};
-    const path = task.status === "completed" && this.data.taskId
-      ? `/pages/share/task/index?id=${this.data.taskId}`
-      : "/pages/index/index";
-
-    return {
-      title: `我用「玩图局」处理了一张图片，快来试试！`,
-      path,
-      imageUrl: this.data.posterPreviewUrl || "",
-    };
+    return buildTaskSharePayload(
+      { ...(this.data.task || {}), _id: this.data.taskId },
+      { imageUrl: this.data.posterPreviewUrl }
+    );
   },
 });

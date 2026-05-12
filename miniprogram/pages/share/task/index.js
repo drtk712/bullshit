@@ -1,5 +1,6 @@
 const { fetchSharedTask } = require("../../../utils/api/tasks");
 const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
+const { buildTaskSharePayload } = require("../../../utils/share");
 
 Page({
   data: {
@@ -98,15 +99,8 @@ Page({
   },
 
   onShareAppMessage() {
-    const task = this.data.task;
-    const path = task?._id
-      ? `/pages/share/task/index?id=${task._id}`
-      : "/pages/index/index";
-
-    return {
-      title: `我在玩图局处理了一张图片`,
-      path,
-      imageUrl: this.data.posterPreviewUrl || "",
-    };
+    return buildTaskSharePayload(this.data.task || {}, {
+      imageUrl: this.data.posterPreviewUrl,
+    });
   },
 });

@@ -7,6 +7,7 @@ const {
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/api/features');
 const { fetchTasks } = require('../../utils/api/tasks');
 const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
+const { buildTaskSharePayload } = require('../../utils/share');
 
 const PAGE_SIZE = 5;
 const THUMB_STYLE_NAME = '2jpg';
@@ -27,7 +28,6 @@ Page({
     hasMore: true,
     refreshing: false,
     activeFilter: 'all',
-    shareTask: null,
   },
 
   async onLoad() {
@@ -154,7 +154,7 @@ Page({
   onShareTask(e) {
     const task = this.getTaskById(e.currentTarget.dataset.id);
     if (task) {
-      this.setData({ shareTask: task });
+      this.shareTaskId = task._id;
     }
   },
 
@@ -191,16 +191,9 @@ Page({
   onShareAppMessage(options = {}) {
     const isButtonShare = options.from === 'button';
     const taskId = isButtonShare ? options.target?.dataset?.id : '';
-    const task = isButtonShare ? (this.getTaskById(taskId) || this.data.shareTask) : null;
-    const path = task?.status === 'completed' && task?._id
-      ? `/pages/share/task/index?id=${task._id}`
-      : '/pages/index/index';
-
-    return {
-      title: `我在玩图局处理了一张图片`,
-      path,
-      imageUrl: task?.shareImage || '',
-    };
+    const task = isButtonShare ? this.getTaskById(taskId || this.shareTaskId) : null;
+    this.shareTaskId = '';
+    return buildTaskSharePayload(task || {});
   },
 
 });

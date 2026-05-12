@@ -1,5 +1,9 @@
-const { claimShareRewardPoints, fetchShareRewardStatus } = require("./api/share");
-const { saveProfile } = require("./api/user");
+const { claimShareRewardPoints, fetchShareRewardStatus } = require("./api/shareApi");
+
+const HOME_SHARE_PAYLOAD = {
+  title: "玩图局 - 实用图片处理工具",
+  path: "/pages/index/index",
+};
 
 const DEFAULT_SHARE_REWARD_STATUS = {
   shareRewardPoints: 1,
@@ -72,62 +76,40 @@ const canClaimShareReward = (status) => {
   return normalizeShareRewardStatus(status).remainingToday > 0;
 };
 
-const getAvatarExt = (avatarPath) => {
-  const extMatch = String(avatarPath || "").match(/\.(png|jpg|jpeg|webp)$/i);
-  return extMatch ? extMatch[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
+const buildHomeSharePayload = (overrides = {}) => ({
+  ...HOME_SHARE_PAYLOAD,
+  ...overrides,
+});
+
+const canShareTask = (task = {}) => {
+  return task.status === "completed" && !!task._id && !!task.posterFileID;
 };
 
-const createAvatarCloudPath = (avatarPath) => {
-  const ext = getAvatarExt(avatarPath);
-  return `user-avatars/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-};
-
-const normalizeProfileInput = ({ nickName, avatarPath }) => {
-  const normalizedNickName = String(nickName || "").trim();
-  const normalizedAvatarPath = String(avatarPath || "").trim();
-
-  if (!normalizedAvatarPath) {
-    throw new Error("请先选择头像");
+const buildTaskSharePayload = (task = {}, options = {}) => {
+  if (!canShareTask(task)) {
+    return buildHomeSharePayload(options.fallback || {});
   }
-  if (!normalizedNickName) {
-    throw new Error("请填写昵称");
-  }
+
+  const featureTitle = String(task.featureTitle || task.displayName || "").trim();
+  const title = featureTitle
+    ? `我用玩图局做了「${featureTitle}」`
+    : "我在玩图局处理了一张图片";
 
   return {
-    nickName: normalizedNickName,
-    avatarPath: normalizedAvatarPath,
+    title,
+    path: `/pages/share/task/index?id=${task._id}`,
+    imageUrl: options.imageUrl || task.shareImage || task.posterPreviewUrl || "",
   };
-};
-
-const uploadAvatarIfNeeded = async (avatarPath) => {
-  if (String(avatarPath).startsWith("cloud://")) {
-    return avatarPath;
-  }
-
-  const uploadRes = await wx.cloud.uploadFile({
-    cloudPath: createAvatarCloudPath(avatarPath),
-    filePath: avatarPath,
-  });
-
-  return uploadRes.fileID;
-};
-
-const saveUserProfile = async ({ nickName, avatarPath }) => {
-  const profile = normalizeProfileInput({ nickName, avatarPath });
-  const avatarFileID = await uploadAvatarIfNeeded(profile.avatarPath);
-
-  return saveProfile({
-    nickName: profile.nickName,
-    avatarFileID,
-  });
 };
 
 module.exports = {
   DEFAULT_SHARE_REWARD_STATUS,
+  buildHomeSharePayload,
   buildShareRewardCopy,
+  buildTaskSharePayload,
   canClaimShareReward,
+  canShareTask,
   claimShareReward,
   getShareRewardStatus,
   normalizeShareRewardStatus,
-  saveUserProfile,
 };

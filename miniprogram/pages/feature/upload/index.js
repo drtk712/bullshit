@@ -1,6 +1,6 @@
 const { fetchFeature } = require("../../../utils/api/features");
 const { createTask } = require("../../../utils/api/tasks");
-const { getShareRewardStatus } = require("../../../utils/shareReward");
+const { buildHomeSharePayload, getShareRewardStatus } = require("../../../utils/share");
 
 Page({
   data: {
@@ -289,9 +289,6 @@ Page({
   },
 
   onShareAppMessage() {
-    return {
-      title: "玩图局 - 实用图片处理工具",
-      path: "/pages/index/index",
-    };
+    return buildHomeSharePayload();
   },
 });

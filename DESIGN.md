@@ -1,5 +1,7 @@
 # 玩图局 - 项目设计文档
 
+> 历史说明：本文描述的是早期「小程序 + quickstartFunctions 云函数 + 外部 FastAPI server」方案。当前主链路已迁移到微信云托管 `cloudrun/wantuju-api`，小程序通过 `wx.cloud.callContainer` 直连云托管服务。当前部署和运维请以 [cloudrun/wantuju-api/README.md](cloudrun/wantuju-api/README.md) 为准，旧链路退场计划见 [docs/operations/legacy-decommission-checklist.md](docs/operations/legacy-decommission-checklist.md)。
+
 ## 项目概述
 
 基于微信小程序的图片玩法合集平台。用户上传照片，选择玩法，系统自动生成/改造/解读图片内容，支持保存和分享。

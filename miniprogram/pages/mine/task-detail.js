@@ -7,6 +7,7 @@ const {
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/api/features');
 const { deleteTask, fetchTask } = require('../../utils/api/tasks');
 const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
+const { buildTaskSharePayload } = require('../../utils/share');
 
 Page({
   data: {
@@ -312,16 +313,10 @@ Page({
   },
 
   onShareAppMessage() {
-    const task = this.data.task || {};
-    const path = task.status === 'completed' && this.taskId
-      ? `/pages/share/task/index?id=${this.taskId}`
-      : '/pages/index/index';
-
-    return {
-      title: `我在玩图局处理了一张图片`,
-      path,
-      imageUrl: this.data.posterPreviewUrl || '',
-    };
+    return buildTaskSharePayload(
+      { ...(this.data.task || {}), _id: this.taskId },
+      { imageUrl: this.data.posterPreviewUrl }
+    );
   },
 
   formatTime(timestamp) {

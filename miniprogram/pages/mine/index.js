@@ -2,12 +2,13 @@ const {
   buildShareRewardCopy,
   canClaimShareReward,
   claimShareReward,
+  buildHomeSharePayload,
   getShareRewardStatus,
   normalizeShareRewardStatus,
-  saveUserProfile,
-} = require('../../utils/shareReward');
-const { dailyCheckIn } = require('../../utils/api/share');
+} = require('../../utils/share');
+const { dailyCheckIn } = require('../../utils/api/shareApi');
 const { fetchMe } = require('../../utils/api/user');
+const { saveUserProfile } = require('../../utils/profile');
 
 Page({
   data: {
@@ -140,10 +141,7 @@ Page({
 
   onShareAppMessage() {
     this.handleShareEarnPoints();
-    return {
-      title: '玩图局 - 图片玩法合集，快来试试！',
-      path: '/pages/index/index'
-    };
+    return buildHomeSharePayload({ title: '玩图局 - 图片玩法合集，快来试试！' });
   },
 
   checkIfCheckedIn(user) {
