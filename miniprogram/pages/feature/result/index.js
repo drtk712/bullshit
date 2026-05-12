@@ -3,7 +3,8 @@ const {
   getTaskStatusText,
   getTaskStatusClass,
 } = require("../../../utils/taskDisplay");
-const { buildFeatureMap, fetchFeatureList } = require("../../../utils/featureConfigClient");
+const { buildFeatureMap, fetchFeatureList } = require("../../../utils/api/features");
+const { fetchTask } = require("../../../utils/api/tasks");
 const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
 
 Page({
@@ -49,17 +50,7 @@ Page({
       if (!Object.keys(this.data.featureMap).length) {
         await this.loadFeatureMap();
       }
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: { type: "getTask", data: { taskId: this.data.taskId } },
-      });
-
-      if (!res.result?.success) {
-        this.setData({ loading: false, error: res.result?.errMsg || "加载失败" });
-        return;
-      }
-
-      const task = res.result.data.task;
+      const task = await fetchTask(this.data.taskId);
       const posterState = await this.createPosterState(task);
       const resultUrls = await this.createResultUrls(task);
       const originalImageUrl = task.fileID

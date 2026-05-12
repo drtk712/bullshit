@@ -1,3 +1,4 @@
+const { fetchSharedTask } = require("../../../utils/api/tasks");
 const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
 
 Page({
@@ -47,20 +48,7 @@ Page({
     this.setData({ loading: true, error: "" });
 
     try {
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: { type: "getSharedTask", data: { taskId } },
-      });
-
-      if (!res.result?.success) {
-        this.setData({
-          loading: false,
-          error: res.result?.errMsg || "图片暂不可查看",
-        });
-        return;
-      }
-
-      const task = res.result.data.task;
+      const task = await fetchSharedTask(taskId);
       const posterPreviewUrl = await getTempFileURL(task.posterFileID);
 
       this.setData({

@@ -4,7 +4,8 @@ const {
   getTaskStatusText,
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
-const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
+const { buildFeatureMap, fetchFeatureList } = require('../../utils/api/features');
+const { deleteTask, fetchTask } = require('../../utils/api/tasks');
 const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
 
 Page({
@@ -83,50 +84,34 @@ Page({
       if (!Object.keys(this.data.featureMap).length) {
         await this.loadFeatureMap();
       }
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: {
-          type: 'getTask',
-          data: { taskId: this.taskId }
-        }
+      const task = await fetchTask(this.taskId);
+      const posterState = await this.createPosterState(task);
+      const resultUrls = await this.createResultUrls(task);
+      const originalState = await this.createOriginalImageState(task);
+
+      const displayName = getTaskDisplayName(task, this.data.featureMap);
+      this.setData({
+        task: {
+          ...task,
+          displayName,
+          displayInitial: displayName.slice(0, 1),
+          statusText: getTaskStatusText(task),
+          statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
+          formattedTime: this.formatTime(task.createdAt),
+          pointsCostText: this.getPointsCostText(task),
+          friendlyErrMsg: this.getFriendlyErrMsg(task.errMsg),
+        },
+        ...posterState,
+        resultUrls,
+        ...originalState,
+        loading: false,
+        syncError: '',
       });
 
-      if (res.result && res.result.success) {
-        const task = res.result.data.task;
-        const posterState = await this.createPosterState(task);
-        const resultUrls = await this.createResultUrls(task);
-        const originalState = await this.createOriginalImageState(task);
-
-        const displayName = getTaskDisplayName(task, this.data.featureMap);
-        this.setData({
-          task: {
-            ...task,
-            displayName,
-            displayInitial: displayName.slice(0, 1),
-            statusText: getTaskStatusText(task),
-            statusClass: getTaskStatusClass(task.status, task.pointsRefunded),
-            formattedTime: this.formatTime(task.createdAt),
-            pointsCostText: this.getPointsCostText(task),
-            friendlyErrMsg: this.getFriendlyErrMsg(task.errMsg),
-          },
-          ...posterState,
-          resultUrls,
-          ...originalState,
-          loading: false,
-          syncError: '',
-        });
-
-        if (this.isActiveTask(task.status) && !this.data.polling) {
-          this.startPolling();
-        } else if (!this.isActiveTask(task.status) && this.data.polling) {
-          this.stopPolling();
-        }
-      } else {
+      if (this.isActiveTask(task.status) && !this.data.polling) {
+        this.startPolling();
+      } else if (!this.isActiveTask(task.status) && this.data.polling) {
         this.stopPolling();
-        this.setData({
-          loading: false,
-          error: res.result?.errMsg || '加载失败'
-        });
       }
     } catch (err) {
       this.setData({
@@ -369,24 +354,16 @@ Page({
 
         wx.showLoading({ title: '删除中...' });
         try {
-          const result = await wx.cloud.callFunction({
-            name: 'quickstartFunctions',
-            data: { type: 'deleteTask', data: { taskId } }
-          });
+          await deleteTask(taskId);
           wx.hideLoading();
-
-          if (result.result && result.result.success) {
-            getApp().globalData.shouldRefreshTasks = true;
-            wx.showToast({ title: '删除成功', icon: 'success' });
-            setTimeout(() => {
-              wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/mine/tasks' }) });
-            }, 500);
-          } else {
-            wx.showToast({ title: result.result?.errMsg || '删除失败', icon: 'none' });
-          }
+          getApp().globalData.shouldRefreshTasks = true;
+          wx.showToast({ title: '删除成功', icon: 'success' });
+          setTimeout(() => {
+            wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/mine/tasks' }) });
+          }, 500);
         } catch (err) {
           wx.hideLoading();
-          wx.showToast({ title: '网络错误，请稍后重试', icon: 'none' });
+          wx.showToast({ title: err.message || '删除失败', icon: 'none' });
         }
       }
     });

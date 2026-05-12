@@ -1,4 +1,5 @@
-const { fetchFeature } = require("../../../utils/featureConfigClient");
+const { fetchFeature } = require("../../../utils/api/features");
+const { createTask } = require("../../../utils/api/tasks");
 const { getShareRewardStatus } = require("../../../utils/shareReward");
 
 Page({
@@ -145,40 +146,29 @@ Page({
 
   createJob(fileIDOrFileIDs) {
     const fileIDs = Array.isArray(fileIDOrFileIDs) ? fileIDOrFileIDs : [fileIDOrFileIDs];
-    wx.cloud.callFunction({
-      name: "quickstartFunctions",
-      data: {
-        type: "validateAndCreateJob",
-        data: {
-          type: this.data.feature.type,
-          fileID: fileIDs[0],
-          fileIDs,
-          param: this.buildJobParam(),
-        },
-      },
-      success: async (resp) => {
+    createTask({
+      type: this.data.feature.type,
+      fileID: fileIDs[0],
+      fileIDs,
+      param: this.buildJobParam(),
+    })
+      .then((data) => {
         wx.hideLoading();
-        if (resp.result?.success) {
-          getApp().globalData.shouldRefreshTasks = true;
-          wx.redirectTo({
-            url: `/pages/feature/progress/index?id=${resp.result.data.taskId}&type=${this.data.feature.type}`,
-          });
-          return;
-        }
-
-        const errMsg = resp.result?.errMsg || "处理失败";
+        getApp().globalData.shouldRefreshTasks = true;
+        wx.redirectTo({
+          url: `/pages/feature/progress/index?id=${data.taskId}&type=${this.data.feature.type}`,
+        });
+      })
+      .catch(async (err) => {
+        wx.hideLoading();
+        const errMsg = err.message || "处理失败";
         if (errMsg.includes("积分不足")) {
           await this.loadShareRewardStatus();
           this.setData({ showPointsModal: true });
         } else {
           this.showValidationError(errMsg);
         }
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: "网络错误", icon: "none" });
-      },
-    });
+      });
   },
 
   showValidationError(message) {

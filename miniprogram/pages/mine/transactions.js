@@ -1,4 +1,5 @@
 const PAGE_SIZE = 10;
+const { fetchTransactions } = require('../../utils/api/transactions');
 
 const SYSTEM_REASON_MAP = {
   first_login: '首次登录赠送',
@@ -39,47 +40,30 @@ Page({
     }
 
     try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: {
-          type: 'getTransactions',
-          data: { page, pageSize: PAGE_SIZE }
-        }
+      const { transactions, hasMore } = await fetchTransactions({ page, pageSize: PAGE_SIZE });
+      const processed = (transactions || []).map(t => ({
+        ...t,
+        amountText: this.formatAmount(t.amount),
+        typeText: this.getTransactionTitle(t),
+        reasonText: this.getTransactionReason(t),
+        amountClass: t.amount >= 0 ? 'amount-plus' : 'amount-minus',
+        timeText: this.formatTime(t.createdAt)
+      }));
+
+      this.setData({
+        transactions: page === 1 ? processed : [...this.data.transactions, ...processed],
+        page,
+        hasMore,
+        loading: false,
+        loadingMore: false,
+        refreshing: false,
       });
-
-      if (res.result && res.result.success) {
-        const { transactions, hasMore } = res.result.data;
-        const processed = (transactions || []).map(t => ({
-          ...t,
-          amountText: this.formatAmount(t.amount),
-          typeText: this.getTransactionTitle(t),
-          reasonText: this.getTransactionReason(t),
-          amountClass: t.amount >= 0 ? 'amount-plus' : 'amount-minus',
-          timeText: this.formatTime(t.createdAt)
-        }));
-
-        this.setData({
-          transactions: page === 1 ? processed : [...this.data.transactions, ...processed],
-          page,
-          hasMore,
-          loading: false,
-          loadingMore: false,
-          refreshing: false,
-        });
-      } else {
-        this.setData({
-          loading: false,
-          loadingMore: false,
-          refreshing: false,
-          error: res.result?.errMsg || '加载失败'
-        });
-      }
     } catch (err) {
       this.setData({
         loading: false,
         loadingMore: false,
         refreshing: false,
-        error: '网络错误，请稍后重试'
+        error: err.isBusinessError ? err.message : '网络错误，请稍后重试'
       });
     }
 

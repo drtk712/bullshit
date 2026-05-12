@@ -5,6 +5,9 @@ node_modules/
 # Python
 server/__pycache__/
 server/.venv/
+cloudrun/**/__pycache__/
+cloudrun/**/.venv/
+cloudrun/**/.uv-cache/
 *.pyc
 
 # IDE

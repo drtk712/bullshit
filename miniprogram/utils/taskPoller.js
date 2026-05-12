@@ -1,5 +1,6 @@
 const DEFAULT_INITIAL_DELAY_MS = 5000;
 const DEFAULT_MAX_DURATION_MS = 15 * 60 * 1000;
+const { fetchTaskStatus } = require("./api/tasks");
 
 function isActiveTaskStatus(status) {
   return status === "init" || status === "pending" || status === "processing";
@@ -52,23 +53,9 @@ function createTaskPoller(options) {
     inFlight = true;
 
     try {
-      const resp = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: {
-          type: "getTaskStatus",
-          data: { taskId: activeTaskId },
-        },
-      });
+      const taskStatus = await fetchTaskStatus(activeTaskId);
 
       if (!polling || taskId !== activeTaskId || runId !== activeRunId) return;
-
-      if (!resp.result || !resp.result.success) {
-        stop();
-        if (options.onError) options.onError(resp.result?.errMsg || "获取状态失败");
-        return;
-      }
-
-      const taskStatus = resp.result.data || {};
 
       if (options.onStatus) await options.onStatus(taskStatus);
 
@@ -80,6 +67,11 @@ function createTaskPoller(options) {
       stop();
     } catch (err) {
       if (!polling || taskId !== activeTaskId || runId !== activeRunId) return;
+      if (err && err.isBusinessError) {
+        stop();
+        if (options.onError) options.onError(err.message || "获取状态失败");
+        return;
+      }
       if (options.onTransientError) options.onTransientError(err);
       scheduleNext(pollOnce);
     } finally {

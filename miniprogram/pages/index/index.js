@@ -1,4 +1,5 @@
-const { fetchFeatureList } = require("../../utils/featureConfigClient");
+const { fetchFeatureList } = require("../../utils/api/features");
+const { fetchMe } = require("../../utils/api/user");
 const { previewImages } = require("../../utils/previewImage");
 
 Page({
@@ -50,21 +51,12 @@ Page({
 
   async loginUser() {
     try {
-      const res = await wx.cloud.callFunction({
-        name: "quickstartFunctions",
-        data: { type: "login", data: {} },
+      const { user } = await fetchMe({ recordLogin: true });
+      getApp().globalData.user = user;
+      this.setData({
+        user,
+        loginError: "",
       });
-
-      if (res.result && res.result.success) {
-        const user = res.result.data.user;
-        getApp().globalData.user = user;
-        this.setData({
-          user,
-          loginError: "",
-        });
-      } else {
-        this.setData({ loginError: res.result?.errMsg || "登录失败" });
-      }
     } catch (e) {
       this.setData({ loginError: e.errMsg || "登录失败" });
     }

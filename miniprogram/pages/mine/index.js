@@ -3,8 +3,11 @@ const {
   canClaimShareReward,
   claimShareReward,
   getShareRewardStatus,
+  normalizeShareRewardStatus,
   saveUserProfile,
 } = require('../../utils/shareReward');
+const { dailyCheckIn } = require('../../utils/api/share');
+const { fetchMe } = require('../../utils/api/user');
 
 Page({
   data: {
@@ -48,19 +51,17 @@ Page({
   async loadUserProfile() {
     this.setData({ userLoading: true, userError: '' });
     try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: { type: 'getUserProfile', data: {} }
-      });
-      if (res.result && res.result.success) {
-        getApp().globalData.shouldRefreshUserProfile = false;
-        this.applyUserProfile(res.result.data.user);
-        this.loadShareRewardStatus();
-      } else {
-        this.setData({ 
-          userLoading: false, 
-          userError: res.result?.errMsg || '加载失败' 
+      const { user, shareReward } = await fetchMe();
+      getApp().globalData.shouldRefreshUserProfile = false;
+      this.applyUserProfile(user);
+      const status = shareReward ? normalizeShareRewardStatus(shareReward) : null;
+      if (status) {
+        this.setData({
+          shareRewardStatus: status,
+          shareRewardCopy: buildShareRewardCopy(status),
         });
+      } else {
+        this.loadShareRewardStatus();
       }
     } catch (err) {
       console.error('加载用户数据失败:', err);
@@ -166,13 +167,10 @@ Page({
 
     this.setData({ checkInLoading: true });
     try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: { type: 'dailyCheckIn', data: {} }
-      });
+      const res = await dailyCheckIn();
       
-      if (res.result && res.result.success) {
-        const data = res.result.data || {};
+      if (res.success) {
+        const data = res.data || {};
         const user = this.data.user
           ? {
               ...this.data.user,
@@ -188,15 +186,15 @@ Page({
           getApp().globalData.shouldRefreshUserProfile = true;
         }
         this.setData({ showCheckInModal: true });
-      } else if (res.result && res.result.data?.checkedIn) {
+      } else if (res.data?.checkedIn) {
         this.setData({ checkedIn: true });
         wx.showToast({ title: '今日已签到', icon: 'none' });
       } else {
-        wx.showToast({ title: res.result?.errMsg || '签到失败', icon: 'none' });
+        wx.showToast({ title: res.errMsg || '签到失败', icon: 'none' });
       }
     } catch (err) {
       console.error('签到失败:', err);
-      wx.showToast({ title: '网络错误', icon: 'none' });
+      wx.showToast({ title: err.message || '网络错误', icon: 'none' });
     } finally {
       this.setData({ checkInLoading: false });
     }

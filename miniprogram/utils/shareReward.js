@@ -1,3 +1,6 @@
+const { claimShareRewardPoints, fetchShareRewardStatus } = require("./api/share");
+const { saveProfile } = require("./api/user");
+
 const DEFAULT_SHARE_REWARD_STATUS = {
   shareRewardPoints: 1,
   shareLimitPerDay: 3,
@@ -19,38 +22,26 @@ const normalizeShareRewardStatus = (data = {}) => ({
 });
 
 const getShareRewardStatus = async () => {
-  const res = await wx.cloud.callFunction({
-    name: "quickstartFunctions",
-    data: { type: "getShareRewardStatus", data: {} },
-  });
-
-  if (!res.result?.success) {
-    throw new Error(res.result?.errMsg || "获取分享奖励状态失败");
-  }
-
-  return normalizeShareRewardStatus(res.result.data);
+  return normalizeShareRewardStatus(await fetchShareRewardStatus());
 };
 
 const claimShareReward = async (options = {}) => {
   const { showToast = true } = options;
-  const res = await wx.cloud.callFunction({
-    name: "quickstartFunctions",
-    data: { type: "shareEarnPoints", data: {} },
-  });
+  const res = await claimShareRewardPoints();
 
-  if (res.result?.success) {
-    const status = normalizeShareRewardStatus(res.result.data);
+  if (res.success) {
+    const status = normalizeShareRewardStatus(res.data);
     if (showToast) {
       wx.showToast({ title: `分享成功 +${status.shareRewardPoints} 积分`, icon: "success" });
     }
     return { success: true, status };
   }
 
-  const status = normalizeShareRewardStatus(res.result?.data);
+  const status = normalizeShareRewardStatus(res.data);
   if (showToast) {
-    wx.showToast({ title: res.result?.errMsg || "今日分享次数已达上限", icon: "none" });
+    wx.showToast({ title: res.errMsg || "今日分享次数已达上限", icon: "none" });
   }
-  return { success: false, status, errMsg: res.result?.errMsg || "" };
+  return { success: false, status, errMsg: res.errMsg || "" };
 };
 
 const buildShareRewardCopy = (status = DEFAULT_SHARE_REWARD_STATUS) => {
@@ -125,22 +116,10 @@ const saveUserProfile = async ({ nickName, avatarPath }) => {
   const profile = normalizeProfileInput({ nickName, avatarPath });
   const avatarFileID = await uploadAvatarIfNeeded(profile.avatarPath);
 
-  const res = await wx.cloud.callFunction({
-    name: "quickstartFunctions",
-    data: {
-      type: "updateUserProfile",
-      data: {
-        nickName: profile.nickName,
-        avatarFileID,
-      },
-    },
+  return saveProfile({
+    nickName: profile.nickName,
+    avatarFileID,
   });
-
-  if (!res.result || !res.result.success) {
-    throw new Error(res.result?.errMsg || "保存失败");
-  }
-
-  return res.result.data.user;
 };
 
 module.exports = {

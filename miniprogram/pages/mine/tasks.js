@@ -4,7 +4,8 @@ const {
   getTaskStatusText,
   getTaskStatusClass,
 } = require('../../utils/taskDisplay');
-const { buildFeatureMap, fetchFeatureList } = require('../../utils/featureConfigClient');
+const { buildFeatureMap, fetchFeatureList } = require('../../utils/api/features');
+const { fetchTasks } = require('../../utils/api/tasks');
 const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
 
 const PAGE_SIZE = 5;
@@ -61,60 +62,43 @@ Page({
     }
 
     try {
-      const res = await wx.cloud.callFunction({
-        name: 'quickstartFunctions',
-        data: {
-          type: 'getTasks',
-          data: {
-            page,
-            pageSize: PAGE_SIZE,
-            filter: this.data.activeFilter,
-          }
-        }
+      const { tasks, hasMore } = await fetchTasks({
+        page,
+        pageSize: PAGE_SIZE,
+        filter: this.data.activeFilter,
       });
+      const processed = (tasks || []).map(t => {
+        const displayName = getTaskDisplayName(t, this.data.featureMap);
+        const progressPercent = t.status === 'processing' ? (t.progress || 65) : 0;
+        const statusText = getTaskStatusText(t);
+        return {
+          ...t,
+          displayName,
+          displayInitial: displayName.slice(0, 1),
+          displayDesc: getTaskDisplayDesc(t, this.data.featureMap),
+          thumbImage: '',
+          shareImage: '',
+          progressPercent,
+          progressStyle: `width: ${progressPercent}%;`,
+          statusText,
+          statusDisplay: progressPercent ? `${statusText} ${progressPercent}%` : statusText,
+          statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
+          timeText: this.formatTime(t.createdAt),
+          errMsgText: t.errMsg || '处理失败，请重新上传照片再试一次。',
+        };
+      });
+      await this.attachThumbImages(processed);
 
-      if (res.result && res.result.success) {
-        const { tasks, hasMore } = res.result.data;
-        const processed = (tasks || []).map(t => {
-          const displayName = getTaskDisplayName(t, this.data.featureMap);
-          const progressPercent = t.status === 'processing' ? (t.progress || 65) : 0;
-          const statusText = getTaskStatusText(t);
-          return {
-            ...t,
-            displayName,
-            displayInitial: displayName.slice(0, 1),
-            displayDesc: getTaskDisplayDesc(t, this.data.featureMap),
-            thumbImage: '',
-            shareImage: '',
-            progressPercent,
-            progressStyle: `width: ${progressPercent}%;`,
-            statusText,
-            statusDisplay: progressPercent ? `${statusText} ${progressPercent}%` : statusText,
-            statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
-            timeText: this.formatTime(t.createdAt),
-            errMsgText: t.errMsg || '处理失败，请重新上传照片再试一次。',
-          };
-        });
-        await this.attachThumbImages(processed);
-
-        this.setData({
-          tasks: page === 1 ? processed : [...this.data.tasks, ...processed],
-          page,
-          hasMore,
-          loading: false,
-          loadingMore: false,
-          refreshing: false,
-        });
-        if (page === 1) {
-          getApp().globalData.shouldRefreshTasks = false;
-        }
-      } else {
-        this.setData({
-          loading: false,
-          loadingMore: false,
-          refreshing: false,
-          error: res.result?.errMsg || '加载失败'
-        });
+      this.setData({
+        tasks: page === 1 ? processed : [...this.data.tasks, ...processed],
+        page,
+        hasMore,
+        loading: false,
+        loadingMore: false,
+        refreshing: false,
+      });
+      if (page === 1) {
+        getApp().globalData.shouldRefreshTasks = false;
       }
     } catch (err) {
       this.setData({

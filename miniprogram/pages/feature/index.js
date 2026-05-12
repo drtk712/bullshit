@@ -1,4 +1,4 @@
-const { fetchFeature } = require("../../utils/featureConfigClient");
+const { fetchFeature } = require("../../utils/api/features");
 const { previewImages } = require("../../utils/previewImage");
 
 Page({
