@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from urllib.parse import urlparse
 
 import requests
@@ -11,6 +12,9 @@ from app.config import settings
 
 
 logger = logging.getLogger(__name__)
+GENERATION_TIMEOUT_SECONDS = 300
+GENERATION_MAX_ATTEMPTS = 3
+RETRYABLE_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
 
 
 def mask_url(url: str) -> str:
@@ -29,55 +33,69 @@ def generate_poster(image_url: str, job_type: str, generation_prompt: str) -> st
     """Call the image generation model and return the model text response."""
     logger.info("[海报生成] 类型: %s, 图片: %s", job_type, mask_url(image_url))
 
-    try:
-        resp = requests.post(
-            settings.memefast_api_url,
-            json={
-                "model": settings.memefast_model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "image_url", "image_url": {"url": image_url}},
-                            {"type": "text", "text": generation_prompt},
-                        ],
-                    }
-                ],
-                "stream": False,
-            },
-            headers={
-                "Authorization": f"Bearer {settings.memefast_api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=180,
-        )
-    except requests.exceptions.Timeout as exc:
-        raise RuntimeError("API 请求超时（180秒），请稍后重试") from exc
-    except requests.exceptions.ConnectionError as exc:
-        raise RuntimeError("无法连接到 API 服务，请检查网络") from exc
-    except requests.exceptions.RequestException as exc:
-        raise RuntimeError(f"API 请求失败: {exc}") from exc
-
-    if resp.status_code != 200:
-        error_detail = ""
+    last_error: Exception | None = None
+    for attempt in range(1, GENERATION_MAX_ATTEMPTS + 1):
         try:
-            error_data = resp.json()
-            error_detail = error_data.get("error", {}).get("message", "")
-        except ValueError:
-            error_detail = resp.text[:100]
-        raise RuntimeError(f"API 返回错误（{resp.status_code}): {error_detail}")
+            logger.info("[海报生成] 调用大模型 attempt=%s/%s timeout=%ss", attempt, GENERATION_MAX_ATTEMPTS, GENERATION_TIMEOUT_SECONDS)
+            resp = requests.post(
+                settings.memefast_api_url,
+                json={
+                    "model": settings.memefast_model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "image_url", "image_url": {"url": image_url}},
+                                {"type": "text", "text": generation_prompt},
+                            ],
+                        }
+                    ],
+                    "stream": False,
+                },
+                headers={
+                    "Authorization": f"Bearer {settings.memefast_api_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=GENERATION_TIMEOUT_SECONDS,
+            )
+            if resp.status_code != 200:
+                error_detail = ""
+                try:
+                    error_data = resp.json()
+                    error_detail = error_data.get("error", {}).get("message", "")
+                except ValueError:
+                    error_detail = resp.text[:100]
+                last_error = RuntimeError(f"API 返回错误（{resp.status_code}): {error_detail}")
+                if resp.status_code not in RETRYABLE_STATUS_CODES:
+                    raise last_error
+                logger.warning("[海报生成] 大模型返回可重试状态 attempt=%s/%s status=%s detail=%s", attempt, GENERATION_MAX_ATTEMPTS, resp.status_code, error_detail)
+            else:
+                try:
+                    result = resp.json()
+                except requests.exceptions.JSONDecodeError as exc:
+                    last_error = RuntimeError(f"API 返回非 JSON 格式: {resp.text[:100]}")
+                    logger.warning("[海报生成] 大模型返回非 JSON attempt=%s/%s", attempt, GENERATION_MAX_ATTEMPTS)
+                else:
+                    content = result.get("choices", [{}])[0].get("message", {}).get("content")
+                    if content:
+                        logger.info("[海报生成] 大模型返回内容长度: %d 字符", len(content))
+                        return content
+                    last_error = RuntimeError("大模型返回内容为空")
+                    logger.warning("[海报生成] 大模型返回内容为空 attempt=%s/%s", attempt, GENERATION_MAX_ATTEMPTS)
+        except requests.exceptions.Timeout as exc:
+            last_error = RuntimeError(f"API 请求超时（{GENERATION_TIMEOUT_SECONDS}秒），请稍后重试")
+            logger.warning("[海报生成] 大模型请求超时 attempt=%s/%s", attempt, GENERATION_MAX_ATTEMPTS)
+        except requests.exceptions.ConnectionError as exc:
+            last_error = RuntimeError("无法连接到 API 服务，请检查网络")
+            logger.warning("[海报生成] 大模型连接失败 attempt=%s/%s: %s", attempt, GENERATION_MAX_ATTEMPTS, exc)
+        except requests.exceptions.RequestException as exc:
+            last_error = RuntimeError(f"API 请求失败: {exc}")
+            logger.warning("[海报生成] 大模型请求异常 attempt=%s/%s: %s", attempt, GENERATION_MAX_ATTEMPTS, exc)
 
-    try:
-        result = resp.json()
-    except requests.exceptions.JSONDecodeError as exc:
-        raise RuntimeError(f"API 返回非 JSON 格式: {resp.text[:100]}") from exc
+        if attempt < GENERATION_MAX_ATTEMPTS:
+            time.sleep(min(2 ** (attempt - 1), 4))
 
-    content = result.get("choices", [{}])[0].get("message", {}).get("content")
-    if not content:
-        raise RuntimeError("大模型返回内容为空")
-
-    logger.info("[海报生成] 大模型返回内容长度: %d 字符", len(content))
-    return content
+    raise last_error or RuntimeError("API 请求失败")
 
 
 def extract_url_from_response(content: str) -> str:
