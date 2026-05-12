@@ -1,5 +1,13 @@
 const { callCloudRun } = require("../cloudrunClient");
+const { isDevelopVersion } = require("../runtimeEnv");
 const { buildQuery, getApiErrorMessage } = require("./errors");
+
+const DEVELOP_FEATURE_TYPES = new Set(["filter", "watermark", "split", "long_image"]);
+
+function filterFeatureListForRuntime(features = []) {
+  if (!isDevelopVersion()) return features;
+  return features.filter((feature) => DEVELOP_FEATURE_TYPES.has(feature?.type));
+}
 
 async function fetchFeatureList() {
   const resp = await callCloudRun({
@@ -8,7 +16,7 @@ async function fetchFeatureList() {
   });
 
   if (resp.data?.success && Array.isArray(resp.data?.data?.features)) {
-    return resp.data.data.features;
+    return filterFeatureListForRuntime(resp.data.data.features);
   }
 
   throw new Error(getApiErrorMessage(resp, "功能列表加载失败"));
@@ -38,4 +46,5 @@ module.exports = {
   buildFeatureMap,
   fetchFeatureList,
   fetchFeature,
+  filterFeatureListForRuntime,
 };
