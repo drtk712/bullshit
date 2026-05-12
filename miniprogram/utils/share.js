@@ -14,6 +14,11 @@ const DEFAULT_SHARE_REWARD_STATUS = {
   points: 0,
 };
 
+const SHARE_REWARD_MIN_DURATION_MS = 1500;
+const SHARE_REWARD_SOURCE_MINE = "mine";
+
+let pendingShareReward = null;
+
 const normalizeShareRewardStatus = (data = {}) => ({
   ...DEFAULT_SHARE_REWARD_STATUS,
   ...data,
@@ -76,6 +81,32 @@ const canClaimShareReward = (status) => {
   return normalizeShareRewardStatus(status).remainingToday > 0;
 };
 
+const markShareRewardPending = (source = SHARE_REWARD_SOURCE_MINE) => {
+  pendingShareReward = {
+    source,
+    startedAt: Date.now(),
+    hiddenAt: 0,
+  };
+};
+
+const markShareRewardHidden = (source = SHARE_REWARD_SOURCE_MINE) => {
+  if (!pendingShareReward || pendingShareReward.source !== source) return;
+  pendingShareReward.hiddenAt = Date.now();
+};
+
+const consumeShareRewardPending = (source = SHARE_REWARD_SOURCE_MINE) => {
+  if (!pendingShareReward || pendingShareReward.source !== source) return null;
+  const pending = pendingShareReward;
+  pendingShareReward = null;
+  return pending;
+};
+
+const shouldClaimShareReward = (pending, now = Date.now()) => {
+  if (!pending || pending.source !== SHARE_REWARD_SOURCE_MINE) return false;
+  if (!pending.hiddenAt) return false;
+  return now - pending.startedAt >= SHARE_REWARD_MIN_DURATION_MS;
+};
+
 const buildHomeSharePayload = (overrides = {}) => ({
   ...HOME_SHARE_PAYLOAD,
   ...overrides,
@@ -110,6 +141,10 @@ module.exports = {
   canClaimShareReward,
   canShareTask,
   claimShareReward,
+  consumeShareRewardPending,
   getShareRewardStatus,
+  markShareRewardHidden,
+  markShareRewardPending,
   normalizeShareRewardStatus,
+  shouldClaimShareReward,
 };

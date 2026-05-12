@@ -3,8 +3,12 @@ const {
   canClaimShareReward,
   claimShareReward,
   buildHomeSharePayload,
+  consumeShareRewardPending,
   getShareRewardStatus,
+  markShareRewardHidden,
+  markShareRewardPending,
   normalizeShareRewardStatus,
+  shouldClaimShareReward,
 } = require('../../utils/share');
 const { dailyCheckIn } = require('../../utils/api/shareApi');
 const { fetchMe } = require('../../utils/api/user');
@@ -31,7 +35,9 @@ Page({
 
   },
 
-  onShow() {
+  async onShow() {
+    await this.tryClaimPendingShareReward();
+
     const app = getApp();
     const cachedUser = app.globalData.user;
     if (cachedUser && !app.globalData.shouldRefreshUserProfile) {
@@ -47,6 +53,10 @@ Page({
     }
 
     this.loadUserProfile();
+  },
+
+  onHide() {
+    markShareRewardHidden();
   },
 
   async loadUserProfile() {
@@ -139,8 +149,16 @@ Page({
     }
   },
 
+  async tryClaimPendingShareReward() {
+    const pending = consumeShareRewardPending();
+    if (!shouldClaimShareReward(pending)) return null;
+    return this.handleShareEarnPoints();
+  },
+
   onShareAppMessage() {
-    this.handleShareEarnPoints();
+    if (canClaimShareReward(this.data.shareRewardStatus)) {
+      markShareRewardPending();
+    }
     return buildHomeSharePayload({ title: '玩图局 - 图片玩法合集，快来试试！' });
   },
 
