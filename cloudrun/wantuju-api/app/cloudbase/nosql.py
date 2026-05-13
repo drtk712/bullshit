@@ -522,6 +522,15 @@ class UserAdminStore:
     def get_task(self, task_id: str) -> dict[str, Any]:
         return self.db.get_document(self.jobs_collection, task_id)
 
+    def delete_task(self, task_id: str) -> dict[str, Any]:
+        task = self.get_task(task_id)
+        if not task:
+            raise ValueError("任务不存在")
+        if str(task.get("status") or "") in {"init", "pending", "processing"}:
+            raise ValueError("进行中的任务不能删除")
+        self.db.delete_document(self.jobs_collection, task_id)
+        return task
+
     def adjust_points(self, user_id: str, amount: int, reason: str, operator: str = "admin") -> dict[str, Any]:
         user = self.get_user(user_id)
         openid = str(user.get("openid", ""))

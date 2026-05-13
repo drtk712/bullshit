@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 import time
 from typing import Any
+from urllib.parse import urlencode
 from uuid import uuid4
 
 from fastapi import APIRouter, Request
@@ -157,6 +158,67 @@ def _page_filters(request: Request, *names: str) -> dict[str, Any]:
     return filters
 
 
+def _task_filters_from_form(form: Any) -> dict[str, Any]:
+    filters: dict[str, Any] = {
+        "openid": str(form.get("openid", "")).strip(),
+        "status": str(form.get("status", "")).strip(),
+        "feature_type": str(form.get("feature_type", "")).strip(),
+        "task_id": str(form.get("task_id", "")).strip(),
+        "points_consumed": str(form.get("points_consumed", "")).strip(),
+        "points_refunded": str(form.get("points_refunded", "")).strip(),
+    }
+    try:
+        filters["page"] = max(1, int(str(form.get("page", "1")).strip() or "1"))
+    except ValueError:
+        filters["page"] = 1
+    try:
+        filters["page_size"] = min(100, max(1, int(str(form.get("page_size", "20")).strip() or "20")))
+    except ValueError:
+        filters["page_size"] = 20
+    return filters
+
+
+def _tasks_url(filters: dict[str, Any]) -> str:
+    params = {key: value for key, value in filters.items() if value not in ("", None)}
+    return f"/admin/tasks?{urlencode(params)}" if params else "/admin/tasks"
+
+
+def _render_tasks_with_error(filters: dict[str, Any], error: str):
+    try:
+        page = int(filters.get("page") or 1)
+        page_size = int(filters.get("page_size") or 20)
+        items, total = get_user_store().list_tasks(
+            openid=str(filters.get("openid") or ""),
+            status=str(filters.get("status") or ""),
+            feature_type=str(filters.get("feature_type") or ""),
+            task_id=str(filters.get("task_id") or ""),
+            points_consumed=str(filters.get("points_consumed") or ""),
+            points_refunded=str(filters.get("points_refunded") or ""),
+            limit=page_size,
+            offset=(page - 1) * page_size,
+        )
+        return _tasks_page(items, total, filters, error)
+    except CloudBaseError as exc:
+        return _tasks_page([], 0, filters, f"{error}；重新加载列表失败：{exc}")
+
+
+def _task_file_ids(task: dict[str, Any]) -> list[str]:
+    candidates: list[Any] = [
+        task.get("fileID"),
+        task.get("posterFileID"),
+        *(task.get("fileIDs") if isinstance(task.get("fileIDs"), list) else []),
+        *(task.get("resultFileIDs") if isinstance(task.get("resultFileIDs"), list) else []),
+    ]
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        value = str(item or "").strip()
+        if value.startswith("cloud://") and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
+
+
 @router.get("/transactions")
 async def transactions(request: Request):
     auth_redirect = _require_auth(request)
@@ -254,6 +316,25 @@ async def task_preview(request: Request):
         )
     except CloudBaseError as exc:
         return _tasks_page([], 0, filters, str(exc))
+
+
+@router.post("/tasks/{task_id}/delete")
+async def task_delete(request: Request, task_id: str):
+    auth_redirect = _require_auth(request)
+    if auth_redirect:
+        return auth_redirect
+    form = await request.form()
+    filters = _task_filters_from_form(form)
+    try:
+        store = get_user_store()
+        task = store.delete_task(task_id)
+        try:
+            get_storage().delete_objects(_task_file_ids(task))
+        except CloudBaseError:
+            pass
+        return _redirect(_tasks_url(filters))
+    except (CloudBaseError, ValueError) as exc:
+        return _render_tasks_with_error(filters, str(exc))
 
 
 @router.get("/storage")

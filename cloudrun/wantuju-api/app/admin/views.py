@@ -425,7 +425,6 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                     _field("校验提示词", "validation.prompt", _text(doc, "validation.prompt"), multiline=True),
                     _field("生成提示词", "generation.prompt", _text(doc, "generation.prompt"), multiline=True),
                     _field("参数说明", "generation.paramHint", _text(doc, "generation.paramHint"), multiline=True),
-                    _field("测试 Poster FileID", "test.posterFileID", _text(doc, "test.posterFileID")),
                     cls="stack",
                 ),
                 Div(
@@ -526,7 +525,6 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         "validation.failMessage": str(form.get("validation.failMessage", "")).strip(),
         "generation.prompt": str(form.get("generation.prompt", "")).strip(),
         "generation.paramHint": str(form.get("generation.paramHint", "")).strip(),
-        "test.posterFileID": str(form.get("test.posterFileID", "")).strip(),
     }
     _require_text(
         data,
@@ -608,7 +606,6 @@ def _blank_feature() -> dict[str, Any]:
             "failMessage": "图片不符合要求，请重新上传",
         },
         "generation": {"prompt": "Generate a test poster based on this image.", "paramHint": ""},
-        "test": {"posterFileID": ""},
         "createdAt": now,
     }
 
@@ -815,6 +812,25 @@ def _task_file_button(task_id: Any, field: str, label: str, filters: dict[str, A
     )
 
 
+def _task_delete_button(task: dict[str, Any], filters: dict[str, Any]) -> Any:
+    task_id = str(task.get("_id") or "")
+    if not task_id:
+        return "-"
+    if str(task.get("status") or "") in {"init", "pending", "processing"}:
+        return Span("进行中", cls="muted")
+    hidden_fields = [
+        Input(type="hidden", name=key, value=str(value))
+        for key, value in filters.items()
+        if value not in ("", None)
+    ]
+    return Form(
+        *hidden_fields,
+        Button("删除", type="submit", cls="danger", onclick="return confirm('确认删除这个任务？关联图片也会一并尝试删除，操作不可恢复。');"),
+        method="post",
+        action=f"/admin/tasks/{task_id}/delete",
+    )
+
+
 def _points_adjust_panel(user_id: str) -> Any:
     return Div(
         H2("积分调整"),
@@ -950,6 +966,7 @@ def _tasks_page(
             Td("是" if task.get("pointsConsumed") else "否"),
             Td("是" if task.get("pointsRefunded") else "否"),
             Td(_fmt_time(task.get("createdAt"))),
+            Td(_task_delete_button(task, filters)),
         )
         for task in tasks
     ]
@@ -981,7 +998,7 @@ def _tasks_page(
         Div(
             P(f"共匹配 {total} 条，当前第 {page} 页。", cls="muted"),
             Table(
-                Thead(Tr(Th("任务 ID"), Th("OpenID"), Th("玩法"), Th("状态"), Th("原图"), Th("海报"), Th("积分成本"), Th("已扣分"), Th("已退款"), Th("创建时间"))),
+                Thead(Tr(Th("任务 ID"), Th("OpenID"), Th("玩法"), Th("状态"), Th("原图"), Th("海报"), Th("积分成本"), Th("已扣分"), Th("已退款"), Th("创建时间"), Th("操作"))),
                 Tbody(*rows),
             ),
             Div(
