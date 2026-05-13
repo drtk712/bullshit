@@ -1,11 +1,5 @@
 <view class="mine-page ui-page">
-  <view class="mine-nav">
-    <view class="mine-grid-icon">
-      <view></view><view></view><view></view><view></view>
-    </view>
-    <text class="mine-nav-title">玩图局</text>
-    <view class="mine-nav-spacer"></view>
-  </view>
+  <app-nav title="我的" show-back="{{false}}" variant="tab"></app-nav>
 
   <view class="profile-card">
     <block wx:if="{{userLoading}}">

@@ -41,7 +41,6 @@ Page({
       return;
     }
 
-    wx.setNavigationBarTitle({ title: "上传照片" });
     const paramFields = this.getParamFields(feature.type);
     this.setData({
       feature,

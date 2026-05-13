@@ -6,65 +6,10 @@ page {
 .progress-page,
 .result-page {
   min-height: 100vh;
-  padding: 176rpx var(--ui-page-x) 220rpx;
+  padding: 0 var(--ui-page-x) 220rpx;
   box-sizing: border-box;
   background: #f3fcf2;
   color: var(--ui-text);
-}
-
-.flow-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  height: 152rpx;
-  padding: 76rpx var(--ui-page-x) 12rpx;
-  justify-content: space-between;
-  box-sizing: border-box;
-  background: rgba(243, 252, 242, 0.86);
-  backdrop-filter: blur(40rpx);
-  box-shadow: var(--ui-shadow);
-}
-
-.flow-back,
-.flow-spacer,
-.flow-grid-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  color: var(--ui-primary-dark);
-  font-size: 58rpx;
-  line-height: 1;
-}
-
-.flow-grid-icon {
-  flex-wrap: wrap;
-  gap: 6rpx;
-  padding: 18rpx;
-  box-sizing: border-box;
-}
-
-.flow-grid-icon view {
-  width: 12rpx;
-  height: 12rpx;
-  border: 4rpx solid var(--ui-text-soft);
-  border-radius: 2rpx;
-  box-sizing: border-box;
-}
-
-.flow-title {
-  position: static;
-  color: var(--ui-text);
-  text-align: center;
-  font-size: 40rpx;
-  font-weight: 800;
-  line-height: 56rpx;
-  letter-spacing: 0;
 }
 
 .state-card,

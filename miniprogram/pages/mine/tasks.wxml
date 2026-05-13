@@ -1,11 +1,5 @@
 <view class="records-page ui-page">
-  <view class="records-nav">
-    <view class="records-grid-icon">
-      <view></view><view></view><view></view><view></view>
-    </view>
-    <text class="records-title">处理记录</text>
-    <view class="records-nav-spacer"></view>
-  </view>
+  <app-nav title="处理记录" show-back="{{false}}" variant="tab"></app-nav>
 
   <scroll-view scroll-x class="filter-scroll" enable-flex show-scrollbar="{{false}}">
     <view class="filter-row">

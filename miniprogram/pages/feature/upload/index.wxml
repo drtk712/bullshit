@@ -1,9 +1,5 @@
 <view class="upload-page flow-page">
-  <view class="flow-nav upload-nav">
-    <view class="flow-back" bindtap="goBack">‹</view>
-    <text class="flow-title">上传照片</text>
-    <view class="flow-spacer"></view>
-  </view>
+  <app-nav title="上传照片" bind:back="goBack"></app-nav>
 
   <view wx:if="{{configLoading}}" class="state-card">
     <view class="mini-spinner"></view>

@@ -1,9 +1,5 @@
 <view class="detail-page">
-  <view class="detail-nav">
-    <view class="back-btn" bindtap="goBack">‹</view>
-    <text class="nav-title">任务详情</text>
-    <view class="nav-spacer"></view>
-  </view>
+  <app-nav title="任务详情" bind:back="goBack"></app-nav>
 
   <view wx:if="{{loading}}" class="state-card">
     <view class="mini-spinner"></view>

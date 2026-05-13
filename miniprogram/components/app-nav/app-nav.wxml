@@ -1,0 +1,6 @@
+<view class="app-nav app-nav-{{variant}}">
+  <view wx:if="{{showBack}}" class="app-nav-back" bindtap="handleBack">‹</view>
+  <view wx:else class="app-nav-side"></view>
+  <text class="app-nav-title">{{title}}</text>
+  <view class="app-nav-side"></view>
+</view>

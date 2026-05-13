@@ -1,9 +1,5 @@
 <view class="progress-page flow-page">
-  <view class="flow-nav progress-nav">
-    <view class="flow-back" bindtap="goBack">‹</view>
-    <text class="flow-title">玩图局</text>
-    <view class="flow-spacer"></view>
-  </view>
+  <app-nav title="图片处理中" bind:back="goBack"></app-nav>
 
   <view class="progress-hero">
     <text class="progress-title">图片处理中...</text>

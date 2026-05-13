@@ -1,9 +1,5 @@
 <view class="share-task-page">
-  <view class="share-task-nav">
-    <view class="share-task-back" bindtap="goBack">‹</view>
-    <text class="share-task-nav-title">图片详情</text>
-    <view class="share-task-nav-spacer"></view>
-  </view>
+  <app-nav title="图片详情" bind:back="goBack"></app-nav>
 
   <view wx:if="{{loading}}" class="state-card">
     <view class="mini-spinner"></view>

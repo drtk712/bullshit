@@ -1,9 +1,5 @@
 <view class="feature-page ui-page">
-  <view class="custom-nav">
-    <view class="nav-icon" bindtap="goBack">‹</view>
-    <text class="nav-title">{{feature.title}}</text>
-    <view class="nav-spacer"></view>
-  </view>
+  <app-nav title="{{feature.title}}" bind:back="goBack"></app-nav>
 
   <view wx:if="{{configLoading}}" class="state-panel">
     <view class="mini-spinner"></view>

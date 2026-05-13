@@ -1,0 +1,50 @@
+.app-nav {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: auto;
+  margin-left: calc(0rpx - var(--ui-page-x));
+  margin-right: calc(0rpx - var(--ui-page-x));
+  height: 152rpx;
+  padding: 76rpx var(--ui-page-x) 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  background: rgba(243, 252, 242, 0.86);
+  backdrop-filter: blur(40rpx);
+  box-shadow: var(--ui-shadow);
+}
+
+.app-nav-back,
+.app-nav-side {
+  width: 64rpx;
+  height: 64rpx;
+  flex: 0 0 64rpx;
+}
+
+.app-nav-back {
+  color: var(--ui-primary-dark);
+  text-align: center;
+  font-size: 58rpx;
+  line-height: 58rpx;
+}
+
+.app-nav-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--ui-text);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 40rpx;
+  font-weight: 800;
+  line-height: 56rpx;
+}
+
+.app-nav-tab .app-nav-title {
+  font-size: 48rpx;
+  line-height: 64rpx;
+}

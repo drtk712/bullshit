@@ -2,5 +2,8 @@
   "navigationStyle": "custom",
   "navigationBarTitleText": "处理记录",
   "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark"
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "app-nav": "/components/app-nav/app-nav"
+  }
 }

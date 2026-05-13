@@ -4,67 +4,19 @@ page {
 
 .records-page {
   min-height: 100vh;
-  padding: 268rpx var(--ui-page-x) 128rpx;
+  padding: 0 var(--ui-page-x) 128rpx;
   box-sizing: border-box;
   background: #f3fcf2;
 }
 
-.records-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 20;
-  box-sizing: border-box;
-  height: 152rpx;
-  padding: 76rpx var(--ui-page-x) 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(243, 252, 242, 0.86);
-  backdrop-filter: blur(40rpx);
-  box-shadow: var(--ui-shadow);
-}
-
-.records-grid-icon,
-.records-nav-spacer {
-  width: 64rpx;
-  height: 64rpx;
-}
-
-.records-grid-icon {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6rpx;
-  padding: 18rpx;
-  box-sizing: border-box;
-}
-
-.records-grid-icon view {
-  width: 12rpx;
-  height: 12rpx;
-  border: 4rpx solid var(--ui-text-soft);
-  border-radius: 2rpx;
-  box-sizing: border-box;
-}
-
-.records-title {
-  color: var(--ui-text);
-  font-size: 48rpx;
-  font-weight: 800;
-  line-height: 64rpx;
-  letter-spacing: 0;
-}
-
 .filter-scroll {
-  position: fixed;
-  left: 0;
-  right: 0;
+  position: -webkit-sticky;
+  position: sticky;
   top: 152rpx;
   z-index: 18;
   width: auto;
+  margin-left: calc(0rpx - var(--ui-page-x));
+  margin-right: calc(0rpx - var(--ui-page-x));
   padding: 28rpx var(--ui-page-x) 36rpx;
   background: rgba(243, 252, 242, 0.95);
   backdrop-filter: blur(24rpx);

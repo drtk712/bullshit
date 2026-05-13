@@ -4,47 +4,8 @@ page {
 
 .home-page {
   min-height: 100vh;
-  padding-top: 180rpx;
+  padding-top: 0;
   padding-bottom: 120rpx;
-}
-
-.home-appbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  height: 144rpx;
-  padding: 0 var(--ui-page-x) 22rpx;
-  background: rgba(243, 252, 242, 0.86);
-  box-shadow: var(--ui-shadow);
-  backdrop-filter: blur(40rpx);
-}
-
-.appbar-icon,
-.appbar-spacer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: var(--ui-radius-full);
-}
-
-.appbar-icon {
-  color: var(--ui-primary-dark);
-  font-size: 34rpx;
-  font-weight: 800;
-}
-
-.appbar-title {
-  color: var(--ui-text);
-  font-size: 48rpx;
-  font-weight: 800;
-  line-height: 64rpx;
 }
 
 .home-top,
@@ -64,6 +25,7 @@ page {
 }
 
 .home-top {
+  margin-top: 28rpx;
   display: flex;
   flex-direction: column;
   gap: var(--ui-gap-xs);

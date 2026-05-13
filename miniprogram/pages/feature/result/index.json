@@ -1,4 +1,7 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "处理结果"
+  "navigationBarTitleText": "处理结果",
+  "usingComponents": {
+    "app-nav": "/components/app-nav/app-nav"
+  }
 }

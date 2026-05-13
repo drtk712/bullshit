@@ -48,7 +48,6 @@ Page({
       configLoading: false,
       configError: "",
     });
-    wx.setNavigationBarTitle({ title: feature.title });
   },
 
   getFeatureFromCache(type) {

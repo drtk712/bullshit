@@ -4,59 +4,10 @@ page {
 
 .mine-page {
   min-height: 100vh;
-  padding: 168rpx var(--ui-page-x) 220rpx;
+  padding: 0 var(--ui-page-x) 220rpx;
   box-sizing: border-box;
   background: #f3fcf2;
   color: var(--ui-text);
-}
-
-.mine-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 20;
-  height: 152rpx;
-  padding: 76rpx var(--ui-page-x) 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-  background: rgba(243, 252, 242, 0.86);
-  backdrop-filter: blur(40rpx);
-  box-shadow: var(--ui-shadow);
-}
-
-.mine-grid-icon,
-.mine-nav-spacer {
-  width: 64rpx;
-  height: 64rpx;
-}
-
-.mine-grid-icon {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6rpx;
-  padding: 18rpx;
-  box-sizing: border-box;
-}
-
-.mine-grid-icon view {
-  width: 12rpx;
-  height: 12rpx;
-  border: 4rpx solid var(--ui-text-soft);
-  border-radius: 2rpx;
-  box-sizing: border-box;
-}
-
-.mine-nav-title {
-  color: var(--ui-text);
-  font-size: 48rpx;
-  font-weight: 800;
-  line-height: 64rpx;
-  letter-spacing: 0;
 }
 
 .profile-card,

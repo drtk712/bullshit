@@ -1,4 +1,7 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "图片工具"
+  "navigationBarTitleText": "图片工具",
+  "usingComponents": {
+    "app-nav": "/components/app-nav/app-nav"
+  }
 }

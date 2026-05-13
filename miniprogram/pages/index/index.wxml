@@ -1,9 +1,5 @@
 <view class="home-page ui-page">
-  <view class="home-appbar">
-    <view class="appbar-icon">□</view>
-    <text class="appbar-title">玩图局</text>
-    <view class="appbar-spacer"></view>
-  </view>
+  <app-nav title="玩图局" show-back="{{false}}" variant="tab"></app-nav>
 
   <view class="home-top">
     <text class="hello">Hi，玩图达人 👋</text>

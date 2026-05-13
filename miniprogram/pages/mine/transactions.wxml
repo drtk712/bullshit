@@ -1,9 +1,5 @@
 <view class="transactions-page ui-page">
-  <view class="transactions-nav">
-    <view class="transactions-back" bindtap="goBack">‹</view>
-    <text class="transactions-title">积分明细</text>
-    <view class="transactions-nav-spacer"></view>
-  </view>
+  <app-nav title="积分明细" bind:back="goBack"></app-nav>
 
   <view wx:if="{{loading}}" class="state-card">
     <view class="mini-spinner"></view>

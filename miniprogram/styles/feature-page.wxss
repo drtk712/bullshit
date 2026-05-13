@@ -4,49 +4,10 @@ page {
 
 .feature-page {
   min-height: 100vh;
-  padding: 176rpx var(--ui-page-x) 220rpx;
+  padding: 0 var(--ui-page-x) 220rpx;
   box-sizing: border-box;
   background: #f3fcf2;
   color: var(--ui-text);
-}
-
-.custom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 30;
-  height: 152rpx;
-  padding: 76rpx var(--ui-page-x) 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-  background: rgba(243, 252, 242, 0.86);
-  backdrop-filter: blur(40rpx);
-  box-shadow: var(--ui-shadow);
-}
-
-.nav-icon,
-.nav-spacer {
-  width: 64rpx;
-  height: 64rpx;
-}
-
-.nav-icon {
-  color: var(--ui-primary-dark);
-  text-align: center;
-  font-size: 58rpx;
-  font-weight: 500;
-  line-height: 58rpx;
-}
-
-.nav-title {
-  color: var(--ui-text);
-  font-size: 40rpx;
-  font-weight: 800;
-  line-height: 56rpx;
-  letter-spacing: 0;
 }
 
 .detail-content {
