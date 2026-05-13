@@ -10,6 +10,10 @@
     <text class="sub-hello">今天想玩点什么呢？</text>
   </view>
 
+  <view wx:if="{{refreshDoneVisible}}" class="refresh-toast done">
+    <text>已同步最新玩法</text>
+  </view>
+
   <view wx:if="{{loadingFeatures}}" class="state-card">
     <view class="mini-spinner"></view>
     <view class="state-text">玩法加载中</view>

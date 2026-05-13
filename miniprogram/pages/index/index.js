@@ -19,6 +19,8 @@ Page({
     ],
     activeCategory: "all",
     loadingFeatures: true,
+    refreshing: false,
+    refreshDoneVisible: false,
     featureError: "",
     user: null,
     loginError: "",
@@ -26,26 +28,43 @@ Page({
 
   async onLoad() {
     this.loginUser();
+    this.loadFeatures();
+  },
 
+  async loadFeatures(options = {}) {
+    const { refreshing = false } = options;
+    if (!refreshing) {
+      this.setData({ loadingFeatures: true, featureError: "" });
+    }
     try {
       const featureList = await fetchFeatureList();
       const homeFeatureList = this.createHomeFeatureList(featureList);
       const recommendedFeature =
         homeFeatureList.find((item) => item.type === "doodle") || homeFeatureList[0] || null;
+      const filteredFeatureList = this.filterFeatureList(homeFeatureList, this.data.activeCategory);
       getApp().globalData.featureList = featureList;
       this.setData({
         featureList,
         homeFeatureList,
-        filteredFeatureList: homeFeatureList,
+        filteredFeatureList,
         recommendedFeature,
         loadingFeatures: false,
+        refreshing: false,
         featureError: "",
       });
+      if (refreshing) {
+        this.showRefreshDone();
+      }
     } catch (e) {
       this.setData({
         loadingFeatures: false,
+        refreshing: false,
         featureError: "功能列表加载失败",
       });
+    } finally {
+      if (refreshing) {
+        wx.stopPullDownRefresh();
+      }
     }
   },
 
@@ -69,6 +88,12 @@ Page({
     }));
   },
 
+  filterFeatureList(featureList, category) {
+    return category === "all"
+      ? featureList
+      : featureList.filter((feature) => (feature.category || "其他") === category);
+  },
+
   buildFeatureRoute(type) {
     return type ? `/pages/feature/index?type=${type}` : "";
   },
@@ -88,12 +113,27 @@ Page({
 
   onCategoryTap(e) {
     const category = e.currentTarget.dataset.category || "all";
-    const filtered = category === "all"
-      ? this.data.homeFeatureList
-      : this.data.homeFeatureList.filter((f) => (f.category || "其他") === category);
+    const filtered = this.filterFeatureList(this.data.homeFeatureList, category);
 
      this.setData({ activeCategory: category, filteredFeatureList: filtered });
    },
+
+  onPullDownRefresh() {
+    if (this.data.refreshing) return;
+    this.setData({ refreshing: true });
+    this.loadFeatures({ refreshing: true });
+  },
+
+  showRefreshDone() {
+    if (this.refreshDoneTimer) {
+      clearTimeout(this.refreshDoneTimer);
+    }
+    this.setData({ refreshDoneVisible: true });
+    this.refreshDoneTimer = setTimeout(() => {
+      this.setData({ refreshDoneVisible: false });
+      this.refreshDoneTimer = null;
+    }, 1400);
+  },
 
    async onPreviewImageTap(e) {
     const { index } = e.currentTarget.dataset;

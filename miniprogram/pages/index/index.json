@@ -1,4 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "玩图局"
+  "navigationBarTitleText": "玩图局",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }
