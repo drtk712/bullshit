@@ -2,18 +2,43 @@ const { fetchFeature } = require("../../../utils/api/features");
 const { createTask } = require("../../../utils/api/tasks");
 const { buildHomeSharePayload, getShareRewardStatus } = require("../../../utils/share");
 
+const SUBMIT_PROGRESS = {
+  initial: 8,
+  maxBeforeDone: 94,
+  stepStart: 28,
+  stepEnd: 94,
+  interval: 650,
+  increments: [
+    { below: 60, value: 8 },
+    { below: 86, value: 3 },
+    { below: 94, value: 1 },
+  ],
+};
+
+const BASE_SUBMIT_STEPS = [
+  "检查图片是否存在违规内容",
+  "创建图片处理任务",
+];
+
 Page({
   data: {
     feature: null,
     configLoading: true,
     configError: "",
     tips: [],
+    requirementItems: [],
     paramFields: [],
     paramValues: {},
     points: 0,
     showPointsModal: false,
     shareRewardStatus: { remainingToday: 0 },
+    submitting: false,
+    submittingText: "",
+    submitProgress: 0,
+    submitSteps: [],
   },
+  submitProgressTimer: null,
+  choosingImage: false,
 
   goBack() {
     wx.navigateBack({
@@ -42,9 +67,11 @@ Page({
     }
 
     const paramFields = this.getParamFields(feature.type);
+    const ui = feature.ui || {};
     this.setData({
       feature,
-      tips: feature.ui?.requirements || [],
+      tips: ui.requirements || [],
+      requirementItems: this.normalizeRequirementItems(ui.requirementItems),
       paramFields,
       paramValues: this.getDefaultParamValues(paramFields),
       configLoading: false,
@@ -72,14 +99,19 @@ Page({
   },
 
   async chooseImage() {
-    if (!this.data.feature) return;
+    if (this.data.submitting || this.choosingImage || !this.data.feature) return;
 
     if (!this.validateParams()) return;
 
-    const status = await this.loadShareRewardStatus();
-    if (Number(status?.points || 0) < 1) {
-      this.setData({ showPointsModal: true });
-      return;
+    this.choosingImage = true;
+    try {
+      const status = await this.loadShareRewardStatus();
+      if (Number(status?.points || 0) < 1) {
+        this.setData({ showPointsModal: true });
+        return;
+      }
+    } finally {
+      this.choosingImage = false;
     }
 
     const isMultiImage = this.isMultiImageFeature(this.data.feature.type);
@@ -92,11 +124,11 @@ Page({
           .map((item) => item.tempFilePath)
           .filter(Boolean);
         if (!tempFilePaths.length) {
-          wx.showToast({ title: "图片选择失败", icon: "none" });
+          this.showNoticeModal("图片选择失败", "没有获取到可用图片，请重新选择。");
           return;
         }
         if (isMultiImage && tempFilePaths.length < 2) {
-          wx.showToast({ title: "请至少选择2张图片", icon: "none" });
+          this.showNoticeModal("图片数量不足", "请至少选择 2 张图片后再开始处理。");
           return;
         }
         this.compressAndUpload(tempFilePaths);
@@ -105,7 +137,7 @@ Page({
   },
 
   async compressAndUpload(tempFilePaths) {
-    wx.showLoading({ title: "校验图片" });
+    this.startSubmitFlow();
     const paths = Array.isArray(tempFilePaths) ? tempFilePaths : [tempFilePaths];
     try {
       const fileIDs = [];
@@ -115,8 +147,8 @@ Page({
       }
       this.createJob(this.isMultiImageFeature(this.data.feature.type) ? fileIDs : fileIDs[0]);
     } catch (err) {
-      wx.hideLoading();
-      wx.showToast({ title: err.message || "上传失败", icon: "none" });
+      this.stopSubmitFlow();
+      this.showNoticeModal("上传失败", err.message || "图片上传失败，请稍后重试。");
     }
   },
 
@@ -152,14 +184,14 @@ Page({
       param: this.buildJobParam(),
     })
       .then((data) => {
-        wx.hideLoading();
+        this.finishSubmitFlow();
         getApp().globalData.shouldRefreshTasks = true;
         wx.redirectTo({
           url: `/pages/feature/progress/index?id=${data.taskId}&type=${this.data.feature.type}`,
         });
       })
       .catch(async (err) => {
-        wx.hideLoading();
+        this.stopSubmitFlow();
         const errMsg = err.message || "处理失败";
         if (errMsg.includes("积分不足")) {
           await this.loadShareRewardStatus();
@@ -179,8 +211,123 @@ Page({
     });
   },
 
+  showNoticeModal(title, content) {
+    wx.showModal({
+      title,
+      content,
+      confirmText: "知道了",
+      showCancel: false,
+    });
+  },
+
   hidePointsModal() {
     this.setData({ showPointsModal: false });
+  },
+
+  noop() {},
+
+  startSubmitFlow() {
+    const progress = SUBMIT_PROGRESS.initial;
+    const submitSteps = this.buildSubmitSteps(progress);
+    this.stopSubmitProgress();
+    this.setData({
+      submitting: true,
+      submittingText: this.getCurrentSubmitStepText(submitSteps),
+      submitProgress: progress,
+      submitSteps,
+    });
+    this.startSubmitProgress();
+  },
+
+  finishSubmitFlow() {
+    this.stopSubmitFlow();
+  },
+
+  stopSubmitFlow() {
+    this.stopSubmitProgress();
+    this.setData({
+      submitting: false,
+      submittingText: "",
+      submitProgress: 0,
+      submitSteps: this.buildSubmitSteps(0),
+    });
+  },
+
+  startSubmitProgress() {
+    if (this.submitProgressTimer) return;
+    this.submitProgressTimer = setInterval(() => {
+      if (!this.data.submitting) {
+        this.stopSubmitProgress();
+        return;
+      }
+      const current = Number(this.data.submitProgress || 0);
+      const increment = SUBMIT_PROGRESS.increments.find((item) => current < item.below)?.value || 0;
+      const next = increment ? current + increment : current;
+      if (next !== current) {
+        this.syncSubmitProgress(next);
+      }
+    }, SUBMIT_PROGRESS.interval);
+  },
+
+  stopSubmitProgress() {
+    if (this.submitProgressTimer) {
+      clearInterval(this.submitProgressTimer);
+      this.submitProgressTimer = null;
+    }
+  },
+
+  syncSubmitProgress(progress) {
+    const next = Math.max(
+      Number(this.data.submitProgress || 0),
+      Math.min(SUBMIT_PROGRESS.maxBeforeDone, Number(progress || 0))
+    );
+    const submitSteps = this.buildSubmitSteps(next);
+    this.setData({
+      submitProgress: next,
+      submittingText: this.getCurrentSubmitStepText(submitSteps),
+      submitSteps,
+    });
+  },
+
+  getCurrentSubmitStepText(steps) {
+    const current = (steps || []).find((step) => !step.done);
+    return current?.text || "校验完成";
+  },
+
+  getRequirementCheckSteps() {
+    const items = this.data.requirementItems || [];
+    return items.length
+      ? items.map((item) => `检查：${item.text}`)
+      : ["检查图片是否符合要求"];
+  },
+
+  buildSubmitSteps(progress) {
+    const stepTexts = this.buildSubmitStepTexts();
+    const thresholds = this.buildStepThresholds(stepTexts.length);
+    const steps = stepTexts.map((text, index) => ({ text, threshold: thresholds[index] }));
+    return steps.map((step) => ({
+      text: step.text,
+      done: Number(progress || 0) >= step.threshold,
+    }));
+  },
+
+  buildSubmitStepTexts() {
+    return [
+      ...this.getRequirementCheckSteps(),
+      ...BASE_SUBMIT_STEPS,
+    ];
+  },
+
+  buildStepThresholds(count) {
+    if (count <= 1) return [SUBMIT_PROGRESS.stepEnd];
+    const start = SUBMIT_PROGRESS.stepStart;
+    const end = SUBMIT_PROGRESS.stepEnd;
+    const gap = (end - start) / (count - 1);
+    return Array.from({ length: count }, (_, index) => Math.round(start + gap * index));
+  },
+
+  onUnload() {
+    this.stopSubmitProgress();
   },
 
   getParamFields(type) {
@@ -229,6 +376,16 @@ Page({
     return fieldMap[type] || [];
   },
 
+  normalizeRequirementItems(items) {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        if (typeof item === "string") return { text: item.trim() };
+        return { text: String(item?.text || item?.title || "").trim() };
+      })
+      .filter((item) => item.text);
+  },
+
   isMultiImageFeature(type) {
     return type === "long_image";
   },
@@ -269,7 +426,7 @@ Page({
     const missingField = fields.find((field) => field.required && !String(values[field.key] || "").trim());
 
     if (missingField) {
-      wx.showToast({ title: `请填写${missingField.label}`, icon: "none" });
+      this.showNoticeModal("参数未填写", `请填写${missingField.label}`);
       return false;
     }
 

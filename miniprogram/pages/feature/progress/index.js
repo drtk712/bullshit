@@ -1,17 +1,22 @@
 const { createTaskPoller } = require("../../../utils/taskPoller");
 
 const PROGRESS_STAGES = {
-  pending: { min: 20, max: 45, title: "正在排队处理" },
-  processing: { min: 45, max: 92 },
+  pending: { max: 28, title: "正在排队处理" },
+  processing: { max: 92 },
 };
-const PROCESSING_START_PROGRESS = 45;
-const CHECK_PROGRESS_STEP = 10;
+const INITIAL_PROGRESS = 8;
+const PROCESSING_START_PROGRESS = 28;
+const PROCESSING_END_PROGRESS = 92;
+const PROGRESS_INTERVAL = 1500;
+const PROGRESS_INCREMENTS = [
+  { below: PROCESSING_END_PROGRESS, value: 2 },
+];
 
 Page({
   data: {
     taskId: "",
     type: "",
-    progress: 8,
+    progress: INITIAL_PROGRESS,
     remainText: "约 60 秒",
     progressTitle: "",
     progressChecks: [],
@@ -46,7 +51,7 @@ Page({
     this.setData({
       taskId: options.id || "",
       type,
-      progress: PROGRESS_STAGES.pending.min,
+      progress: INITIAL_PROGRESS,
       progressTitle: PROGRESS_STAGES.pending.title,
       progressChecks: this.buildProgressChecks(ui.progressChecks || []),
     });
@@ -64,10 +69,11 @@ Page({
   startFakeProgress() {
     this.progressTimer = setInterval(() => {
       const stage = this.progressStage || PROGRESS_STAGES.pending;
-      const step = stage.max <= 20 ? 2 : stage.max <= 45 ? 3 : 4;
-      const next = Math.min(this.data.progress + step, stage.max);
+      const current = Number(this.data.progress || INITIAL_PROGRESS);
+      const step = PROGRESS_INCREMENTS.find((item) => current < item.below)?.value || 1;
+      const next = Math.min(current + step, stage.max);
       this.updateProgress(next);
-    }, 2200);
+    }, PROGRESS_INTERVAL);
   },
 
   buildProgressChecks(checks) {
@@ -80,10 +86,10 @@ Page({
 
   progressCheckDoneCount(progress) {
     if (progress < PROCESSING_START_PROGRESS) return 0;
-    return Math.min(
-      this.data.progressChecks.length,
-      Math.floor((progress - PROCESSING_START_PROGRESS) / CHECK_PROGRESS_STEP)
-    );
+    const total = this.data.progressChecks.length;
+    if (!total) return 0;
+    const ratio = (progress - PROCESSING_START_PROGRESS) / (PROCESSING_END_PROGRESS - PROCESSING_START_PROGRESS);
+    return Math.min(total, Math.floor(ratio * total));
   },
 
   updateProgress(progress) {
@@ -119,7 +125,9 @@ Page({
     this.setData({
       progressTitle: this.progressStage.title,
     });
-    this.updateProgress(Math.max(this.data.progress, this.progressStage.min));
+    this.updateProgress(status === "processing"
+      ? Math.max(this.data.progress, PROCESSING_START_PROGRESS)
+      : this.data.progress);
   },
 
   startPolling() {

@@ -75,7 +75,32 @@
     </view>
 
     <view class="upload-dock">
-      <button class="generate-btn" bindtap="chooseImage">开始处理</button>
+      <button class="generate-btn {{submitting ? 'disabled' : ''}}" disabled="{{submitting}}" bindtap="chooseImage">
+        {{submitting ? submittingText : '开始处理'}}
+      </button>
+    </view>
+
+    <view wx:if="{{submitting}}" class="submit-mask" catchtap="noop" catchtouchmove="noop">
+      <view class="submit-dialog">
+        <view class="submit-orbit">
+          <view class="mini-spinner"></view>
+        </view>
+        <text class="submit-title">正在校验图片</text>
+        <text class="submit-desc">{{submittingText || '校验图片'}}</text>
+        <view class="submit-progress">
+          <view class="submit-progress-fill" style="width: {{submitProgress}}%;"></view>
+        </view>
+        <view class="submit-progress-meta">
+          <text>预计 5-10 秒</text>
+          <text>{{submitProgress}}%</text>
+        </view>
+        <view class="submit-step-list">
+          <view class="submit-step {{item.done ? 'done' : ''}}" wx:for="{{submitSteps}}" wx:key="text">
+            <text class="submit-step-dot">{{item.done ? '✓' : '◴'}}</text>
+            <text>{{item.text}}</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view wx:if="{{showPointsModal}}" class="modal-mask">

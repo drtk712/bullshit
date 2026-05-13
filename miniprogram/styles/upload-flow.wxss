@@ -308,8 +308,141 @@ page {
   box-shadow: 0 12rpx 26rpx rgba(0, 109, 64, 0.18);
 }
 
+.generate-btn.disabled {
+  background: rgba(0, 109, 64, 0.48);
+  box-shadow: none;
+}
+
 .generate-btn::after {
   border: 0;
+}
+
+.submit-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: rgba(243, 252, 242, 0.64);
+  backdrop-filter: blur(14rpx);
+}
+
+.submit-dialog {
+  width: 100%;
+  max-width: 600rpx;
+  padding: 44rpx 38rpx 38rpx;
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--ui-shadow-strong);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.submit-orbit {
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 auto 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: rgba(21, 199, 122, 0.1);
+}
+
+.submit-orbit .mini-spinner {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.submit-title,
+.submit-desc {
+  display: block;
+}
+
+.submit-title {
+  color: var(--ui-text);
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 42rpx;
+}
+
+.submit-desc {
+  margin-top: 10rpx;
+  color: var(--ui-text-soft);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.submit-progress {
+  overflow: hidden;
+  height: 16rpx;
+  margin-top: 30rpx;
+  border-radius: 999rpx;
+  background: rgba(23, 33, 27, 0.08);
+}
+
+.submit-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ui-primary), var(--ui-primary-dark));
+  transition: width 360ms ease;
+}
+
+.submit-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12rpx;
+  color: var(--ui-muted);
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.submit-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 28rpx;
+  text-align: left;
+}
+
+.submit-step {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  color: var(--ui-text-soft);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.submit-step text:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.submit-step.done {
+  color: var(--ui-primary-dark);
+  font-weight: 700;
+}
+
+.submit-step-dot {
+  width: 34rpx;
+  height: 34rpx;
+  flex: 0 0 34rpx;
+  border-radius: 999rpx;
+  background: rgba(23, 33, 27, 0.06);
+  text-align: center;
+  font-size: 20rpx;
+  line-height: 34rpx;
+}
+
+.submit-step.done .submit-step-dot {
+  background: rgba(21, 199, 122, 0.14);
 }
 
 .upload-footnote {
