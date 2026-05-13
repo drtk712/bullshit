@@ -38,6 +38,18 @@ def from_ejson(value: Any) -> Any:
     return {key: from_ejson(item) for key, item in value.items()}
 
 
+def created_id(result: dict[str, Any]) -> str | None:
+    for key in ("_id", "id"):
+        value = result.get(key)
+        if value:
+            return str(value)
+    for key in ("ids", "insertedIds", "inserted_ids"):
+        value = result.get(key)
+        if isinstance(value, list) and value:
+            return str(value[0])
+    return None
+
+
 class CloudBaseNoSQL:
     def __init__(
         self,
@@ -291,22 +303,14 @@ class PointLedger:
             return str(result["_id"])
         return None
 
-    def accept_job(self, task_id: str, amount: int = 1) -> tuple[dict[str, Any], bool]:
+    def create_pending_job(self, task_doc: dict[str, Any], amount: int = 1) -> tuple[str, dict[str, Any]]:
         transaction_id = self.db.begin_transaction()
         try:
-            task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
-            status = str(task.get("status") or "")
+            task = dict(task_doc)
             openid = str(task.get("openid") or "")
-
-            if status in {"pending", "processing", "completed"}:
-                self.db.commit_transaction(transaction_id)
-                return task, False
-            if status != "init":
-                raise ValueError(f"任务状态不可接管: {status or 'unknown'}")
             if not openid:
                 raise ValueError("任务缺少 openid")
 
-            consume_transaction_id = None
             user = self._get_user_by_openid_in_transaction(openid, transaction_id)
             user_id = str(user.get("_id") or "")
             current_points = int(user.get("points") or 0)
@@ -323,6 +327,25 @@ class PointLedger:
                 },
                 transaction_id=transaction_id,
             )
+
+            now = int(time.time() * 1000)
+            task.update(
+                {
+                    "status": "pending",
+                    "errMsg": "",
+                    "pointsCost": amount,
+                    "pointsConsumed": True,
+                    "pointsRefunded": False,
+                    "consumeTransactionId": None,
+                    "refundTransactionId": None,
+                    "updatedAt": now,
+                }
+            )
+            create_result = self.db.insert_documents(FEATURE_JOBS_COLLECTION, [task], transaction_id=transaction_id)
+            task_id = created_id(create_result)
+            if not task_id:
+                raise ValueError("创建任务失败")
+
             consume_transaction_id = self._create_transaction(
                 openid=openid,
                 tx_type="consume",
@@ -332,18 +355,17 @@ class PointLedger:
                 task_id=task_id,
                 transaction_id=transaction_id,
             )
-
-            patch = {
-                "status": "pending",
-                "errMsg": "",
-                "pointsConsumed": True,
-                "pointsRefunded": False,
-                "consumeTransactionId": consume_transaction_id,
-                "updatedAt": int(time.time() * 1000),
-            }
-            self.db.update_document(FEATURE_JOBS_COLLECTION, task_id, patch, transaction_id=transaction_id)
+            self.db.update_document(
+                FEATURE_JOBS_COLLECTION,
+                task_id,
+                {
+                    "consumeTransactionId": consume_transaction_id,
+                    "updatedAt": now,
+                },
+                transaction_id=transaction_id,
+            )
             self.db.commit_transaction(transaction_id)
-            return {**task, **patch}, True
+            return task_id, {**task, "_id": task_id, "consumeTransactionId": consume_transaction_id}
         except Exception:
             self._rollback_safely(transaction_id)
             raise
@@ -526,7 +548,7 @@ class UserAdminStore:
         task = self.get_task(task_id)
         if not task:
             raise ValueError("任务不存在")
-        if str(task.get("status") or "") in {"init", "pending", "processing"}:
+        if str(task.get("status") or "") in {"pending", "processing"}:
             raise ValueError("进行中的任务不能删除")
         self.db.delete_document(self.jobs_collection, task_id)
         return task
@@ -650,14 +672,14 @@ class UserAdminStore:
         return items, total
 
     def dashboard(self, active_limit: int = 12) -> dict[str, Any]:
-        task_statuses = ("init", "pending", "processing", "completed", "failed")
+        task_statuses = ("pending", "processing", "completed", "failed")
         task_counts = {
             status: self.db.count_documents(self.jobs_collection, {"status": status})
             for status in task_statuses
         }
         active_tasks = self.db.find_many(
             self.jobs_collection,
-            {"status": {"$in": ["init", "pending", "processing"]}},
+            {"status": {"$in": ["pending", "processing"]}},
             sort={"updatedAt": {"$numberInt": "1"}},
             limit=active_limit,
         )

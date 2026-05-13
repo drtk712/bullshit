@@ -1,7 +1,6 @@
 const { createTaskPoller } = require("../../../utils/taskPoller");
 
 const PROGRESS_STAGES = {
-  init: { min: 8, max: 20, title: "正在提交图片" },
   pending: { min: 20, max: 45, title: "正在排队处理" },
   processing: { min: 45, max: 92 },
 };
@@ -20,7 +19,7 @@ Page({
 
   poller: null,
   progressTimer: null,
-  progressStage: PROGRESS_STAGES.init,
+  progressStage: PROGRESS_STAGES.pending,
   configuredProgressTitle: "",
 
   goBack() {
@@ -47,8 +46,8 @@ Page({
     this.setData({
       taskId: options.id || "",
       type,
-      progress: PROGRESS_STAGES.init.min,
-      progressTitle: PROGRESS_STAGES.init.title,
+      progress: PROGRESS_STAGES.pending.min,
+      progressTitle: PROGRESS_STAGES.pending.title,
       progressChecks: this.buildProgressChecks(ui.progressChecks || []),
     });
     this.startFakeProgress();
@@ -64,7 +63,7 @@ Page({
 
   startFakeProgress() {
     this.progressTimer = setInterval(() => {
-      const stage = this.progressStage || PROGRESS_STAGES.init;
+      const stage = this.progressStage || PROGRESS_STAGES.pending;
       const step = stage.max <= 20 ? 2 : stage.max <= 45 ? 3 : 4;
       const next = Math.min(this.data.progress + step, stage.max);
       this.updateProgress(next);

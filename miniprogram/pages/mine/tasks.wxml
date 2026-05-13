@@ -35,7 +35,7 @@
             <view class="task-thumb {{item.status === 'failed' ? 'failed' : ''}}">
               <image wx:if="{{item.thumbImage}}" class="task-thumb-image" src="{{item.thumbImage}}" mode="aspectFill"></image>
               <text wx:else>{{item.status === 'failed' ? '!' : item.displayInitial}}</text>
-              <view wx:if="{{item.status === 'init' || item.status === 'processing' || item.status === 'pending'}}" class="thumb-mask">中</view>
+              <view wx:if="{{item.status === 'processing' || item.status === 'pending'}}" class="thumb-mask">中</view>
             </view>
             <view class="task-main">
               <text class="task-name">{{item.displayName}}</text>
@@ -45,7 +45,7 @@
           <text class="status-chip {{item.statusClass}}">{{item.statusDisplay || item.statusText}}</text>
         </view>
 
-        <view wx:if="{{item.status === 'init' || item.status === 'processing' || item.status === 'pending'}}" class="task-progress">
+        <view wx:if="{{item.status === 'processing' || item.status === 'pending'}}" class="task-progress">
           <view class="task-progress-fill" style="{{item.progressStyle}}"></view>
         </view>
 
@@ -70,7 +70,7 @@
           <text>重新处理</text>
         </button>
 
-        <text wx:if="{{item.status !== 'completed' && item.status !== 'failed' && item.status !== 'init' && item.status !== 'processing' && item.status !== 'pending'}}" class="task-desc">{{item.displayDesc}}</text>
+        <text wx:if="{{item.status !== 'completed' && item.status !== 'failed' && item.status !== 'processing' && item.status !== 'pending'}}" class="task-desc">{{item.displayDesc}}</text>
       </view>
     </view>
 

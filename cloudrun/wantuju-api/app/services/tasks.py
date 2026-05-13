@@ -20,7 +20,7 @@ from app.services.users import UserService
 
 logger = logging.getLogger(__name__)
 FEATURE_JOBS_COLLECTION = "feature_jobs"
-TASK_STATUS_FILTERS = {"init", "pending", "processing", "completed", "failed"}
+TASK_STATUS_FILTERS = {"pending", "processing", "completed", "failed"}
 MULTI_IMAGE_TYPES = {"long_image"}
 PROCESSING_RECOVERY_AFTER_MS = 15 * 60 * 1000
 
@@ -137,44 +137,30 @@ class TaskService:
             "fileID": primary_file_id,
             "fileIDs": normalized_file_ids,
             "generationPrompt": rendered_prompt,
-            "status": "init",
+            "status": "pending",
             "posterFileID": None,
             "resultMode": "single",
             "resultFileIDs": [],
             "errMsg": "",
             "openid": openid,
             "pointsCost": 1,
-            "pointsConsumed": False,
+            "pointsConsumed": True,
             "pointsRefunded": False,
             "consumeTransactionId": None,
             "refundTransactionId": None,
             "createdAt": now,
             "updatedAt": now,
         }
-        create_result = self.db.insert_documents(FEATURE_JOBS_COLLECTION, [task_doc])
-        task_id = created_id(create_result)
-        if not task_id:
-            raise JobCreationError("创建任务失败", cleanup_uploads=True)
-        log_event(
-            logger,
-            "task_created",
-            task_id=task_id,
-            type=feature_type,
-            openid=mask_openid(openid),
-            file_count=len(normalized_file_ids),
-        )
-
-        accepted = False
+        task_id: str | None = None
         try:
-            _task, _should_enqueue = self.accept_job(task_id, amount=1)
-            accepted = _should_enqueue
+            task_id, _task = get_point_ledger().create_pending_job(task_doc, amount=1)
             log_event(
                 logger,
-                "task_accepted",
+                "task_created",
                 task_id=task_id,
                 type=feature_type,
                 openid=mask_openid(openid),
-                enqueue=_should_enqueue,
+                file_count=len(normalized_file_ids),
             )
             queued = QueuedJob(
                 task_id=task_id,
@@ -186,15 +172,14 @@ class TaskService:
                 image_urls=image_urls,
                 source_file_ids=normalized_file_ids,
             )
-            if _should_enqueue and not await job_queue.enqueue(queued):
+            if not await job_queue.enqueue(queued):
                 raise RuntimeError("任务已在队列中")
-            if _should_enqueue:
-                log_event(logger, "task_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
+            log_event(logger, "task_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
             return {"taskId": task_id}
         except Exception as exc:
             err_msg = str(exc) if isinstance(exc, JobCreationError) else str(exc) or "创建任务失败"
-            log_event(logger, "task_create_failed", task_id=task_id, type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
-            if accepted:
+            log_event(logger, "task_create_failed", task_id=task_id or "", type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
+            if task_id:
                 try:
                     get_point_ledger().refund_failed_job(task_id, err_msg, 1)
                 except Exception:
@@ -209,19 +194,8 @@ class TaskService:
                             "updatedAt": int(time.time() * 1000),
                         },
                     )
-            else:
-                self.db.update_document(
-                    FEATURE_JOBS_COLLECTION,
-                    task_id,
-                    {
-                        "status": "failed",
-                        "errMsg": err_msg,
-                        "pointsRefunded": False,
-                        "refundTransactionId": None,
-                        "updatedAt": int(time.time() * 1000),
-                    },
-                )
-            raise JobCreationError(err_msg) from exc
+                raise JobCreationError(err_msg) from exc
+            raise JobCreationError(err_msg, cleanup_uploads=True) from exc
 
     def list_tasks(self, openid: str, *, page: int = 1, page_size: int = 5, status_filter: str = "all") -> dict[str, Any]:
         page = max(1, int(page or 1))
@@ -272,7 +246,7 @@ class TaskService:
         if not task or task.get("openid") != openid:
             raise ValueError("任务不存在")
 
-        if task.get("status") in {"init", "pending", "processing"}:
+        if task.get("status") in {"pending", "processing"}:
             raise ValueError("进行中的任务不能删除")
 
         file_ids = [
@@ -291,9 +265,6 @@ class TaskService:
         self.db.delete_document(FEATURE_JOBS_COLLECTION, task_id)
         log_event(logger, "task_deleted", task_id=task_id, openid=mask_openid(openid), status=task.get("status"))
         return {"taskId": task_id}
-
-    def accept_job(self, task_id: str, amount: int = 1) -> tuple[dict[str, Any], bool]:
-        return get_point_ledger().accept_job(task_id, amount)
 
     def claim_processing_job(self, task_id: str) -> dict[str, Any] | None:
         transaction_id = self.db.begin_transaction()
@@ -466,18 +437,6 @@ def normalize_file_ids(input_value: Any) -> list[str]:
         if text.startswith("cloud://"):
             result.append(text)
     return result[:9]
-
-
-def created_id(result: dict[str, Any]) -> str | None:
-    for key in ("_id", "id"):
-        value = result.get(key)
-        if value:
-            return str(value)
-    for key in ("ids", "insertedIds", "inserted_ids"):
-        value = result.get(key)
-        if isinstance(value, list) and value:
-            return str(value[0])
-    return None
 
 
 def strip_thinking_text(content: str) -> str:

@@ -40,7 +40,6 @@ TX_REASON_OPTIONS = [
 
 TASK_STATUS_OPTIONS = [
     ("", "全部"),
-    ("init", "提交中 init"),
     ("pending", "等待中 pending"),
     ("processing", "生成中 processing"),
     ("completed", "已完成 completed"),
@@ -236,7 +235,7 @@ def _message(kind: str | None) -> str | None:
 
 def _status_pill(status: str, label: str | None = None) -> Any:
     cls = "pill"
-    if status in {"init", "pending", "processing"}:
+    if status in {"pending", "processing"}:
         cls += " active"
     if status == "completed":
         cls += " done"
@@ -289,7 +288,6 @@ def _dashboard_page(
             Div(
                 H2("任务状态"),
                 Div(
-                    Div(Div("提交中", cls="muted"), Strong(str(task_counts.get("init", 0))), cls="status-box"),
                     Div(Div("等待中", cls="muted"), Strong(str(task_counts.get("pending", 0))), cls="status-box"),
                     Div(Div("生成中", cls="muted"), Strong(str(task_counts.get("processing", 0))), cls="status-box"),
                     Div(Div("已完成", cls="muted"), Strong(str(task_counts.get("completed", 0))), cls="status-box"),
@@ -318,7 +316,7 @@ def _dashboard_page(
         ),
         Div(
             H2("当前正在处理的任务"),
-            P("包含 init / pending / processing，按更新时间从旧到新排列。", cls="muted"),
+            P("包含 pending / processing，按更新时间从旧到新排列。", cls="muted"),
             Table(
                 Thead(Tr(Th("任务 ID"), Th("状态"), Th("玩法"), Th("OpenID"), Th("更新时间"), Th("操作"))),
                 Tbody(*active_rows) if active_rows else Tbody(Tr(Td("当前没有进行中的任务", colspan="6", cls="muted"))),
@@ -651,7 +649,6 @@ def _task_status_text(task: dict[str, Any]) -> str:
     if status == "failed" and task.get("pointsRefunded"):
         return "失败已退款"
     return {
-        "init": "提交中",
         "pending": "等待中",
         "processing": "生成中",
         "completed": "已完成",
@@ -833,7 +830,7 @@ def _task_delete_button(task: dict[str, Any], filters: dict[str, Any]) -> Any:
     task_id = str(task.get("_id") or "")
     if not task_id:
         return "-"
-    if str(task.get("status") or "") in {"init", "pending", "processing"}:
+    if str(task.get("status") or "") in {"pending", "processing"}:
         return Span("进行中", cls="muted")
     hidden_fields = [
         Input(type="hidden", name=key, value=str(value))

@@ -1,5 +1,4 @@
 const TASK_STATUS_CLASSES = {
-  init: "status-pending",
   pending: "status-pending",
   processing: "status-processing",
   completed: "status-completed",
@@ -20,7 +19,6 @@ function getTaskDisplayDesc(task, featureMap = {}) {
 
 function getTaskStatusText(task) {
   const statusMap = {
-    init: "提交中",
     pending: "排队中",
     processing: "处理中",
     completed: "已完成",

@@ -3,7 +3,7 @@ const DEFAULT_MAX_DURATION_MS = 15 * 60 * 1000;
 const { fetchTaskStatus } = require("./api/tasks");
 
 function isActiveTaskStatus(status) {
-  return status === "init" || status === "pending" || status === "processing";
+  return status === "pending" || status === "processing";
 }
 
 function createTaskPoller(options) {

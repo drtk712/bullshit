@@ -334,7 +334,7 @@ Page({
     if (!this.taskId) return;
 
     const status = this.data.task?.status;
-    if (status === 'init' || status === 'pending' || status === 'processing') {
+    if (status === 'pending' || status === 'processing') {
       wx.showToast({ title: '进行中的任务不能删除', icon: 'none' });
       return;
     }
