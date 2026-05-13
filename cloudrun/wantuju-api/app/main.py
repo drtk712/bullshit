@@ -9,10 +9,12 @@ from fastapi import FastAPI
 from app.admin.routes import router as admin_router
 from app.api import features, miniapp, share_rewards, tasks, transactions, users
 from app.cloudbase.client import CloudBaseError
+from app.core.logging import configure_logging, request_log_middleware
 from app.services.job_queue import job_queue
 from app.services.tasks import TaskService
 
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +34,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Wantuju API", version="0.1.0", lifespan=lifespan)
+app.middleware("http")(request_log_middleware)
 app.include_router(miniapp.router)
 app.include_router(features.router)
 app.include_router(users.router)

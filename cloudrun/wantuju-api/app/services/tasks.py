@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 
 from app.cloudbase.nosql import CloudBaseNoSQL, get_point_ledger
 from app.cloudbase.storage import CloudBaseStorage
+from app.core.logging import compact_error, log_event, mask_openid
 from app.services.features import FeatureService
 from app.services.job_queue import QueuedJob, job_queue
 from app.services.users import UserService
@@ -154,11 +155,27 @@ class TaskService:
         task_id = created_id(create_result)
         if not task_id:
             raise JobCreationError("创建任务失败", cleanup_uploads=True)
+        log_event(
+            logger,
+            "task_created",
+            task_id=task_id,
+            type=feature_type,
+            openid=mask_openid(openid),
+            file_count=len(normalized_file_ids),
+        )
 
         accepted = False
         try:
             _task, _should_enqueue = self.accept_job(task_id, amount=1)
             accepted = _should_enqueue
+            log_event(
+                logger,
+                "task_accepted",
+                task_id=task_id,
+                type=feature_type,
+                openid=mask_openid(openid),
+                enqueue=_should_enqueue,
+            )
             queued = QueuedJob(
                 task_id=task_id,
                 image_url=image_url,
@@ -171,9 +188,12 @@ class TaskService:
             )
             if _should_enqueue and not await job_queue.enqueue(queued):
                 raise RuntimeError("任务已在队列中")
+            if _should_enqueue:
+                log_event(logger, "task_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
             return {"taskId": task_id}
         except Exception as exc:
             err_msg = str(exc) if isinstance(exc, JobCreationError) else str(exc) or "创建任务失败"
+            log_event(logger, "task_create_failed", task_id=task_id, type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
             if accepted:
                 try:
                     get_point_ledger().refund_failed_job(task_id, err_msg, 1)
@@ -269,6 +289,7 @@ class TaskService:
             pass
 
         self.db.delete_document(FEATURE_JOBS_COLLECTION, task_id)
+        log_event(logger, "task_deleted", task_id=task_id, openid=mask_openid(openid), status=task.get("status"))
         return {"taskId": task_id}
 
     def accept_job(self, task_id: str, amount: int = 1) -> tuple[dict[str, Any], bool]:
@@ -309,6 +330,7 @@ class TaskService:
             fresh_job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
             if fresh_job.get("processingLeaseToken") != token:
                 return None
+            log_event(logger, "task_claimed_processing", task_id=task_id, type=fresh_job.get("type"), lease_at=now)
             return fresh_job
         except Exception:
             self.db.rollback_transaction(transaction_id)

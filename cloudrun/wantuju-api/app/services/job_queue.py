@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.logging import log_event
 from app.services.jobs_runtime import process_job
 
 
@@ -55,9 +56,11 @@ class JobQueue:
     async def enqueue(self, job: QueuedJob) -> bool:
         async with self.lock:
             if job.task_id in self.queued_task_ids or job.task_id in self.active_task_ids:
+                log_event(logger, "queue_duplicate", task_id=job.task_id, type=job.job_type)
                 return False
             self.queued_task_ids.add(job.task_id)
             await self.queue.put(job)
+            log_event(logger, "queue_enqueued", task_id=job.task_id, type=job.job_type, queued=self.queue.qsize(), active=len(self.active_task_ids))
             return True
 
     async def contains(self, task_id: str) -> bool:
@@ -71,6 +74,7 @@ class JobQueue:
                 self.queued_task_ids.discard(job.task_id)
                 self.active_task_ids.add(job.task_id)
             logger.info("[队列取出] worker=%s task_id=%s queued=%s active=%s", worker_id, job.task_id, self.queue.qsize(), len(self.active_task_ids))
+            log_event(logger, "queue_dequeued", worker=worker_id, task_id=job.task_id, type=job.job_type, queued=self.queue.qsize(), active=len(self.active_task_ids))
             try:
                 try:
                     from app.services.tasks import TaskService

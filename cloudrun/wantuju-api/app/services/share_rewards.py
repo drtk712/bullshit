@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import time
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.cloudbase.nosql import CloudBaseNoSQL
+from app.core.logging import log_event, mask_openid
 from app.services.users import POINT_TRANSACTIONS_COLLECTION, USERS_COLLECTION, UserService
 
 
 SHARE_POINTS_LIMIT_PER_DAY = 3
+logger = logging.getLogger(__name__)
 
 
 class ShareRewardLimitError(ValueError):
@@ -121,6 +124,13 @@ class ShareRewardService:
                 transaction_id=transaction_id,
             )
             self.db.commit_transaction(transaction_id)
+            log_event(
+                logger,
+                "share_reward_claimed",
+                openid=mask_openid(openid),
+                points=next_points,
+                share_count=next_user["shareCountToday"],
+            )
             return {"pointsGained": 1, **get_share_reward_data(next_user)}
         except ShareRewardLimitError:
             self.db.rollback_transaction(transaction_id)
@@ -190,6 +200,13 @@ class ShareRewardService:
                 transaction_id=transaction_id,
             )
             self.db.commit_transaction(transaction_id)
+            log_event(
+                logger,
+                "daily_check_in",
+                openid=mask_openid(openid),
+                points=next_points,
+                check_in_days=next_check_in_days,
+            )
             return {
                 "checkedIn": True,
                 "pointsGained": 1,
