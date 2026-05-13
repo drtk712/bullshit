@@ -794,6 +794,23 @@ def _storage_url(cloud_object_id: Any) -> str:
     return get_storage().get_download_url(value)
 
 
+def _task_file_ids(task: dict[str, Any]) -> list[str]:
+    candidates: list[Any] = [
+        task.get("fileID"),
+        task.get("posterFileID"),
+        *(task.get("fileIDs") if isinstance(task.get("fileIDs"), list) else []),
+        *(task.get("resultFileIDs") if isinstance(task.get("resultFileIDs"), list) else []),
+    ]
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        value = str(item or "").strip()
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
+
+
 def _task_file_button(task_id: Any, field: str, label: str, filters: dict[str, Any]) -> Any:
     if not task_id:
         return "-"
@@ -956,7 +973,7 @@ def _tasks_page(
     page_size = int(filters.get("page_size") or 20)
     rows = [
         Tr(
-            Td(Code(str(task.get("_id", "")))),
+            Td(A(Code(str(task.get("_id", ""))), href=f"/admin/tasks/{task.get('_id', '')}")),
             Td(Code(_mask_openid(task.get("openid")))),
             Td(str(task.get("type", ""))),
             Td(_task_status_text(task)),
@@ -1008,6 +1025,103 @@ def _tasks_page(
             ),
             cls="panel",
         ),
+    )
+
+
+def _task_field_rows(task: dict[str, Any]) -> list[Any]:
+    fields = [
+        ("任务 ID", "_id"),
+        ("OpenID", "openid"),
+        ("玩法", "type"),
+        ("状态", "status"),
+        ("积分成本", "pointsCost"),
+        ("已扣分", "pointsConsumed"),
+        ("已退款", "pointsRefunded"),
+        ("扣分流水", "consumeTransactionId"),
+        ("退款流水", "refundTransactionId"),
+        ("退款错误", "refundErrMsg"),
+        ("错误信息", "errMsg"),
+        ("创建时间", "createdAt"),
+        ("更新时间", "updatedAt"),
+        ("处理租约时间", "processingLeaseAt"),
+    ]
+    rows: list[Any] = []
+    for label, key in fields:
+        value = task.get(key)
+        if key.endswith("At") or key in {"createdAt", "updatedAt", "processingLeaseAt"}:
+            value = _fmt_time(value)
+        elif isinstance(value, bool):
+            value = "是" if value else "否"
+        rows.append(Tr(Th(label), Td(Code(str(value)) if key in {"_id", "openid", "consumeTransactionId", "refundTransactionId"} else str(value or "-"))))
+    return rows
+
+
+def _task_image_card(title: str, file_id: str) -> Any:
+    try:
+        url = _storage_url(file_id)
+    except Exception:
+        url = ""
+    return Div(
+        H3(title),
+        P(Code(file_id), cls="muted"),
+        Div(
+            A("点击下载", href=url, target="_blank", cls="button") if url else "",
+            cls="actions",
+        ) if url else "",
+        Img(src=url, style="max-width:100%;max-height:460px;border-radius:8px;border:1px solid #dfe4ea;background:#fff;") if url else Div("未获取到预览链接", cls="error"),
+        cls="panel",
+    )
+
+
+def _task_json_panel(title: str, value: Any) -> Any:
+    return Div(
+        H2(title),
+        Pre(Code(json.dumps(value if value is not None else {}, ensure_ascii=False, indent=2)), style="white-space:pre-wrap;overflow:auto;background:#f8fafc;border:1px solid #e6e9ee;border-radius:8px;padding:12px;"),
+        cls="panel",
+    )
+
+
+def _task_detail_page(task: dict[str, Any], error: str | None = None) -> HTMLResponse:
+    task_id = str(task.get("_id") or "")
+    file_ids = _task_file_ids(task)
+    return _page(
+        "任务详情",
+        Div("任务详情读取生产 feature_jobs，用于排查单个任务的图片、参数、提示词和扣退款状态。", cls="banner"),
+        Div(error, cls="error") if error else "",
+        Div(
+            A("返回任务列表", href="/admin/tasks", cls="button secondary"),
+            A("查看该用户任务", href=f"/admin/tasks?openid={task.get('openid', '')}", cls="button secondary") if task.get("openid") else "",
+            cls="actions",
+            style="margin-top:0;margin-bottom:16px;",
+        ),
+        Div(
+            Div(Div("状态", cls="muted"), Strong(_task_status_text(task)), cls="metric"),
+            Div(Div("玩法", cls="muted"), Strong(str(task.get("type") or "-")), cls="metric"),
+            Div(Div("积分成本", cls="muted"), Strong(str(task.get("pointsCost") or 0)), cls="metric"),
+            Div(Div("结果模式", cls="muted"), Strong(str(task.get("resultMode") or "single")), cls="metric"),
+            cls="cards",
+        ),
+        Div(
+            H1(f"任务：{task_id}"),
+            Table(Tbody(*_task_field_rows(task))),
+            cls="panel",
+        ),
+        Div(
+            H2("图片文件"),
+            Table(
+                Thead(Tr(Th("字段"), Th("Cloud Object ID"))),
+                Tbody(
+                    Tr(Th("fileID"), Td(Code(str(task.get("fileID") or "-")))),
+                    Tr(Th("posterFileID"), Td(Code(str(task.get("posterFileID") or "-")))),
+                    Tr(Th("fileIDs"), Td(Code(", ".join(task.get("fileIDs") if isinstance(task.get("fileIDs"), list) else []) or "-"))),
+                    Tr(Th("resultFileIDs"), Td(Code(", ".join(task.get("resultFileIDs") if isinstance(task.get("resultFileIDs"), list) else []) or "-"))),
+                ),
+            ),
+            cls="panel",
+        ),
+        *[_task_image_card(f"图片 {index + 1}", file_id) for index, file_id in enumerate(file_ids) if str(file_id).startswith("cloud://")],
+        _task_json_panel("任务参数 param", task.get("param")),
+        _task_json_panel("生成提示词 generationPrompt", task.get("generationPrompt") or ""),
     )
 
 

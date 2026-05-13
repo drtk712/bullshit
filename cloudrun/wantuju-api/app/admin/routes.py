@@ -25,6 +25,7 @@ from app.admin.views import (
     _require_auth,
     _serializer,
     _storage_page,
+    _task_detail_page,
     _tasks_page,
     _transactions_page,
     _user_detail_page,
@@ -263,6 +264,20 @@ async def tasks(request: Request):
         return _tasks_page(items, total, filters)
     except CloudBaseError as exc:
         return _tasks_page([], 0, filters, str(exc))
+
+
+@router.get("/tasks/{task_id}")
+async def task_detail(request: Request, task_id: str):
+    auth_redirect = _require_auth(request)
+    if auth_redirect:
+        return auth_redirect
+    try:
+        task = get_user_store().get_task(task_id)
+        if not task:
+            raise ValueError("任务不存在")
+        return _task_detail_page(task)
+    except (CloudBaseError, ValueError) as exc:
+        return _task_detail_page({"_id": task_id}, str(exc))
 
 
 @router.post("/tasks/preview")
