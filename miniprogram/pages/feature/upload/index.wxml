@@ -18,17 +18,6 @@
       <text class="upload-sub">支持 JPG, PNG, HEIC 格式</text>
     </view>
 
-    <view class="tips-card">
-      <view class="tips-heading">
-        <text class="tips-icon">◆</text>
-        <text class="tips-title">图片小贴士</text>
-      </view>
-      <view class="tip-item" wx:for="{{tips}}" wx:key="*this">
-        <text class="check-dot">✓</text>
-        <text>{{item}}</text>
-      </view>
-    </view>
-
     <view wx:if="{{paramFields.length > 0}}" class="param-card">
       <view class="param-heading">
         <text class="param-icon">✎</text>
@@ -60,6 +49,17 @@
           data-key="{{item.key}}"
           bindinput="onParamInput"
         />
+      </view>
+    </view>
+
+    <view class="tips-card">
+      <view class="tips-heading">
+        <text class="tips-icon">◆</text>
+        <text class="tips-title">图片小贴士</text>
+      </view>
+      <view class="tip-item" wx:for="{{tips}}" wx:key="*this">
+        <text class="check-dot">✓</text>
+        <text>{{item}}</text>
       </view>
     </view>
 
