@@ -66,7 +66,7 @@ Page({
       return;
     }
 
-    const paramFields = this.getParamFields(feature.type);
+    const paramFields = this.getParamFields(feature);
     const ui = feature.ui || {};
     this.setData({
       feature,
@@ -330,39 +330,13 @@ Page({
     this.stopSubmitProgress();
   },
 
-  getParamFields(type) {
-    const fieldMap = {
-      watermark: [
-        {
-          key: "param",
-          label: "水印文字",
-          placeholder: "请输入要添加的水印内容",
-          required: true,
-          maxLength: 40,
-        },
-      ],
-      filter: [
-        {
-          key: "param",
-          label: "滤镜风格",
-          type: "select",
-          required: true,
-          options: [
-            { label: "复古胶片", value: "复古胶片" },
-            { label: "清新日系", value: "清新日系" },
-            { label: "黑白高反差", value: "黑白高反差" },
-            { label: "暖阳柔光", value: "暖阳柔光" },
-            { label: "冷调电影感", value: "冷调电影感" },
-            { label: "高饱和鲜艳", value: "高饱和鲜艳" },
-          ],
-        },
-      ],
-      split: [
+  getParamFields(feature) {
+    if (feature?.type === "split") {
+      return [
         {
           key: "grid",
           label: "切分规格",
           type: "select",
-          required: true,
           options: [
             { label: "2 x 2", value: "2x2" },
             { label: "3 x 3", value: "3x3" },
@@ -370,10 +344,42 @@ Page({
             { label: "3 x 1", value: "3x1" },
           ],
         },
-      ],
-    };
+      ];
+    }
+    return this.normalizeParamFields(feature?.param);
+  },
 
-    return fieldMap[type] || [];
+  normalizeParamFields(items) {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        const key = String(item?.value || "").trim();
+        const label = String(item?.name || "").trim();
+        const rawType = String(item?.type || "text").trim();
+        const type = rawType === "select" || rawType === "下拉框" ? "select" : "text";
+        if (!key || !label || !/^[a-zA-Z0-9_]{1,32}$/.test(key)) return null;
+
+        const field = {
+          key,
+          label,
+          type,
+          placeholder: String(item?.placeholder || `请输入${label}`).trim(),
+          maxLength: 40,
+        };
+
+        if (type === "select") {
+          const data = Array.isArray(item?.data) ? item.data : [];
+          const options = data
+            .map((value) => String(value || "").trim())
+            .filter(Boolean)
+            .map((value) => ({ label: value, value }));
+          if (!options.length) return null;
+          field.options = options;
+        }
+
+        return field;
+      })
+      .filter(Boolean);
   },
 
   normalizeRequirementItems(items) {
@@ -423,7 +429,7 @@ Page({
   validateParams() {
     const fields = this.data.paramFields || [];
     const values = this.data.paramValues || {};
-    const missingField = fields.find((field) => field.required && !String(values[field.key] || "").trim());
+    const missingField = fields.find((field) => !String(values[field.key] || "").trim());
 
     if (missingField) {
       this.showNoticeModal("参数未填写", `请填写${missingField.label}`);

@@ -16,6 +16,7 @@ def to_public_feature(config: dict[str, Any]) -> dict[str, Any]:
         "type": config.get("type"),
         "enabled": config.get("enabled"),
         "order": config.get("order"),
+        "param": config.get("param") if isinstance(config.get("param"), list) else [],
         **public,
         "ui": ui,
     }

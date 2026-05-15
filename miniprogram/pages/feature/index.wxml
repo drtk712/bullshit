@@ -14,7 +14,6 @@
 
   <view wx:else class="detail-content">
     <view class="detail-head">
-      <text class="detail-kicker">{{detailTitle || feature.title}}</text>
       <text class="detail-title">{{detailSubtitle}}</text>
       <view class="tag-row">
         <text class="tag" wx:for="{{detailTags}}" wx:key="text">{{item.text}}</text>
@@ -57,7 +56,7 @@
     <view class="require-card">
       <view class="section-heading">
         <text class="section-icon">▣</text>
-        <text class="section-title">拍摄要求</text>
+        <text class="section-title">图片要求</text>
       </view>
       <view class="require-grid">
         <view class="require-item" wx:for="{{requirementItems}}" wx:key="text">

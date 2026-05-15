@@ -415,6 +415,11 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                     _field("标签 tags（JSON 数组）", "ui.tags", _json_text(doc, "ui.tags"), multiline=True, code=True),
                     cls="grid",
                 ),
+                H2("参数配置", cls="section-title"),
+                Div(
+                    _field("参数 param（JSON 数组）", "param", _json_text(doc, "param"), multiline=True, code=True),
+                    cls="grid",
+                ),
                 H2("校验和生成", cls="section-title"),
                 Div(
                     _field("验证服务 URL", "validation.serviceUrl", _text(doc, "validation.serviceUrl")),
@@ -422,7 +427,6 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                     _field("校验失败提示", "validation.failMessage", _text(doc, "validation.failMessage"), multiline=True),
                     _field("校验提示词", "validation.prompt", _text(doc, "validation.prompt"), multiline=True),
                     _field("生成提示词", "generation.prompt", _text(doc, "generation.prompt"), multiline=True),
-                    _field("参数说明", "generation.paramHint", _text(doc, "generation.paramHint"), multiline=True),
                     cls="stack",
                 ),
                 Div(
@@ -467,6 +471,43 @@ def _parse_json_array(form: dict[str, Any], name: str) -> list[Any]:
     return value
 
 
+def _parse_param_config(form: dict[str, Any]) -> list[dict[str, Any]]:
+    items = _parse_json_array(form, "param")
+    result: list[dict[str, Any]] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"param[{index}] 必须是对象")
+
+        name = str(item.get("name") or "").strip()
+        raw_type = str(item.get("type") or "text").strip()
+        field_type = {"文本输入": "text", "下拉框": "select"}.get(raw_type, raw_type)
+        value = str(item.get("value") or "").strip()
+
+        if not name:
+            raise ValueError(f"param[{index}].name 不能为空")
+        if field_type not in {"text", "select"}:
+            raise ValueError(f"param[{index}].type 只能是 text 或 select")
+        if not re.fullmatch(r"[a-zA-Z0-9_]{1,32}", value):
+            raise ValueError(f"param[{index}].value 只能包含字母、数字、下划线，长度 1-32")
+
+        normalized: dict[str, Any] = {
+            "name": name,
+            "type": field_type,
+            "value": value,
+        }
+        if field_type == "select":
+            data = item.get("data")
+            if not isinstance(data, list):
+                raise ValueError(f"param[{index}].data 必须是文本数组")
+            options = [str(option or "").strip() for option in data]
+            options = [option for option in options if option]
+            if not options:
+                raise ValueError(f"param[{index}].data 至少需要一个选项")
+            normalized["data"] = options
+        result.append(normalized)
+    return result
+
+
 def _reject_emoji(value: Any, path: str = "") -> None:
     if isinstance(value, str):
         bad = [char for char in value if ord(char) > 0xFFFF]
@@ -503,6 +544,7 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         "type": str(form.get("type", "")).strip(),
         "enabled": "enabled" in form,
         "order": order,
+        "param": _parse_param_config(form),
         "public.title": str(form.get("public.title", "")).strip(),
         "public.category": str(form.get("public.category", "")).strip(),
         "public.description": str(form.get("public.description", "")).strip(),
@@ -522,7 +564,6 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         "validation.prompt": str(form.get("validation.prompt", "")).strip(),
         "validation.failMessage": str(form.get("validation.failMessage", "")).strip(),
         "generation.prompt": str(form.get("generation.prompt", "")).strip(),
-        "generation.paramHint": str(form.get("generation.paramHint", "")).strip(),
     }
     _require_text(
         data,
@@ -603,7 +644,8 @@ def _blank_feature() -> dict[str, Any]:
             "prompt": "这张图片是否符合当前玩法？请只回答'是'或'否'。",
             "failMessage": "图片不符合要求，请重新上传",
         },
-        "generation": {"prompt": "Generate a test poster based on this image.", "paramHint": ""},
+        "generation": {"prompt": "Generate a test poster based on this image."},
+        "param": [],
         "createdAt": now,
     }
 

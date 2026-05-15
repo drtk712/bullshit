@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "上传照片",
+  "navigationBarTitleText": "上传图片",
   "usingComponents": {
     "app-nav": "/components/app-nav/app-nav"
   }

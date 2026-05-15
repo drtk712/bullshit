@@ -84,7 +84,7 @@ Page({
           statusDisplay: progressPercent ? `${statusText} ${progressPercent}%` : statusText,
           statusClass: getTaskStatusClass(t.status, t.pointsRefunded),
           timeText: this.formatTime(t.createdAt),
-          errMsgText: t.errMsg || '处理失败，请重新上传照片再试一次。',
+          errMsgText: t.errMsg || '处理失败，请重新上传图片再试一次。',
         };
       });
       await this.attachThumbImages(processed);

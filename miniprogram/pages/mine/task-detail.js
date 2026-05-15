@@ -302,7 +302,7 @@ Page({
 
   getFriendlyErrMsg(errMsg) {
     if (!errMsg) {
-      return '原因：上传的图片主体不够清晰或光线过暗，请尝试更换一张更清晰的照片。';
+      return '原因：上传的图片主体不够清晰或光线过暗，请尝试更换一张更清晰的图片。';
     }
 
     if (/API|model|\/v1\/|503|OpenAI|gpt|错误/i.test(errMsg)) {

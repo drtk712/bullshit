@@ -1,5 +1,5 @@
 <view class="upload-page flow-page">
-  <app-nav title="上传照片" bind:back="goBack"></app-nav>
+  <app-nav title="上传图片" bind:back="goBack"></app-nav>
 
   <view wx:if="{{configLoading}}" class="state-card">
     <view class="mini-spinner"></view>
@@ -21,7 +21,7 @@
     <view class="tips-card">
       <view class="tips-heading">
         <text class="tips-icon">◆</text>
-        <text class="tips-title">拍照小贴士</text>
+        <text class="tips-title">图片小贴士</text>
       </view>
       <view class="tip-item" wx:for="{{tips}}" wx:key="*this">
         <text class="check-dot">✓</text>
@@ -55,7 +55,7 @@
           wx:else
           class="param-input"
           value="{{paramValues[item.key]}}"
-          maxlength="{{item.maxLength || 60}}"
+          maxlength="{{item.maxLength || 40}}"
           placeholder="{{item.placeholder}}"
           data-key="{{item.key}}"
           bindinput="onParamInput"
