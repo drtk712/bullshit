@@ -41,6 +41,28 @@ async def create_task(request: Request, body: CreateTaskRequest) -> dict[str, ob
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@router.post("/tasks/v2")
+async def create_task_v2(request: Request, body: CreateTaskRequest) -> dict[str, object]:
+    service = TaskService()
+    file_ids = body.fileIDs or ([body.fileID] if body.fileID else [])
+    try:
+        openid = require_openid(request)
+        data = await service.create_job_v2(
+            openid,
+            feature_type=body.type,
+            file_id=body.fileID,
+            file_ids=body.fileIDs,
+            param=body.param,
+        )
+        return {"success": True, "data": data}
+    except JobCreationError as exc:
+        if exc.cleanup_uploads:
+            service.cleanup_uploads(file_ids)
+        return {"success": False, "errMsg": str(exc)}
+    except CloudBaseError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @router.get("/tasks")
 async def tasks(
     request: Request,

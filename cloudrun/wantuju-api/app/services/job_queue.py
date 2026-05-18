@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.logging import log_event
-from app.services.jobs_runtime import process_job
+from app.services.jobs_runtime import process_job, process_job_v2
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ class QueuedJob:
     param: dict[str, Any] | None = None
     image_urls: list[str] | None = None
     source_file_ids: list[str] | None = None
+    flow: str = "v1"
     already_claimed: bool = False
 
 
@@ -84,7 +85,8 @@ class JobQueue:
                         if not claimed:
                             logger.info("[队列跳过] worker=%s task_id=%s claim_failed", worker_id, job.task_id)
                             continue
-                    await process_job(
+                    processor = process_job_v2 if job.flow == "v2" else process_job
+                    await processor(
                         job.task_id,
                         job.image_url,
                         job.source_file_id,

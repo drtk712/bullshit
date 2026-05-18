@@ -1,24 +1,6 @@
 const { fetchFeature } = require("../../../utils/api/features");
-const { createTask } = require("../../../utils/api/tasks");
+const { createTaskV2 } = require("../../../utils/api/tasks");
 const { buildHomeSharePayload, getShareRewardStatus } = require("../../../utils/share");
-
-const SUBMIT_PROGRESS = {
-  initial: 8,
-  maxBeforeDone: 94,
-  stepStart: 28,
-  stepEnd: 94,
-  interval: 650,
-  increments: [
-    { below: 60, value: 8 },
-    { below: 86, value: 3 },
-    { below: 94, value: 1 },
-  ],
-};
-
-const BASE_SUBMIT_STEPS = [
-  "检查图片是否存在违规内容",
-  "创建图片处理任务",
-];
 
 Page({
   data: {
@@ -26,7 +8,6 @@ Page({
     configLoading: true,
     configError: "",
     tips: [],
-    requirementItems: [],
     paramFields: [],
     paramValues: {},
     points: 0,
@@ -34,10 +15,7 @@ Page({
     shareRewardStatus: { remainingToday: 0 },
     submitting: false,
     submittingText: "",
-    submitProgress: 0,
-    submitSteps: [],
   },
-  submitProgressTimer: null,
   choosingImage: false,
 
   goBack() {
@@ -71,7 +49,6 @@ Page({
     this.setData({
       feature,
       tips: ui.requirements || [],
-      requirementItems: this.normalizeRequirementItems(ui.requirementItems),
       paramFields,
       paramValues: this.getDefaultParamValues(paramFields),
       configLoading: false,
@@ -137,7 +114,7 @@ Page({
   },
 
   async compressAndUpload(tempFilePaths) {
-    this.startSubmitFlow();
+    this.setSubmitting(true, "正在上传图片");
     const paths = Array.isArray(tempFilePaths) ? tempFilePaths : [tempFilePaths];
     try {
       const fileIDs = [];
@@ -145,9 +122,10 @@ Page({
         const compressedPath = await this.compressImage(filePath);
         fileIDs.push(await this.uploadImage(compressedPath));
       }
+      this.setSubmitting(true, "正在创建任务");
       this.createJob(this.isMultiImageFeature(this.data.feature.type) ? fileIDs : fileIDs[0]);
     } catch (err) {
-      this.stopSubmitFlow();
+      this.setSubmitting(false);
       this.showNoticeModal("上传失败", err.message || "图片上传失败，请稍后重试。");
     }
   },
@@ -177,21 +155,21 @@ Page({
 
   createJob(fileIDOrFileIDs) {
     const fileIDs = Array.isArray(fileIDOrFileIDs) ? fileIDOrFileIDs : [fileIDOrFileIDs];
-    createTask({
+    createTaskV2({
       type: this.data.feature.type,
       fileID: fileIDs[0],
       fileIDs,
       param: this.buildJobParam(),
     })
       .then((data) => {
-        this.finishSubmitFlow();
+        this.setSubmitting(false);
         getApp().globalData.shouldRefreshTasks = true;
         wx.redirectTo({
           url: `/pages/feature/progress/index?id=${data.taskId}&type=${this.data.feature.type}`,
         });
       })
       .catch(async (err) => {
-        this.stopSubmitFlow();
+        this.setSubmitting(false);
         const errMsg = err.message || "处理失败";
         if (errMsg.includes("积分不足")) {
           await this.loadShareRewardStatus();
@@ -226,108 +204,11 @@ Page({
 
   noop() {},
 
-  startSubmitFlow() {
-    const progress = SUBMIT_PROGRESS.initial;
-    const submitSteps = this.buildSubmitSteps(progress);
-    this.stopSubmitProgress();
+  setSubmitting(submitting, text = "") {
     this.setData({
-      submitting: true,
-      submittingText: this.getCurrentSubmitStepText(submitSteps),
-      submitProgress: progress,
-      submitSteps,
+      submitting,
+      submittingText: submitting ? text : "",
     });
-    this.startSubmitProgress();
-  },
-
-  finishSubmitFlow() {
-    this.stopSubmitFlow();
-  },
-
-  stopSubmitFlow() {
-    this.stopSubmitProgress();
-    this.setData({
-      submitting: false,
-      submittingText: "",
-      submitProgress: 0,
-      submitSteps: this.buildSubmitSteps(0),
-    });
-  },
-
-  startSubmitProgress() {
-    if (this.submitProgressTimer) return;
-    this.submitProgressTimer = setInterval(() => {
-      if (!this.data.submitting) {
-        this.stopSubmitProgress();
-        return;
-      }
-      const current = Number(this.data.submitProgress || 0);
-      const increment = SUBMIT_PROGRESS.increments.find((item) => current < item.below)?.value || 0;
-      const next = increment ? current + increment : current;
-      if (next !== current) {
-        this.syncSubmitProgress(next);
-      }
-    }, SUBMIT_PROGRESS.interval);
-  },
-
-  stopSubmitProgress() {
-    if (this.submitProgressTimer) {
-      clearInterval(this.submitProgressTimer);
-      this.submitProgressTimer = null;
-    }
-  },
-
-  syncSubmitProgress(progress) {
-    const next = Math.max(
-      Number(this.data.submitProgress || 0),
-      Math.min(SUBMIT_PROGRESS.maxBeforeDone, Number(progress || 0))
-    );
-    const submitSteps = this.buildSubmitSteps(next);
-    this.setData({
-      submitProgress: next,
-      submittingText: this.getCurrentSubmitStepText(submitSteps),
-      submitSteps,
-    });
-  },
-
-  getCurrentSubmitStepText(steps) {
-    const current = (steps || []).find((step) => !step.done);
-    return current?.text || "校验完成";
-  },
-
-  getRequirementCheckSteps() {
-    const items = this.data.requirementItems || [];
-    return items.length
-      ? items.map((item) => `检查：${item.text}`)
-      : ["检查图片是否符合要求"];
-  },
-
-  buildSubmitSteps(progress) {
-    const stepTexts = this.buildSubmitStepTexts();
-    const thresholds = this.buildStepThresholds(stepTexts.length);
-    const steps = stepTexts.map((text, index) => ({ text, threshold: thresholds[index] }));
-    return steps.map((step) => ({
-      text: step.text,
-      done: Number(progress || 0) >= step.threshold,
-    }));
-  },
-
-  buildSubmitStepTexts() {
-    return [
-      ...this.getRequirementCheckSteps(),
-      ...BASE_SUBMIT_STEPS,
-    ];
-  },
-
-  buildStepThresholds(count) {
-    if (count <= 1) return [SUBMIT_PROGRESS.stepEnd];
-    const start = SUBMIT_PROGRESS.stepStart;
-    const end = SUBMIT_PROGRESS.stepEnd;
-    const gap = (end - start) / (count - 1);
-    return Array.from({ length: count }, (_, index) => Math.round(start + gap * index));
-  },
-
-  onUnload() {
-    this.stopSubmitProgress();
   },
 
   getParamFields(feature) {
@@ -380,16 +261,6 @@ Page({
         return field;
       })
       .filter(Boolean);
-  },
-
-  normalizeRequirementItems(items) {
-    if (!Array.isArray(items)) return [];
-    return items
-      .map((item) => {
-        if (typeof item === "string") return { text: item.trim() };
-        return { text: String(item?.text || item?.title || "").trim() };
-      })
-      .filter((item) => item.text);
   },
 
   isMultiImageFeature(type) {

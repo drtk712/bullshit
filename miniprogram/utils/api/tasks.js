@@ -85,8 +85,28 @@ async function createTask({ type, fileID, fileIDs = [], param = {} }) {
   throw createBusinessError(getApiErrorMessage(resp, "处理失败"));
 }
 
+async function createTaskV2({ type, fileID, fileIDs = [], param = {} }) {
+  const resp = await callCloudRun({
+    path: "/miniapp/tasks/v2",
+    method: "POST",
+    data: {
+      type,
+      fileID,
+      fileIDs,
+      param,
+    },
+  });
+
+  if (resp.data?.success && resp.data?.data?.taskId) {
+    return resp.data.data;
+  }
+
+  throw createBusinessError(getApiErrorMessage(resp, "处理失败"));
+}
+
 module.exports = {
   createTask,
+  createTaskV2,
   deleteTask,
   fetchTasks,
   fetchTask,

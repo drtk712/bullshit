@@ -370,6 +370,72 @@ class PointLedger:
             self._rollback_safely(transaction_id)
             raise
 
+    def consume_existing_job(self, task_id: str, amount: int = 1) -> dict[str, Any]:
+        transaction_id = self.db.begin_transaction()
+        try:
+            task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
+            if not task:
+                raise ValueError("任务不存在")
+            if bool(task.get("pointsConsumed")):
+                self.db.commit_transaction(transaction_id)
+                return task
+
+            openid = str(task.get("openid") or "")
+            if not openid:
+                raise ValueError("任务缺少 openid")
+
+            user = self._get_user_by_openid_in_transaction(openid, transaction_id)
+            user_id = str(user.get("_id") or "")
+            current_points = int(user.get("points") or 0)
+            if current_points < amount:
+                raise ValueError("积分不足，请先获取积分")
+
+            now = int(time.time() * 1000)
+            balance_after = current_points - amount
+            self.db.update_document(
+                self.users_collection,
+                user_id,
+                {
+                    "points": balance_after,
+                    "totalUsedPoints": int(user.get("totalUsedPoints") or 0) + amount,
+                    "updatedAt": now,
+                },
+                transaction_id=transaction_id,
+            )
+            consume_transaction_id = self._create_transaction(
+                openid=openid,
+                tx_type="consume",
+                amount=-amount,
+                balance_after=balance_after,
+                reason="create_feature_job",
+                task_id=task_id,
+                transaction_id=transaction_id,
+            )
+            self.db.update_document(
+                FEATURE_JOBS_COLLECTION,
+                task_id,
+                {
+                    "pointsCost": amount,
+                    "pointsConsumed": True,
+                    "pointsRefunded": False,
+                    "consumeTransactionId": consume_transaction_id,
+                    "updatedAt": now,
+                },
+                transaction_id=transaction_id,
+            )
+            self.db.commit_transaction(transaction_id)
+            return {
+                **task,
+                "pointsCost": amount,
+                "pointsConsumed": True,
+                "pointsRefunded": False,
+                "consumeTransactionId": consume_transaction_id,
+                "updatedAt": now,
+            }
+        except Exception:
+            self._rollback_safely(transaction_id)
+            raise
+
     def refund_failed_job(self, task_id: str, err_msg: str, amount: int = 1) -> None:
         transaction_id = self.db.begin_transaction()
         try:

@@ -7,7 +7,7 @@ const PROGRESS_STAGES = {
 const INITIAL_PROGRESS = 8;
 const PROCESSING_START_PROGRESS = 28;
 const PROCESSING_END_PROGRESS = 92;
-const PROGRESS_INTERVAL = 1500;
+const PROGRESS_INTERVAL = 1800;
 const PROGRESS_INCREMENTS = [
   { below: PROCESSING_END_PROGRESS, value: 2 },
 ];
@@ -45,7 +45,7 @@ Page({
   onLoad(options) {
     const type = options.type || "palm";
     const ui = this.getFeatureUI(type);
-    const configuredProgressTitle = ui.progressTitle || "正在处理图片";
+    const configuredProgressTitle = ui.progressTitle || "正在校验并处理图片";
     this.configuredProgressTitle = configuredProgressTitle;
 
     this.setData({
@@ -53,7 +53,7 @@ Page({
       type,
       progress: INITIAL_PROGRESS,
       progressTitle: PROGRESS_STAGES.pending.title,
-      progressChecks: this.buildProgressChecks(ui.progressChecks || []),
+      progressChecks: this.buildProgressChecks(ui),
     });
     this.startFakeProgress();
     this.startPolling();
@@ -76,12 +76,30 @@ Page({
     }, PROGRESS_INTERVAL);
   },
 
-  buildProgressChecks(checks) {
-    return (checks || []).map((item, index) => ({
+  buildProgressChecks(ui = {}) {
+    const validationChecks = this.normalizeRequirementItems(ui.requirementItems)
+      .map((item) => ({ title: `检查：${item.text}` }));
+    const processChecks = Array.isArray(ui.progressChecks) ? ui.progressChecks : [];
+    const configuredChecks = [...validationChecks, ...processChecks];
+    const checks = configuredChecks.length
+      ? [{ title: "检查图片安全性" }, ...configuredChecks]
+      : [{ title: "检查图片安全性" }, { title: "分析图片内容" }, { title: "处理图片效果" }, { title: "保存处理结果" }];
+
+    return checks.map((item, index) => ({
       title: item.title || `处理步骤 ${index + 1}`,
       done: false,
       displayStatus: "等待中",
     }));
+  },
+
+  normalizeRequirementItems(items) {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        if (typeof item === "string") return { text: item.trim() };
+        return { text: String(item?.text || item?.title || "").trim() };
+      })
+      .filter((item) => item.text);
   },
 
   progressCheckDoneCount(progress) {

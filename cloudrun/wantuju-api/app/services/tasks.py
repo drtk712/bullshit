@@ -10,7 +10,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from app.cloudbase.nosql import CloudBaseNoSQL, get_point_ledger
+from app.cloudbase.nosql import CloudBaseNoSQL, created_id, get_point_ledger
 from app.cloudbase.storage import CloudBaseStorage
 from app.core.logging import compact_error, log_event, mask_openid
 from app.services.features import FeatureService
@@ -29,6 +29,10 @@ class JobCreationError(ValueError):
     def __init__(self, message: str, *, cleanup_uploads: bool = False):
         super().__init__(message)
         self.cleanup_uploads = cleanup_uploads
+
+
+class ValidationServiceError(RuntimeError):
+    pass
 
 
 def to_public_task(task: dict[str, Any]) -> dict[str, Any]:
@@ -197,6 +201,115 @@ class TaskService:
                 raise JobCreationError(err_msg) from exc
             raise JobCreationError(err_msg, cleanup_uploads=True) from exc
 
+    async def create_job_v2(
+        self,
+        openid: str,
+        *,
+        feature_type: str,
+        file_id: str = "",
+        file_ids: list[str] | None = None,
+        param: dict[str, Any] | None = None,
+    ) -> dict[str, str]:
+        feature_type = str(feature_type or "").strip()
+        normalized_param = normalize_job_param(param)
+        is_multi_image = feature_type in MULTI_IMAGE_TYPES
+        normalized_file_ids = normalize_file_ids(file_ids if is_multi_image else (file_ids or [file_id]))
+        primary_file_id = normalized_file_ids[0] if normalized_file_ids else ""
+
+        if not feature_type or not primary_file_id or (is_multi_image and len(normalized_file_ids) < 2):
+            raise JobCreationError("缺少必要参数", cleanup_uploads=True)
+
+        feature_config = self.feature_service.get_enabled_config(feature_type)
+        if not feature_config:
+            raise JobCreationError("功能暂不可用", cleanup_uploads=True)
+
+        user = self.user_service.ensure_user(openid)
+        if int(user.get("points") or 0) < 1:
+            raise JobCreationError("积分不足，请先获取积分", cleanup_uploads=True)
+
+        image_urls = self.resolve_download_urls(normalized_file_ids)
+        image_url = image_urls[0]
+        now = int(time.time() * 1000)
+        public_config = feature_config.get("public") if isinstance(feature_config.get("public"), dict) else {}
+        generation_config = feature_config.get("generation") if isinstance(feature_config.get("generation"), dict) else {}
+        prompt = str(generation_config.get("prompt") or "").strip()
+        if not prompt and feature_type not in {"split", "long_image"}:
+            raise JobCreationError("缺少处理提示词", cleanup_uploads=True)
+        rendered_prompt = render_prompt_template(prompt, normalized_param)
+        task_doc = {
+            "type": feature_type,
+            "flow": "v2",
+            "featureTitle": public_config.get("title") or "",
+            "featureHomeDesc": public_config.get("homeDesc") or "",
+            "featureDescription": public_config.get("description") or "",
+            "param": normalized_param,
+            "validation": feature_config.get("validation") if isinstance(feature_config.get("validation"), dict) else None,
+            "fileID": primary_file_id,
+            "fileIDs": normalized_file_ids,
+            "generationPrompt": rendered_prompt,
+            "status": "pending",
+            "posterFileID": None,
+            "resultMode": "single",
+            "resultFileIDs": [],
+            "errMsg": "",
+            "openid": openid,
+            "pointsCost": 1,
+            "pointsConsumed": False,
+            "pointsRefunded": False,
+            "consumeTransactionId": None,
+            "refundTransactionId": None,
+            "createdAt": now,
+            "updatedAt": now,
+        }
+        task_id: str | None = None
+        try:
+            create_result = self.db.insert_documents(FEATURE_JOBS_COLLECTION, [task_doc])
+            task_id = created_id(create_result)
+            if not task_id:
+                raise RuntimeError("创建任务失败")
+
+            log_event(
+                logger,
+                "task_v2_created",
+                task_id=task_id,
+                type=feature_type,
+                openid=mask_openid(openid),
+                file_count=len(normalized_file_ids),
+            )
+            queued = QueuedJob(
+                task_id=task_id,
+                image_url=image_url,
+                source_file_id=primary_file_id,
+                job_type=feature_type,
+                generation_prompt=rendered_prompt,
+                param=normalized_param,
+                image_urls=image_urls,
+                source_file_ids=normalized_file_ids,
+                flow="v2",
+            )
+            if not await job_queue.enqueue(queued):
+                raise RuntimeError("任务已在队列中")
+            log_event(logger, "task_v2_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
+            return {"taskId": task_id}
+        except Exception as exc:
+            err_msg = str(exc) or "创建任务失败"
+            log_event(logger, "task_v2_create_failed", task_id=task_id or "", type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
+            if task_id:
+                self.db.update_document(
+                    FEATURE_JOBS_COLLECTION,
+                    task_id,
+                    {
+                        "status": "failed",
+                        "errMsg": err_msg,
+                        "pointsConsumed": False,
+                        "pointsRefunded": False,
+                        "updatedAt": int(time.time() * 1000),
+                    },
+                )
+                self.cleanup_uploads(normalized_file_ids)
+                raise JobCreationError(err_msg) from exc
+            raise JobCreationError(err_msg, cleanup_uploads=True) from exc
+
     def list_tasks(self, openid: str, *, page: int = 1, page_size: int = 5, status_filter: str = "all") -> dict[str, Any]:
         page = max(1, int(page or 1))
         page_size = min(50, max(1, int(page_size or 5)))
@@ -354,6 +467,7 @@ class TaskService:
             param=task.get("param") if isinstance(task.get("param"), dict) else {},
             image_urls=image_urls,
             source_file_ids=normalized_file_ids,
+            flow=str(task.get("flow") or "v1"),
         )
 
     def validate_image(self, file_id: str, feature_config: dict[str, Any]) -> dict[str, Any]:
@@ -400,6 +514,66 @@ class TaskService:
             return {"passed": False, "reason": "验证服务超时，请稍后重试"}
         except (HTTPError, URLError, ValueError):
             return {"passed": False, "reason": "验证失败，请稍后重试"}
+
+    def validate_image_with_retry(self, file_id: str, feature_config: dict[str, Any], max_retries: int = 2) -> dict[str, Any]:
+        last_error = "验证失败，请稍后重试"
+        for attempt in range(1, max(0, max_retries) + 2):
+            try:
+                return self.validate_image_once(file_id, feature_config)
+            except ValidationServiceError as exc:
+                last_error = str(exc) or last_error
+                log_event(logger, "image_validation_retry", attempt=attempt, max_retries=max_retries, error=compact_error(last_error))
+                if attempt <= max_retries:
+                    time.sleep(min(2 * attempt, 5))
+        return {"passed": False, "reason": last_error}
+
+    def validate_image_once(self, file_id: str, feature_config: dict[str, Any]) -> dict[str, Any]:
+        validation_config = feature_config.get("validation")
+        if not isinstance(validation_config, dict):
+            return {"passed": True, "reason": ""}
+
+        image_url = self.resolve_download_urls([file_id])[0]
+        prompt = build_validation_prompt(validation_config.get("prompt"))
+        service_url = str(validation_config.get("serviceUrl") or "").strip()
+        model = str(validation_config.get("model") or "").strip()
+        if not service_url or not model:
+            raise ValidationServiceError("图片验证配置异常，请稍后重试")
+
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+            "max_tokens": 32000,
+        }
+        request = Request(
+            service_url,
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urlopen(request, timeout=55) as response:
+                if response.status != 200:
+                    raise ValidationServiceError("验证服务响应异常，请稍后重试")
+                data = json.loads(response.read().decode("utf-8"))
+            content = data.get("choices", [{}])[0].get("message", {}).get("content")
+            if not content:
+                raise ValidationServiceError("图片验证服务异常，请稍后重试")
+            parsed = parse_validation_result(content, validation_config.get("failMessage"))
+            if not parsed["passed"] and parsed["reason"] == "验证服务响应格式异常，请稍后重试":
+                raise ValidationServiceError(parsed["reason"])
+            return parsed
+        except TimeoutError as exc:
+            raise ValidationServiceError("验证服务超时，请稍后重试") from exc
+        except (HTTPError, URLError, ValueError) as exc:
+            raise ValidationServiceError("验证失败，请稍后重试") from exc
 
     def resolve_download_urls(self, file_ids: list[str]) -> list[str]:
         urls = self.storage.get_download_urls(file_ids)
