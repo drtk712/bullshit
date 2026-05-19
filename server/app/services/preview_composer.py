@@ -27,7 +27,7 @@ def compose_preview_image(
     generated_file: BinaryIO,
     inset_ratio: float = 0.24,
     margin_ratio: float = 0.05,
-    border_ratio: float = 0.012,
+    border_ratio: float = 0.006,
     shadow_ratio: float = 0.012,
 ) -> bytes:
     """Overlay the original image as a framed inset on generated image."""
@@ -50,7 +50,7 @@ def compose_preview_image(
 
     inset = original.resize((inset_width, inset_height), Image.Resampling.LANCZOS)
 
-    border = max(4, int(base_width * border_ratio))
+    border = max(2, int(base_width * border_ratio))
     framed = ImageOps.expand(inset, border=border, fill=(255, 255, 255))
 
     shadow_offset = max(3, int(base_width * shadow_ratio))
