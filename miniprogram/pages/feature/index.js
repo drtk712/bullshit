@@ -1,5 +1,6 @@
 const { fetchFeature } = require("../../utils/api/features");
 const { previewImages } = require("../../utils/previewImage");
+const { buildHomeSharePayload } = require("../../utils/share");
 
 Page({
   data: {
@@ -125,5 +126,14 @@ Page({
 
   onFeatureImageError() {
     this.setData({ "feature._imageError": true });
+  },
+
+  onShareAppMessage() {
+    const feature = this.data.feature || {};
+    const type = feature.type || this.data.type || "";
+    return buildHomeSharePayload({
+      title: feature.title ? `玩图局 - ${feature.title}` : "玩图局 - 实用图片处理工具",
+      path: type ? `/pages/feature/index?type=${type}` : "/pages/index/index",
+    });
   },
 });

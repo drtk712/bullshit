@@ -1,6 +1,7 @@
 const { fetchFeatureList } = require("../../utils/api/features");
 const { fetchMe } = require("../../utils/api/user");
 const { previewImages } = require("../../utils/previewImage");
+const { buildHomeSharePayload } = require("../../utils/share");
 
 Page({
   data: {
@@ -150,6 +151,10 @@ Page({
     } catch (err) {
       wx.showToast({ title: "预览失败", icon: "none" });
     }
+  },
+
+  onShareAppMessage() {
+    return buildHomeSharePayload();
   },
 
 });
