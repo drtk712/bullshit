@@ -13,6 +13,7 @@ from app.services.poster import download_image_bytes, extract_url_from_response,
 
 
 logger = logging.getLogger(__name__)
+SKIP_IMAGE_VALIDATION = True
 
 
 async def process_job(
@@ -65,18 +66,21 @@ async def process_job_v2(
         feature_config = {"validation": validation_config} if validation_config else {}
 
         if not charged:
-            validation = await asyncio.to_thread(
-                task_service.validate_image_with_retry,
-                source_file_id,
-                feature_config,
-                2,
-            )
-            if not validation["passed"]:
-                reason = str(validation.get("reason") or "图片不符合要求，请重新上传")
-                await asyncio.to_thread(mark_job_failed_without_refund, task_id, reason)
-                await asyncio.to_thread(cleanup_source_files, source_file_ids or [source_file_id])
-                log_event(logger, "job_v2_validation_rejected", task_id=task_id, type=job_type, reason=reason)
-                return
+            if SKIP_IMAGE_VALIDATION:
+                log_event(logger, "job_v2_validation_skipped", task_id=task_id, type=job_type)
+            else:
+                validation = await asyncio.to_thread(
+                    task_service.validate_image_with_retry,
+                    source_file_id,
+                    feature_config,
+                    2,
+                )
+                if not validation["passed"]:
+                    reason = str(validation.get("reason") or "图片不符合要求，请重新上传")
+                    await asyncio.to_thread(mark_job_failed_without_refund, task_id, reason)
+                    await asyncio.to_thread(cleanup_source_files, source_file_ids or [source_file_id])
+                    log_event(logger, "job_v2_validation_rejected", task_id=task_id, type=job_type, reason=reason)
+                    return
 
             await asyncio.to_thread(get_point_ledger().consume_existing_job, task_id, 1)
             charged = True
