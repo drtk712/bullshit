@@ -5,7 +5,7 @@ import asyncio
 import logging
 from typing import Any
 
-from app.cloudbase.nosql import get_point_ledger, get_poster_job_store
+from app.db import get_point_ledger, get_poster_job_store
 from app.cloudbase.storage import get_storage
 from app.core.logging import compact_error, log_event
 from app.services.image_tools import process_image_tool

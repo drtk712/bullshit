@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from app.cloudbase.nosql import FEATURE_CONFIG_COLLECTION
+from app.db.schema import FEATURE_CONFIG_COLLECTION
 from app.cloudbase.storage import get_storage
 
 COOKIE_NAME = "bullshit_admin"
@@ -337,13 +337,13 @@ def _features_page(
             Td(str(doc.get("type", ""))),
             Td(str(_value(doc, "public.title", ""))),
             Td("开启" if doc.get("enabled") else "关闭"),
-            Td(str(doc.get("order", ""))),
+            Td("" if doc.get("order") is None else str(doc.get("order"))),
         )
         for doc in features
     ]
     return _page(
         "玩法配置",
-        Div(f"正式集合：{FEATURE_CONFIG_COLLECTION}。这里会直接读写线上玩法配置。", cls="banner"),
+        Div(f"数据表：{FEATURE_CONFIG_COLLECTION}。这里会直接读写线上玩法配置。", cls="banner"),
         Div(message, cls="success") if message else "",
         Div(error, cls="error") if error else "",
         Div(
@@ -369,7 +369,7 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
     title = "新增玩法" if is_new else f"编辑：{doc_id}"
     return _page(
         title,
-        Div(f"正式集合：{FEATURE_CONFIG_COLLECTION}。保存会直接写入线上玩法配置。", cls="banner"),
+        Div(f"数据表：{FEATURE_CONFIG_COLLECTION}。保存会直接写入线上玩法配置。", cls="banner"),
         Div(error, cls="error") if error else "",
         Div(
             H1(title),
@@ -377,7 +377,7 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                 Div(
                     _field("文档 ID", "_id", doc_id, readonly=not is_new),
                     _field("类型", "type", str(doc.get("type", ""))),
-                    _field("排序", "order", str(doc.get("order", ""))),
+                    _field("排序", "order", "" if doc.get("order") is None else str(doc.get("order"))),
                     Label("卡片尺寸", Select(Option("normal", value="normal", selected=_text(doc, "public.cardSize") == "normal"), Option("wide", value="wide", selected=_text(doc, "public.cardSize") == "wide"), name="public.cardSize")),
                     Label(Span(Input(type="checkbox", name="enabled", checked=bool(doc.get("enabled"))), " 启用"), cls="checkline"),
                     cls="grid",
@@ -426,6 +426,7 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
                     _field("模型", "validation.model", _text(doc, "validation.model")),
                     _field("校验失败提示", "validation.failMessage", _text(doc, "validation.failMessage"), multiline=True),
                     _field("校验提示词", "validation.prompt", _text(doc, "validation.prompt"), multiline=True),
+                    _field("验证 API Key（可选，留空则不发送）", "validation.apiKey", _text(doc, "validation.apiKey")),
                     _field("生成提示词", "generation.prompt", _text(doc, "generation.prompt"), multiline=True),
                     cls="stack",
                 ),
@@ -447,7 +448,7 @@ def _edit_page(doc: dict[str, Any], error: str | None = None, is_new: bool = Fal
 def _delete_panel(doc_id: str) -> Any:
     return Div(
         H2("删除玩法"),
-        P("会删除正式集合里的当前文档。请输入文档 ID 后再删除。", cls="muted"),
+        P("会删除数据表里的当前玩法。请输入文档 ID 后再删除。", cls="muted"),
         Form(
             Input(type="text", name="confirm_delete", placeholder=doc_id),
             Div(Button("删除", type="submit", cls="danger"), cls="actions"),
@@ -540,6 +541,13 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
     except ValueError as exc:
         raise ValueError("排序必须是整数") from exc
 
+    validation = {
+        "serviceUrl": str(form.get("validation.serviceUrl", "")).strip(),
+        "model": str(form.get("validation.model", "")).strip(),
+        "prompt": str(form.get("validation.prompt", "")).strip(),
+        "failMessage": str(form.get("validation.failMessage", "")).strip(),
+        "apiKey": str(form.get("validation.apiKey", "")).strip(),
+    }
     data = {
         "type": str(form.get("type", "")).strip(),
         "enabled": "enabled" in form,
@@ -559,12 +567,14 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
         "ui.analysisItems": _parse_json_array(form, "ui.analysisItems"),
         "ui.progressChecks": _parse_json_array(form, "ui.progressChecks"),
         "ui.tags": _parse_json_array(form, "ui.tags"),
-        "validation.serviceUrl": str(form.get("validation.serviceUrl", "")).strip(),
-        "validation.model": str(form.get("validation.model", "")).strip(),
-        "validation.prompt": str(form.get("validation.prompt", "")).strip(),
-        "validation.failMessage": str(form.get("validation.failMessage", "")).strip(),
         "generation.prompt": str(form.get("generation.prompt", "")).strip(),
     }
+    if any(validation.values()):
+        for key, value in validation.items():
+            data[f"validation.{key}"] = value
+    else:
+        # Empty validation is stored as NULL and the runtime skips image checks.
+        data["validation"] = None
     _require_text(
         data,
         [
@@ -575,10 +585,6 @@ def _form_patch(form: dict[str, Any]) -> dict[str, Any]:
             "public.uploadTitle",
             "ui.progressTitle",
             "ui.detailSubtitle",
-            "validation.serviceUrl",
-            "validation.model",
-            "validation.prompt",
-            "validation.failMessage",
             "generation.prompt",
         ],
     )
@@ -638,12 +644,7 @@ def _blank_feature() -> dict[str, Any]:
             "progressChecks": [{"title": "图片检测", "status": "等待中"}],
             "tags": [{"text": "测试"}],
         },
-        "validation": {
-            "serviceUrl": "http://36.156.154.98:8010/v1/chat/completions",
-            "model": "qwen3.6",
-            "prompt": "这张图片是否符合当前玩法？请只回答'是'或'否'。",
-            "failMessage": "图片不符合要求，请重新上传",
-        },
+        "validation": None,
         "generation": {"prompt": "Generate a test poster based on this image."},
         "param": [],
         "createdAt": now,

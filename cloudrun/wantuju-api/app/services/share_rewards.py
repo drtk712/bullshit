@@ -6,8 +6,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.cloudbase.nosql import CloudBaseNoSQL
 from app.core.logging import log_event, mask_openid
+from app.db import Database
 from app.services.users import POINT_TRANSACTIONS_COLLECTION, USERS_COLLECTION, UserService
 
 
@@ -52,8 +52,8 @@ def get_share_reward_data(user: dict[str, Any]) -> dict[str, Any]:
 
 
 class ShareRewardService:
-    def __init__(self, db: CloudBaseNoSQL | None = None, user_service: UserService | None = None):
-        self.db = db or CloudBaseNoSQL()
+    def __init__(self, db: Database | None = None, user_service: UserService | None = None):
+        self.db = db or Database()
         self.user_service = user_service or UserService(self.db)
 
     def get_status(self, openid: str) -> dict[str, Any]:
@@ -62,9 +62,8 @@ class ShareRewardService:
 
     def claim(self, openid: str) -> dict[str, Any]:
         user = self.user_service.ensure_user(openid)
-        transaction_id = self.db.begin_transaction()
-        try:
-            latest_user = self.db.find_one(USERS_COLLECTION, {"_id": user["_id"]}, transaction_id=transaction_id)
+        with self.db.transaction() as tx:
+            latest_user = tx.find_one(USERS_COLLECTION, {"_id": user["_id"]}, lock=True)
             if not latest_user:
                 raise ValueError("用户不存在")
             status = get_share_reward_data(latest_user)
@@ -84,66 +83,45 @@ class ShareRewardService:
                 "updatedAt": now,
             }
 
-            self.db.run_commands(
+            tx.update_document(
+                USERS_COLLECTION,
+                str(latest_user["_id"]),
+                {
+                    "points": next_user["points"],
+                    "totalGrantedPoints": next_user["totalGrantedPoints"],
+                    "shareCountToday": next_user["shareCountToday"],
+                    "lastShareDate": today,
+                    "lastShareAt": now,
+                    "updatedAt": now,
+                },
+            )
+            tx.insert_documents(
+                POINT_TRANSACTIONS_COLLECTION,
                 [
                     {
-                        "update": USERS_COLLECTION,
-                        "updates": [
-                            {
-                                "q": {"_id": latest_user["_id"]},
-                                "u": {
-                                    "$set": {
-                                        "points": next_user["points"],
-                                        "totalGrantedPoints": next_user["totalGrantedPoints"],
-                                        "shareCountToday": next_user["shareCountToday"],
-                                        "lastShareDate": today,
-                                        "lastShareAt": now,
-                                        "updatedAt": now,
-                                    }
-                                },
-                                "multi": False,
-                                "upsert": False,
-                            }
-                        ],
-                    },
-                    {
-                        "insert": POINT_TRANSACTIONS_COLLECTION,
-                        "documents": [
-                            {
-                                "openid": openid,
-                                "type": "grant",
-                                "amount": 1,
-                                "balanceAfter": next_points,
-                                "reason": "share_reward",
-                                "taskId": None,
-                                "createdAt": now,
-                            }
-                        ],
+                        "openid": openid,
+                        "type": "grant",
+                        "amount": 1,
+                        "balanceAfter": next_points,
+                        "reason": "share_reward",
+                        "taskId": None,
+                        "createdAt": now,
                     }
                 ],
-                transaction_id=transaction_id,
             )
-            self.db.commit_transaction(transaction_id)
-            log_event(
-                logger,
-                "share_reward_claimed",
-                openid=mask_openid(openid),
-                points=next_points,
-                share_count=next_user["shareCountToday"],
-            )
-            return {"pointsGained": 1, **get_share_reward_data(next_user)}
-        except ShareRewardLimitError:
-            self.db.rollback_transaction(transaction_id)
-            raise
-        except Exception:
-            self.db.rollback_transaction(transaction_id)
-            raise
+        log_event(
+            logger,
+            "share_reward_claimed",
+            openid=mask_openid(openid),
+            points=next_points,
+            share_count=next_user["shareCountToday"],
+        )
+        return {"pointsGained": 1, **get_share_reward_data(next_user)}
 
     def check_in(self, openid: str) -> dict[str, Any]:
         user = self.user_service.ensure_user(openid)
-        transaction_id = self.db.begin_transaction()
-        try:
-            latest_user = self.db.find_one(USERS_COLLECTION, {"_id": user["_id"]}, transaction_id=transaction_id)
+        with self.db.transaction() as tx:
+            latest_user = tx.find_one(USERS_COLLECTION, {"_id": user["_id"]}, lock=True)
             if not latest_user:
                 raise ValueError("用户不存在")
 
@@ -161,61 +139,41 @@ class ShareRewardService:
             next_check_in_days = int(latest_user.get("checkInDays") or 0) + 1
             next_total_granted = int(latest_user.get("totalGrantedPoints") or 0) + 1
 
-            self.db.run_commands(
+            tx.update_document(
+                USERS_COLLECTION,
+                str(latest_user["_id"]),
+                {
+                    "points": next_points,
+                    "totalGrantedPoints": next_total_granted,
+                    "lastCheckInAt": now,
+                    "checkInDays": next_check_in_days,
+                    "updatedAt": now,
+                },
+            )
+            tx.insert_documents(
+                POINT_TRANSACTIONS_COLLECTION,
                 [
                     {
-                        "update": USERS_COLLECTION,
-                        "updates": [
-                            {
-                                "q": {"_id": latest_user["_id"]},
-                                "u": {
-                                    "$set": {
-                                        "points": next_points,
-                                        "totalGrantedPoints": next_total_granted,
-                                        "lastCheckInAt": now,
-                                        "checkInDays": next_check_in_days,
-                                        "updatedAt": now,
-                                    }
-                                },
-                                "multi": False,
-                                "upsert": False,
-                            }
-                        ],
-                    },
-                    {
-                        "insert": POINT_TRANSACTIONS_COLLECTION,
-                        "documents": [
-                            {
-                                "openid": openid,
-                                "type": "grant",
-                                "amount": 1,
-                                "balanceAfter": next_points,
-                                "reason": "daily_check_in",
-                                "taskId": None,
-                                "createdAt": now,
-                            }
-                        ],
+                        "openid": openid,
+                        "type": "grant",
+                        "amount": 1,
+                        "balanceAfter": next_points,
+                        "reason": "daily_check_in",
+                        "taskId": None,
+                        "createdAt": now,
                     }
                 ],
-                transaction_id=transaction_id,
             )
-            self.db.commit_transaction(transaction_id)
-            log_event(
-                logger,
-                "daily_check_in",
-                openid=mask_openid(openid),
-                points=next_points,
-                check_in_days=next_check_in_days,
-            )
-            return {
-                "checkedIn": True,
-                "pointsGained": 1,
-                "points": next_points,
-                "checkInAt": now,
-            }
-        except CheckInAlreadyDoneError:
-            self.db.rollback_transaction(transaction_id)
-            raise
-        except Exception:
-            self.db.rollback_transaction(transaction_id)
-            raise
+        log_event(
+            logger,
+            "daily_check_in",
+            openid=mask_openid(openid),
+            points=next_points,
+            check_in_days=next_check_in_days,
+        )
+        return {
+            "checkedIn": True,
+            "pointsGained": 1,
+            "points": next_points,
+            "checkInAt": now,
+        }

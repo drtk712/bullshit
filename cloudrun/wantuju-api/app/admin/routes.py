@@ -32,7 +32,7 @@ from app.admin.views import (
     _users_page,
 )
 from app.cloudbase.client import CloudBaseError
-from app.cloudbase.nosql import get_feature_store, get_user_store
+from app.db import get_feature_store, get_user_store
 from app.cloudbase.storage import get_storage
 from app.services.job_queue import job_queue
 from app.services.preview_composer import SUPPORTED_IMAGE_EXTENSIONS, compose_preview_image, safe_preview_object_id

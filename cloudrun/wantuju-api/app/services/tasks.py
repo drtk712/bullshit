@@ -10,9 +10,10 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from app.cloudbase.nosql import CloudBaseNoSQL, created_id, get_point_ledger
 from app.cloudbase.storage import CloudBaseStorage
+from app.core.config import validation_api_key
 from app.core.logging import compact_error, log_event, mask_openid
+from app.db import Database, created_id, get_point_ledger
 from app.services.features import FeatureService
 from app.services.job_queue import QueuedJob, job_queue
 from app.services.users import UserService
@@ -83,12 +84,12 @@ def to_shared_task(task: dict[str, Any], task_id: str) -> dict[str, Any]:
 class TaskService:
     def __init__(
         self,
-        db: CloudBaseNoSQL | None = None,
+        db: Database | None = None,
         storage: CloudBaseStorage | None = None,
         user_service: UserService | None = None,
         feature_service: FeatureService | None = None,
     ):
-        self.db = db or CloudBaseNoSQL()
+        self.db = db or Database()
         self.storage = storage or CloudBaseStorage()
         self.user_service = user_service or UserService(self.db)
         self.feature_service = feature_service or FeatureService(self.db)
@@ -380,25 +381,21 @@ class TaskService:
         return {"taskId": task_id}
 
     def claim_processing_job(self, task_id: str) -> dict[str, Any] | None:
-        transaction_id = self.db.begin_transaction()
-        try:
-            job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
+        now = int(time.time() * 1000)
+        token = f"{task_id}:{now}"
+        with self.db.transaction() as tx:
+            job = tx.get_document(FEATURE_JOBS_COLLECTION, task_id, lock=True)
             if not job:
-                self.db.rollback_transaction(transaction_id)
                 return None
 
             status = str(job.get("status") or "")
-            now = int(time.time() * 1000)
             lease_at = int(job.get("processingLeaseAt") or 0)
             if status == "processing" and lease_at and now - lease_at < PROCESSING_RECOVERY_AFTER_MS:
-                self.db.commit_transaction(transaction_id)
                 return None
             if status not in {"pending", "processing"}:
-                self.db.commit_transaction(transaction_id)
                 return None
 
-            token = f"{task_id}:{now}"
-            self.db.update_document(
+            tx.update_document(
                 FEATURE_JOBS_COLLECTION,
                 task_id,
                 {
@@ -408,17 +405,12 @@ class TaskService:
                     "errMsg": "",
                     "updatedAt": now,
                 },
-                transaction_id=transaction_id,
             )
-            self.db.commit_transaction(transaction_id)
-            fresh_job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
-            if fresh_job.get("processingLeaseToken") != token:
-                return None
-            log_event(logger, "task_claimed_processing", task_id=task_id, type=fresh_job.get("type"), lease_at=now)
-            return fresh_job
-        except Exception:
-            self.db.rollback_transaction(transaction_id)
-            raise
+        fresh_job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
+        if fresh_job.get("processingLeaseToken") != token:
+            return None
+        log_event(logger, "task_claimed_processing", task_id=task_id, type=fresh_job.get("type"), lease_at=now)
+        return fresh_job
 
     async def recover_unfinished_jobs(self, *, limit: int = 50) -> int:
         now = int(time.time() * 1000)
@@ -499,7 +491,7 @@ class TaskService:
             service_url,
             data=json.dumps(payload).encode("utf-8"),
             method="POST",
-            headers={"Content-Type": "application/json"},
+            headers=validation_request_headers(validation_config),
         )
         try:
             with urlopen(request, timeout=55) as response:
@@ -556,7 +548,7 @@ class TaskService:
             service_url,
             data=json.dumps(payload).encode("utf-8"),
             method="POST",
-            headers={"Content-Type": "application/json"},
+            headers=validation_request_headers(validation_config),
         )
         try:
             with urlopen(request, timeout=55) as response:
@@ -586,6 +578,17 @@ class TaskService:
             self.storage.delete_objects(file_ids)
         except Exception:
             pass
+
+
+def validation_request_headers(validation_config: dict[str, Any]) -> dict[str, str]:
+    """OpenAI-compatible headers. No key is sent unless one is configured."""
+    headers = {"Content-Type": "application/json"}
+    api_key = str(validation_config.get("apiKey") or validation_config.get("api_key") or "").strip()
+    if not api_key:
+        api_key = validation_api_key()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
 
 def normalize_job_param(input_value: Any) -> dict[str, str]:

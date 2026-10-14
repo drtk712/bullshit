@@ -21,7 +21,7 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | 微信小程序原生开发 |
-| 云开发 | 微信云托管 + 云数据库 + 云存储 |
+| 云开发 | 微信云托管 + CloudBase PostgreSQL + 云存储 |
 | 服务端 | Python 3.11 + FastAPI (`cloudrun/wantuju-api`) |
 | 生成能力 | `MEMEFAST_API_URL` 配置的图片生成模型 |
 
@@ -47,10 +47,9 @@ uv run python -m uvicorn app.main:app --host 0.0.0.0 --port 8012
 在云托管服务配置：
 
 ```env
-CLOUDBASE_ENV_ID=cloud1-d7g1nt83fde793ad3
+CLOUDBASE_ENV_ID=wantuju-prod-d2gf1sf2r508a56b1
 CLOUDBASE_APIKEY=<CloudBase HTTP API Bearer Token>
-CLOUDBASE_DB_INSTANCE=flexdb
-CLOUDBASE_DB_NAME=tnt-gizs5ya5s
+DATABASE_URL=postgresql://USER:PASSWORD@<内网主机>:5432/postgres-4lino9f2?sslmode=require
 MEMEFAST_API_KEY=<图片生成模型 API Key>
 MEMEFAST_API_URL=<图片生成模型接口地址>
 MEMEFAST_MODEL=<图片生成模型名>
@@ -58,16 +57,19 @@ ADMIN_SESSION_SECRET=<管理端 Cookie 签名密钥>
 ADMIN_PASSWORD=<管理端登录密码>
 ```
 
+也可以不写 `DATABASE_URL`，改用 `PGHOST`、`PGPORT`、`PGUSER`、`PGPASSWORD`、`PGDATABASE`。连接方式、RLS 和迁移见云托管 README。
+
 ## 详细文档
 
 查看 [cloudrun/wantuju-api/README.md](cloudrun/wantuju-api/README.md) 了解 CloudRun 部署、接口、管理端和排障说明。
 
 [DESIGN.md](DESIGN.md) 和 `docs/plans/` 下的旧设计文档保留为历史参考，不再代表当前主链路。
 
-## 云数据库集合
+## PostgreSQL 表
 
-| 集合名 | 用途 |
-|--------|------|
+| 表名 | 用途 |
+|------|------|
+| `feature_configs` | 玩法配置（JSONB；`sort_order`；已在新环境建好） |
 | `feature_jobs` | 生成任务记录 |
 | `users` | 用户信息（openid、积分等） |
 | `point_transactions` | 积分流水（赠送/消耗/退款） |
@@ -86,6 +88,6 @@ ADMIN_PASSWORD=<管理端登录密码>
 ## 项目配置
 
 - **AppID**: `wxa7c27609f05eb381`
-- **云开发环境**: `cloud1-d7g1nt83fde793ad3`
+- **云开发环境**: `wantuju-prod-d2gf1sf2r508a56b1`
 - **基础库版本**: `3.15.2`
 - **云托管服务**: `wantuju-api`

@@ -5,7 +5,7 @@ from hashlib import sha256
 import time
 from typing import Any
 
-from app.cloudbase.nosql import CloudBaseNoSQL
+from app.db import Database
 
 
 USERS_COLLECTION = "users"
@@ -38,8 +38,8 @@ def assert_user_usable(user: dict[str, Any]) -> None:
 
 
 class UserService:
-    def __init__(self, db: CloudBaseNoSQL | None = None):
-        self.db = db or CloudBaseNoSQL()
+    def __init__(self, db: Database | None = None):
+        self.db = db or Database()
 
     def ensure_user(self, openid: str, *, record_login: bool = False) -> dict[str, Any]:
         now = int(time.time() * 1000)
@@ -62,9 +62,10 @@ class UserService:
             "lastLoginAt": now,
         }
         try:
-            create_result = self.db.insert_documents(USERS_COLLECTION, [user_data])
-            user_id = self._created_id(create_result)
-            self._create_first_login_transaction(openid, now)
+            with self.db.transaction() as tx:
+                create_result = tx.insert_documents(USERS_COLLECTION, [user_data])
+                user_id = self._created_id(create_result)
+                self._create_first_login_transaction(tx, openid, now)
             return {"_id": user_id, **user_data, "isNewUser": True}
         except Exception:
             existing_user = self.db.find_one(USERS_COLLECTION, {"openid": openid})
@@ -114,9 +115,11 @@ class UserService:
             return str(inserted_ids[0])
         return None
 
-    def _create_first_login_transaction(self, openid: str, now: int) -> None:
+    def _create_first_login_transaction(self, tx, openid: str, now: int) -> None:
+        # Savepoint so a duplicate grant id does not abort the user insert.
+        tx.conn.execute("SAVEPOINT first_login_grant")
         try:
-            self.db.insert_documents(
+            tx.insert_documents(
                 POINT_TRANSACTIONS_COLLECTION,
                 [
                     {
@@ -134,7 +137,7 @@ class UserService:
         except Exception:
             # The user document is the source of truth for the initial balance.
             # A duplicate id here means the idempotent first-login grant already exists.
-            pass
+            tx.conn.execute("ROLLBACK TO SAVEPOINT first_login_grant")
 
     def _first_login_transaction_id(self, openid: str) -> str:
         digest = sha256(openid.encode("utf-8")).hexdigest()

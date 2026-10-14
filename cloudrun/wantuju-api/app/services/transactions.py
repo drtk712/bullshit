@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.cloudbase.nosql import CloudBaseNoSQL
+from app.db import Database
 
 
 POINT_TRANSACTIONS_COLLECTION = "point_transactions"
@@ -22,8 +22,8 @@ def to_public_transaction(transaction: dict[str, Any]) -> dict[str, Any]:
 
 
 class TransactionService:
-    def __init__(self, db: CloudBaseNoSQL | None = None):
-        self.db = db or CloudBaseNoSQL()
+    def __init__(self, db: Database | None = None):
+        self.db = db or Database()
 
     def list_transactions(self, openid: str, *, page: int = 1, page_size: int = 10) -> dict[str, Any]:
         page = max(1, int(page or 1))

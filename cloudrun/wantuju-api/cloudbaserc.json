@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "envId": "cloud1-d7g1nt83fde793ad3",
+  "envId": "wantuju-prod-d2gf1sf2r508a56b1",
   "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
   "cloudrun": {
     "name": "wantuju-api"
