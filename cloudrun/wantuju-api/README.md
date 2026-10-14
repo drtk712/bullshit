@@ -69,9 +69,7 @@ ADMIN_SESSION_SECRET=<强随机字符串>
 ADMIN_PASSWORD=<管理端登录密码>
 ```
 
-玩法需要用户上传的照片做图生图。服务先 `POST {IMAGE_API_BASE_URL}/images/generations`，JSON 里的 `image` 是照片的 HTTPS 地址，并请求 `response_format=b64_json`。响应认 `data[0].b64_json`、`data[0].url`（http 或 data URL），也认直接返回的图片字节。网关若拒绝 `response_format`，会去掉该字段再试一次。若报错像是拉不到这张 URL，会先把原图换成 data URL 再请求 generations。若明确拒绝 `image` 参数，或 generations 返回 404/405，则下载原图改走 `POST /images/edits` 的 multipart 字段 `image`。不发送 `quality`、`size`、`style`、`mode`。
-
-电信网关没有公开的入参文档。如果它忽略未知的 `image` 字段并返回 200，服务看不出原图有没有被用上。云存储签名 URL 若不能被网关拉取，会落到 data URL，再不行才走 edits。
+有用户照片的玩法一律先下载原图，再 `POST {IMAGE_API_BASE_URL}/images/edits`，multipart 字段名是 `image`。实测 generations 即使带上 URL、URL 数组或 data URL 也会返回 200，但不会使用这张照片。没有输入图的玩法才走 `POST /images/generations`，JSON 里不放 `image`。响应认 `data[0].b64_json` 或 `data[0].url`。若响应里有 `usage.input_tokens_details.image_tokens` 且不大于 0，图生图记为失败并退款。单次等待 180 秒。返回的 PNG 会转成 JPEG，长边超过 2048 会先缩小，再上传云存储。不发送 `quality`、`size`、`style`、`mode`。
 
 可选：
 
@@ -261,12 +259,12 @@ wx.cloud.callContainer({
 })
 ```
 
-`/miniapp/whoami` 应返回非空 `openid`。
+`/miniapp/whoami` 应返回 `wechatGateway: true` 和非空 `openid`。公网域名自己带 `x-wx-openid` 时，`openid` 为空。
 
 ## 小程序接口
 
 - `GET /health`：健康检查。
-- `GET /miniapp/whoami`：查看 CloudBase/WeChat 注入的请求头和 `openid`。
+- `GET /miniapp/whoami`：查看微信注入的请求头。只有带 `x-wx-source` 时才返回 `openid`。
 - `GET /miniapp/features`：启用玩法列表。
 - `GET /miniapp/features?type=palm`：单个启用玩法。
 - `GET /miniapp/me`：当前用户资料和分享积分状态。
@@ -349,14 +347,23 @@ wx.cloud.callContainer({
 
 ### `401 无法获取用户身份`
 
-CloudRun 没拿到微信注入的 `openid`。
+请求没有被当成微信 callContainer。公网打开时，只带 `x-wx-openid` 不算登录。
 
 排查：
 
-- 必须使用 `wx.cloud.callContainer`，不要用 `wx.request`。
-- 调用 `/miniapp/whoami` 查看 header keys。
+- 小程序必须使用 `wx.cloud.callContainer`，不要用 `wx.request` 打公网域名。
+- 调用 `/miniapp/whoami`。`wechatGateway` 应为 true，`headerKeys` 里要有 `x-wx-source`，以及 `x-wx-openid` 或资源复用时的 `x-wx-from-openid`。
 - 确认云托管服务允许小程序访问。
 - 确认小程序云环境是 `wantuju-prod-d2gf1sf2r508a56b1`。
+- 管理端走 `/admin`，用 `ADMIN_PASSWORD` 登录，不依赖这些头。
+
+### 公网访问和用户身份
+
+`callContainer` 走微信内网。微信校验用户后，由云托管入口写入 `x-wx-openid`（资源复用时是 `x-wx-from-openid`）和 `x-wx-source`。文档说明这些头可以信任，并写明公网开启时要用 `x-wx-source` 判断是不是微信侧发起的请求。
+
+公网域名不会由微信附带用户身份。服务因此只在 `x-wx-source` 非空时读取 openid，忽略调用方自己写的 `x-wx-openid`、`x-cloudbase-openid`、`x-tcb-openid`。`/health`、玩法列表和 `/admin` 仍可从公网访问。`/admin` 使用独立的口令和签名 cookie。
+
+这个判断依赖云托管入口不会把公网客户端自己写的 `x-wx-source` 透传进容器。微信文档和官方模板都按这个约定处理。如果某次网关改成透传该头，只检查它就不够，那时应关掉公网，或给小程序另做登录态。管理端仍需要公网，所以没有把整个服务锁在 callContainer 上。
 
 ### PostgreSQL 连接失败或业务接口 502
 

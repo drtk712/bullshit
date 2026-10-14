@@ -1,13 +1,15 @@
 """OpenAI-compatible image generation.
 
-The user's photo is sent as an input image. Official Images API generations
-are text-to-image, while edits take a multipart ``image`` file. Several
-gateways also accept ``image`` on ``/images/generations`` as an HTTPS URL or
-a base64 data URL. This client tries that first and falls back to
-``/images/edits`` when the generations endpoint rejects an input image.
+Live calls against the telecom gateway showed that ``/images/generations``
+accepts an ``image`` field and still ignores it. Image-to-image therefore
+always downloads the user's photo and posts it as multipart ``image`` to
+``/images/edits``. ``/images/generations`` is only used when there is no
+input photo.
 
-Responses may be ``data[0].b64_json`` or ``data[0].url``. No fast model,
-quality, or mode parameter is sent.
+Responses are usually ``data[0].b64_json`` PNG bodies of several megabytes
+and can take well over half a minute. The client waits at least two minutes,
+then converts the result to a smaller JPEG before it is stored. No fast
+model, quality, or mode parameter is sent.
 """
 from __future__ import annotations
 
@@ -15,17 +17,21 @@ import base64
 import logging
 import time
 from dataclasses import dataclass
+from io import BytesIO
 from urllib.parse import urlparse
 
 import requests
+from PIL import Image, ImageOps
 
 from app.core.config import image_api_base_url, image_api_key, image_model
 
 
 logger = logging.getLogger(__name__)
-GENERATION_TIMEOUT_SECONDS = 300
-GENERATION_MAX_ATTEMPTS = 3
+GENERATION_TIMEOUT_SECONDS = 180
+GENERATION_MAX_ATTEMPTS = 2
 RETRYABLE_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
+STORED_JPEG_QUALITY = 85
+STORED_MAX_EDGE = 2048
 
 
 @dataclass(frozen=True)
@@ -40,8 +46,7 @@ class _Outcome:
     error: Exception | None = None
     stop: bool = False
     drop_format: bool = False
-    retry_base64: bool = False
-    use_edits: bool = False
+    image_tokens: int | None = None
 
 
 def mask_url(url: str) -> str:
@@ -56,66 +61,16 @@ def mask_url(url: str) -> str:
 
 
 def generate_poster(image_url: str, job_type: str, generation_prompt: str) -> GeneratedImage:
-    """Generate one image from the user's photo and the feature prompt."""
+    """Generate one image. A photo URL uses edits; an empty URL uses generations."""
     key = image_api_key()
     if not key:
         raise RuntimeError("IMAGE_API_KEY 未设置")
     model = _checked_model()
-    logger.info("[图片处理] type=%s model=%s image=%s", job_type, model, mask_url(image_url))
-
-    use_format = True
-    outcome = _generations(key, model, generation_prompt, image_url, response_format=True)
-    if outcome.image:
-        return outcome.image
-    if outcome.stop:
-        raise outcome.error or RuntimeError("图片生成失败")
-    if outcome.drop_format:
-        use_format = False
-        outcome = _generations(key, model, generation_prompt, image_url, response_format=False)
-        if outcome.image:
-            return outcome.image
-        if outcome.stop:
-            raise outcome.error or RuntimeError("图片生成失败")
-
-    source: bytes | None = None
-    if outcome.retry_base64:
-        source = download_image_bytes(image_url)
-        outcome = _generations(
-            key,
-            model,
-            generation_prompt,
-            _data_url(source, image_url),
-            response_format=use_format,
-        )
-        if outcome.image:
-            return outcome.image
-        if outcome.stop:
-            raise outcome.error or RuntimeError("图片生成失败")
-        if outcome.drop_format and use_format:
-            use_format = False
-            outcome = _generations(
-                key,
-                model,
-                generation_prompt,
-                _data_url(source, image_url),
-                response_format=False,
-            )
-            if outcome.image:
-                return outcome.image
-            if outcome.stop:
-                raise outcome.error or RuntimeError("图片生成失败")
-
-    if source is None:
-        source = download_image_bytes(image_url)
-    logger.info("[图片处理] generations 不能接收输入图，改走 images/edits")
-    edited = _edits(key, model, generation_prompt, source, image_url, response_format=use_format)
-    if edited.image:
-        return edited.image
-    if edited.drop_format and use_format:
-        edited = _edits(key, model, generation_prompt, source, image_url, response_format=False)
-        if edited.image:
-            return edited.image
-    raise edited.error or outcome.error or RuntimeError("图片生成失败")
+    if (image_url or "").strip():
+        logger.info("[图片处理] type=%s model=%s edits image=%s", job_type, model, mask_url(image_url))
+        return _edit_photo(key, model, generation_prompt, image_url)
+    logger.info("[图片处理] type=%s model=%s generations 无输入图", job_type, model)
+    return _generate_text(key, model, generation_prompt)
 
 
 def download_image_bytes(url: str) -> bytes:
@@ -130,6 +85,35 @@ def guess_ext_from_url(url: str) -> str:
         if path.endswith(ext):
             return ".jpg" if ext == ".jpeg" else ext
     return ".png"
+
+
+def _edit_photo(key: str, model: str, prompt: str, image_url: str) -> GeneratedImage:
+    source = download_image_bytes(image_url)
+    if not source:
+        raise RuntimeError("用户照片为空")
+    outcome = _edits(key, model, prompt, source, image_url, response_format=True)
+    if outcome.drop_format and outcome.image is None and not outcome.stop:
+        outcome = _edits(key, model, prompt, source, image_url, response_format=False)
+    if outcome.image is None:
+        raise outcome.error or RuntimeError("图片生成失败")
+    _require_input_image(outcome)
+    return _prepare_for_storage(outcome.image)
+
+
+def _generate_text(key: str, model: str, prompt: str) -> GeneratedImage:
+    outcome = _generations(key, model, prompt, response_format=True)
+    if outcome.drop_format and outcome.image is None and not outcome.stop:
+        outcome = _generations(key, model, prompt, response_format=False)
+    if outcome.image is None:
+        raise outcome.error or RuntimeError("图片生成失败")
+    return _prepare_for_storage(outcome.image)
+
+
+def _require_input_image(outcome: _Outcome) -> None:
+    if outcome.image_tokens is None:
+        return
+    if outcome.image_tokens <= 0:
+        raise RuntimeError("图片网关未使用输入照片")
 
 
 def _checked_model() -> str:
@@ -147,39 +131,11 @@ def _auth_headers(key: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {key}"}
 
 
-def _payload(model: str, prompt: str, image: str | list[str], *, response_format: bool) -> dict[str, object]:
-    body: dict[str, object] = {
-        "model": model,
-        "prompt": prompt,
-        "image": image,
-        "n": 1,
-    }
+def _generations(key: str, model: str, prompt: str, *, response_format: bool) -> _Outcome:
+    body: dict[str, object] = {"model": model, "prompt": prompt, "n": 1}
     if response_format:
         body["response_format"] = "b64_json"
-    return body
-
-
-def _generations(
-    key: str,
-    model: str,
-    prompt: str,
-    image: str,
-    *,
-    response_format: bool,
-) -> _Outcome:
-    outcome = _post_json(
-        _endpoint("images/generations"),
-        key,
-        _payload(model, prompt, image, response_format=response_format),
-    )
-    if outcome.image or outcome.stop or not _wants_image_array(outcome):
-        return outcome
-    logger.info("[图片处理] generations 要求 image 为数组，重试一次")
-    return _post_json(
-        _endpoint("images/generations"),
-        key,
-        _payload(model, prompt, [image], response_format=response_format),
-    )
+    return _post_json(_endpoint("images/generations"), key, body)
 
 
 def _edits(
@@ -197,7 +153,7 @@ def _edits(
     if response_format:
         form["response_format"] = "b64_json"
     files = {"image": (f"input{extension}", source, mime)}
-    return _post_multipart(_endpoint("images/edits"), key, form, files)
+    return _post_multipart(_endpoint("images/edits"), key, form, files, require_image_tokens=True)
 
 
 def _post_json(url: str, key: str, body: dict[str, object]) -> _Outcome:
@@ -209,10 +165,17 @@ def _post_json(url: str, key: str, body: dict[str, object]) -> _Outcome:
             timeout=GENERATION_TIMEOUT_SECONDS,
         )
 
-    return _exchange(send)
+    return _exchange(send, require_image_tokens=False)
 
 
-def _post_multipart(url: str, key: str, form: dict[str, str], files: dict) -> _Outcome:
+def _post_multipart(
+    url: str,
+    key: str,
+    form: dict[str, str],
+    files: dict,
+    *,
+    require_image_tokens: bool,
+) -> _Outcome:
     def send() -> requests.Response:
         return requests.post(
             url,
@@ -222,10 +185,10 @@ def _post_multipart(url: str, key: str, form: dict[str, str], files: dict) -> _O
             timeout=GENERATION_TIMEOUT_SECONDS,
         )
 
-    return _exchange(send)
+    return _exchange(send, require_image_tokens=require_image_tokens)
 
 
-def _exchange(send) -> _Outcome:
+def _exchange(send, *, require_image_tokens: bool) -> _Outcome:
     last_error: Exception | None = None
     for attempt in range(1, GENERATION_MAX_ATTEMPTS + 1):
         try:
@@ -240,8 +203,8 @@ def _exchange(send) -> _Outcome:
             last_error = RuntimeError(f"API 请求失败: {exc}")
             logger.warning("[图片处理] 请求异常 attempt=%s/%s: %s", attempt, GENERATION_MAX_ATTEMPTS, exc)
         else:
-            parsed = _outcome_from_response(response)
-            retryable = response.status_code >= 500 or _should_retry_status(response.status_code)
+            parsed = _outcome_from_response(response, require_image_tokens=require_image_tokens)
+            retryable = response.status_code >= 500 or response.status_code in RETRYABLE_STATUS_CODES
             if parsed.image or parsed.stop or not retryable:
                 return parsed
             last_error = parsed.error
@@ -256,7 +219,7 @@ def _exchange(send) -> _Outcome:
     return _Outcome(error=last_error or RuntimeError("API 请求失败"), stop=True)
 
 
-def _outcome_from_response(response: requests.Response) -> _Outcome:
+def _outcome_from_response(response: requests.Response, *, require_image_tokens: bool) -> _Outcome:
     if response.status_code == 200:
         content_type = response.headers.get("Content-Type", "")
         if content_type.startswith("image/"):
@@ -264,11 +227,14 @@ def _outcome_from_response(response: requests.Response) -> _Outcome:
         try:
             payload = response.json()
         except ValueError:
-            return _Outcome(error=RuntimeError(f"API 返回非 JSON 格式: {response.text[:100]}"), retry_base64=True)
+            return _Outcome(error=RuntimeError(f"API 返回非 JSON 格式: {response.text[:100]}"), stop=True)
         image = _image_from_payload(payload)
-        if image:
-            return _Outcome(image=image)
-        return _Outcome(error=RuntimeError("图片响应为空"), retry_base64=True)
+        if image is None:
+            return _Outcome(error=RuntimeError("图片响应为空"), stop=True)
+        tokens = _image_tokens(payload) if require_image_tokens else None
+        if require_image_tokens and tokens is not None and tokens <= 0:
+            return _Outcome(error=RuntimeError("图片网关未使用输入照片"), stop=True)
+        return _Outcome(image=image, image_tokens=tokens)
 
     message = _error_message(response)
     kind = _classify(response.status_code, message)
@@ -277,8 +243,6 @@ def _outcome_from_response(response: requests.Response) -> _Outcome:
         error=error,
         stop=kind == "auth",
         drop_format=kind == "drop-format",
-        retry_base64=kind == "base64",
-        use_edits=kind == "edits",
     )
 
 
@@ -291,16 +255,63 @@ def _image_from_payload(payload: object) -> GeneratedImage | None:
     item = data[0]
     encoded = item.get("b64_json")
     if isinstance(encoded, str) and encoded.strip():
-        raw = base64.b64decode(encoded)
-        return GeneratedImage(raw, _ext_from_bytes(raw))
+        try:
+            raw = base64.b64decode(encoded)
+        except (ValueError, TypeError):
+            return None
+        return GeneratedImage(raw, _ext_from_bytes(raw) or ".png")
     url = item.get("url")
     if isinstance(url, str) and url.startswith("data:"):
         raw = _decode_data_url(url)
-        return GeneratedImage(raw, _ext_from_bytes(raw))
+        return GeneratedImage(raw, _ext_from_bytes(raw) or ".png")
     if isinstance(url, str) and url.startswith(("http://", "https://")):
         raw = download_image_bytes(url)
         return GeneratedImage(raw, _ext_from_bytes(raw) or guess_ext_from_url(url))
     return None
+
+
+def _image_tokens(payload: object) -> int | None:
+    if not isinstance(payload, dict):
+        return None
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    details = usage.get("input_tokens_details")
+    if not isinstance(details, dict) or "image_tokens" not in details:
+        return None
+    try:
+        return int(details["image_tokens"])
+    except (TypeError, ValueError):
+        return None
+
+
+def _prepare_for_storage(image: GeneratedImage) -> GeneratedImage:
+    try:
+        with Image.open(BytesIO(image.content)) as raw:
+            converted = ImageOps.exif_transpose(raw)
+            if converted.mode in {"RGBA", "LA"} or (converted.mode == "P" and "transparency" in converted.info):
+                rgba = converted.convert("RGBA")
+                background = Image.new("RGB", rgba.size, (255, 255, 255))
+                background.paste(rgba, mask=rgba.getchannel("A"))
+                converted = background
+            elif converted.mode != "RGB":
+                converted = converted.convert("RGB")
+            width, height = converted.size
+            long_edge = max(width, height)
+            if long_edge > STORED_MAX_EDGE:
+                scale = STORED_MAX_EDGE / long_edge
+                converted = converted.resize(
+                    (max(1, round(width * scale)), max(1, round(height * scale))),
+                    Image.Resampling.LANCZOS,
+                )
+            buffer = BytesIO()
+            converted.save(buffer, format="JPEG", quality=STORED_JPEG_QUALITY, optimize=True)
+    except Exception as exc:
+        logger.warning("[图片处理] 结果压缩失败，按原图保存: %s", exc)
+        return image
+    stored = buffer.getvalue()
+    logger.info("[图片处理] 结果 %s bytes -> jpeg %s bytes", len(image.content), len(stored))
+    return GeneratedImage(stored, ".jpg")
 
 
 def _error_message(response: requests.Response) -> str:
@@ -325,15 +336,9 @@ def _classify(status: int, message: str) -> str:
         return "auth"
     if status in RETRYABLE_STATUS_CODES:
         return "retry"
-    format_rejected = "response_format" in text and _mentions_rejection(text)
-    image_rejected = status in {404, 405} or (status in {400, 415, 422} and _mentions_image_param(text))
-    if image_rejected:
-        return "edits"
-    if format_rejected:
+    if "response_format" in text and _mentions_rejection(text):
         return "drop-format"
-    if status in {400, 415, 422}:
-        return "base64"
-    return "retry" if status >= 500 else "base64"
+    return "retry" if status >= 500 else "stop"
 
 
 def _mentions_rejection(text: str) -> bool:
@@ -352,27 +357,6 @@ def _mentions_rejection(text: str) -> bool:
             "无法识别",
         )
     )
-
-
-def _mentions_image_param(text: str) -> bool:
-    return "image" in text and _mentions_rejection(text)
-
-
-def _wants_image_array(outcome: _Outcome) -> bool:
-    if outcome.error is None or outcome.use_edits or outcome.stop:
-        return False
-    text = str(outcome.error).lower()
-    return "image" in text and ("array" in text or "数组" in text)
-
-
-def _should_retry_status(status: int) -> bool:
-    return status in RETRYABLE_STATUS_CODES
-
-
-def _data_url(content: bytes, source_url: str) -> str:
-    extension = _ext_from_bytes(content) or guess_ext_from_url(source_url)
-    encoded = base64.b64encode(content).decode("ascii")
-    return f"data:{_mime_for_ext(extension)};base64,{encoded}"
 
 
 def _decode_data_url(value: str) -> bytes:
