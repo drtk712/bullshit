@@ -24,6 +24,32 @@ def validation_api_key() -> str:
     return os.getenv("VALIDATION_API_KEY", "").strip()
 
 
+def use_postgres() -> bool:
+    """True when a direct PostgreSQL connection is configured.
+
+    `PGSSLMODE` alone does not count: tests set it while the HTTP path is selected
+    by deleting `DATABASE_URL`. A partial `PG*` set still counts so `database_dsn`
+    can report the missing pieces.
+    """
+    if os.getenv("DATABASE_URL", "").strip():
+        return True
+    return any(
+        os.getenv(name, "").strip()
+        for name in ("PGHOST", "PGUSER", "PGPASSWORD", "PGDATABASE", "PGPORT")
+    )
+
+
+def data_backend() -> str:
+    """`postgres` for the psycopg fallback, `http` for the CloudBase PostgREST default."""
+    if use_postgres():
+        return "postgres"
+    env_id = os.getenv("CLOUDBASE_ENV_ID", "").strip()
+    apikey = os.getenv("CLOUDBASE_APIKEY", "").strip()
+    if env_id and apikey:
+        return "http"
+    return ""
+
+
 def database_dsn() -> str:
     """Libpq connection string from DATABASE_URL or PG* variables.
 

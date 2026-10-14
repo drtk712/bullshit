@@ -71,6 +71,35 @@ def test_nested_jsonb_fields_update_without_replacing_siblings(db):
     assert document["validation"] is None
 
 
+def test_patch_function_updates_nested_json_and_clears_validation(db):
+    from app.db.repository import row_to_doc
+
+    doc_id = _insert(db, validation={"serviceUrl": "http://example.test/v1", "model": "old"})
+    row = db.call(
+        "wantuju_patch_document",
+        {
+            "table": "feature_configs",
+            "id": doc_id,
+            "patch": {
+                "public.title": "新手相",
+                "ui.requirements": ["光线充足", "五指张开"],
+                "generation.prompt": "new prompt",
+                "validation": None,
+                "order": 4,
+                "enabled": True,
+            },
+        },
+    )
+    document = row_to_doc("feature_configs", row)
+
+    assert document["public"]["title"] == "新手相"
+    assert document["public"]["homeDesc"] == "趣味解读运势"
+    assert document["ui"]["requirements"] == ["光线充足", "五指张开"]
+    assert document["generation"]["prompt"] == "new prompt"
+    assert document["validation"] is None
+    assert document["order"] == 4
+
+
 def test_blank_admin_validation_is_stored_as_null(db):
     doc_id = _insert(
         db,

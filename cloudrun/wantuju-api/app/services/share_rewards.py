@@ -8,7 +8,8 @@ from typing import Any
 
 from app.core.logging import log_event, mask_openid
 from app.db import Database
-from app.services.users import POINT_TRANSACTIONS_COLLECTION, USERS_COLLECTION, UserService
+from app.db.repository import row_to_doc
+from app.services.users import USERS_COLLECTION, UserService
 
 
 SHARE_POINTS_LIMIT_PER_DAY = 3
@@ -62,118 +63,59 @@ class ShareRewardService:
 
     def claim(self, openid: str) -> dict[str, Any]:
         user = self.user_service.ensure_user(openid)
-        with self.db.transaction() as tx:
-            latest_user = tx.find_one(USERS_COLLECTION, {"_id": user["_id"]}, lock=True)
-            if not latest_user:
-                raise ValueError("用户不存在")
-            status = get_share_reward_data(latest_user)
-            if not status["canEarnSharePoints"]:
-                raise ShareRewardLimitError(status)
-
-            now = int(time.time() * 1000)
-            today = get_shanghai_date_string()
-            next_points = int(latest_user.get("points") or 0) + 1
-            next_user = {
-                **latest_user,
-                "points": next_points,
-                "totalGrantedPoints": int(latest_user.get("totalGrantedPoints") or 0) + 1,
-                "shareCountToday": status["shareCountToday"] + 1,
-                "lastShareDate": today,
-                "lastShareAt": now,
-                "updatedAt": now,
-            }
-
-            tx.update_document(
-                USERS_COLLECTION,
-                str(latest_user["_id"]),
-                {
-                    "points": next_user["points"],
-                    "totalGrantedPoints": next_user["totalGrantedPoints"],
-                    "shareCountToday": next_user["shareCountToday"],
-                    "lastShareDate": today,
-                    "lastShareAt": now,
-                    "updatedAt": now,
-                },
-            )
-            tx.insert_documents(
-                POINT_TRANSACTIONS_COLLECTION,
-                [
-                    {
-                        "openid": openid,
-                        "type": "grant",
-                        "amount": 1,
-                        "balanceAfter": next_points,
-                        "reason": "share_reward",
-                        "taskId": None,
-                        "createdAt": now,
-                    }
-                ],
-            )
+        now = int(time.time() * 1000)
+        result = self.db.call(
+            "wantuju_claim_share",
+            {
+                "user_id": str(user["_id"]),
+                "openid": openid,
+                "now": now,
+                "today": get_shanghai_date_string(),
+            },
+        )
+        latest = row_to_doc(USERS_COLLECTION, (result or {}).get("user") or {})
+        status = get_share_reward_data(latest)
+        if not result or not result.get("ok"):
+            raise ShareRewardLimitError(status)
         log_event(
             logger,
             "share_reward_claimed",
             openid=mask_openid(openid),
-            points=next_points,
-            share_count=next_user["shareCountToday"],
+            points=status["points"],
+            share_count=status["shareCountToday"],
         )
-        return {"pointsGained": 1, **get_share_reward_data(next_user)}
+        return {"pointsGained": 1, **status}
 
     def check_in(self, openid: str) -> dict[str, Any]:
         user = self.user_service.ensure_user(openid)
-        with self.db.transaction() as tx:
-            latest_user = tx.find_one(USERS_COLLECTION, {"_id": user["_id"]}, lock=True)
-            if not latest_user:
-                raise ValueError("用户不存在")
-
-            today = get_shanghai_date_string()
-            last_check_in_date = timestamp_to_shanghai_date_string(latest_user.get("lastCheckInAt"))
-            if last_check_in_date == today:
-                raise CheckInAlreadyDoneError({
-                    "checkedIn": True,
-                    "points": int(latest_user.get("points") or 0),
-                    "checkInAt": latest_user.get("lastCheckInAt"),
-                })
-
-            now = int(time.time() * 1000)
-            next_points = int(latest_user.get("points") or 0) + 1
-            next_check_in_days = int(latest_user.get("checkInDays") or 0) + 1
-            next_total_granted = int(latest_user.get("totalGrantedPoints") or 0) + 1
-
-            tx.update_document(
-                USERS_COLLECTION,
-                str(latest_user["_id"]),
-                {
-                    "points": next_points,
-                    "totalGrantedPoints": next_total_granted,
-                    "lastCheckInAt": now,
-                    "checkInDays": next_check_in_days,
-                    "updatedAt": now,
-                },
-            )
-            tx.insert_documents(
-                POINT_TRANSACTIONS_COLLECTION,
-                [
-                    {
-                        "openid": openid,
-                        "type": "grant",
-                        "amount": 1,
-                        "balanceAfter": next_points,
-                        "reason": "daily_check_in",
-                        "taskId": None,
-                        "createdAt": now,
-                    }
-                ],
-            )
+        now = int(time.time() * 1000)
+        result = self.db.call(
+            "wantuju_check_in",
+            {
+                "user_id": str(user["_id"]),
+                "openid": openid,
+                "now": now,
+                "today": get_shanghai_date_string(),
+            },
+        )
+        latest = row_to_doc(USERS_COLLECTION, (result or {}).get("user") or {})
+        if not result or not result.get("ok"):
+            raise CheckInAlreadyDoneError({
+                "checkedIn": True,
+                "points": int(latest.get("points") or 0),
+                "checkInAt": latest.get("lastCheckInAt"),
+            })
+        points = int(latest.get("points") or 0)
         log_event(
             logger,
             "daily_check_in",
             openid=mask_openid(openid),
-            points=next_points,
-            check_in_days=next_check_in_days,
+            points=points,
+            check_in_days=int(latest.get("checkInDays") or 0),
         )
         return {
             "checkedIn": True,
             "pointsGained": 1,
-            "points": next_points,
-            "checkInAt": now,
+            "points": points,
+            "checkInAt": latest.get("lastCheckInAt"),
         }

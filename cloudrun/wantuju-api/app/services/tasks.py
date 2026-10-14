@@ -14,6 +14,7 @@ from app.cloudbase.storage import CloudBaseStorage
 from app.core.config import validation_api_key
 from app.core.logging import compact_error, log_event, mask_openid
 from app.db import Database, created_id, get_point_ledger
+from app.db.repository import row_to_doc
 from app.services.features import FeatureService
 from app.services.job_queue import QueuedJob, job_queue
 from app.services.users import UserService
@@ -383,30 +384,18 @@ class TaskService:
     def claim_processing_job(self, task_id: str) -> dict[str, Any] | None:
         now = int(time.time() * 1000)
         token = f"{task_id}:{now}"
-        with self.db.transaction() as tx:
-            job = tx.get_document(FEATURE_JOBS_COLLECTION, task_id, lock=True)
-            if not job:
-                return None
-
-            status = str(job.get("status") or "")
-            lease_at = int(job.get("processingLeaseAt") or 0)
-            if status == "processing" and lease_at and now - lease_at < PROCESSING_RECOVERY_AFTER_MS:
-                return None
-            if status not in {"pending", "processing"}:
-                return None
-
-            tx.update_document(
-                FEATURE_JOBS_COLLECTION,
-                task_id,
-                {
-                    "status": "processing",
-                    "processingLeaseToken": token,
-                    "processingLeaseAt": now,
-                    "errMsg": "",
-                    "updatedAt": now,
-                },
-            )
-        fresh_job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
+        result = self.db.call(
+            "wantuju_claim_job",
+            {
+                "task_id": task_id,
+                "token": token,
+                "now_ms": now,
+                "lease_ms": PROCESSING_RECOVERY_AFTER_MS,
+            },
+        )
+        if not result:
+            return None
+        fresh_job = row_to_doc(FEATURE_JOBS_COLLECTION, result)
         if fresh_job.get("processingLeaseToken") != token:
             return None
         log_event(logger, "task_claimed_processing", task_id=task_id, type=fresh_job.get("type"), lease_at=now)

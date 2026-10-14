@@ -1,4 +1,4 @@
-"""PostgreSQL data layer used by the Cloud Run service."""
+"""PostgreSQL data layer. HTTP PostgREST by default, psycopg when a DSN is set."""
 
 from app.db.errors import DatabaseError
 from app.db.repository import Database, created_id

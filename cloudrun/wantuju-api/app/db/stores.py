@@ -5,7 +5,7 @@ import time
 from functools import lru_cache
 from typing import Any
 
-from app.db.repository import Database
+from app.db.repository import Database, row_to_doc
 from app.db.schema import (
     FEATURE_CONFIG_COLLECTION,
     FEATURE_JOBS_COLLECTION,
@@ -39,209 +39,27 @@ class PointLedger:
     def __init__(self, db: Database | None = None):
         self.db = db or get_database()
 
-    def _lock_user(self, tx, openid: str) -> dict[str, Any]:
-        user = tx.find_one(self.users_collection, {"openid": openid}, lock=True)
-        if not user:
-            raise ValueError("用户不存在")
-        return user
-
-    def _insert_transaction(
-        self,
-        tx,
-        *,
-        openid: str,
-        tx_type: str,
-        amount: int,
-        balance_after: int,
-        reason: str,
-        task_id: str | None,
-        operator: str | None = None,
-        now: int | None = None,
-    ) -> str | None:
-        document: dict[str, Any] = {
-            "openid": openid,
-            "type": tx_type,
-            "amount": amount,
-            "balanceAfter": balance_after,
-            "reason": reason,
-            "taskId": task_id,
-            "createdAt": now if now is not None else _now_ms(),
-        }
-        if operator is not None:
-            document["operator"] = operator
-        result = tx.insert_documents(self.transactions_collection, [document])
-        ids = result.get("ids") or []
-        return str(ids[0]) if ids else None
-
     def create_pending_job(self, task_doc: dict[str, Any], amount: int = 1) -> tuple[str, dict[str, Any]]:
-        with self.db.transaction() as tx:
-            task = dict(task_doc)
-            openid = str(task.get("openid") or "")
-            if not openid:
-                raise ValueError("任务缺少 openid")
-
-            user = self._lock_user(tx, openid)
-            user_id = str(user.get("_id") or "")
-            current_points = int(user.get("points") or 0)
-            if current_points < amount:
-                raise ValueError("积分不足，请先获取积分")
-            balance_after = current_points - amount
-            now = _now_ms()
-            tx.update_document(
-                self.users_collection,
-                user_id,
-                {
-                    "points": balance_after,
-                    "totalUsedPoints": int(user.get("totalUsedPoints") or 0) + amount,
-                    "updatedAt": now,
-                },
-            )
-
-            task.update(
-                {
-                    "status": "pending",
-                    "errMsg": "",
-                    "pointsCost": amount,
-                    "pointsConsumed": True,
-                    "pointsRefunded": False,
-                    "consumeTransactionId": None,
-                    "refundTransactionId": None,
-                    "updatedAt": now,
-                }
-            )
-            create_result = tx.insert_documents(FEATURE_JOBS_COLLECTION, [task])
-            task_id = str((create_result.get("ids") or [None])[0] or "")
-            if not task_id:
-                raise ValueError("创建任务失败")
-
-            consume_transaction_id = self._insert_transaction(
-                tx,
-                openid=openid,
-                tx_type="consume",
-                amount=-amount,
-                balance_after=balance_after,
-                reason="create_feature_job",
-                task_id=task_id,
-                now=now,
-            )
-            tx.update_document(
-                FEATURE_JOBS_COLLECTION,
-                task_id,
-                {
-                    "consumeTransactionId": consume_transaction_id,
-                    "updatedAt": now,
-                },
-            )
-            return task_id, {**task, "_id": task_id, "consumeTransactionId": consume_transaction_id}
+        row = self.db.call("wantuju_create_pending_job", {"task": dict(task_doc), "amount": amount})
+        if not row:
+            raise ValueError("创建任务失败")
+        task = row_to_doc(FEATURE_JOBS_COLLECTION, row)
+        task_id = str(task.get("_id") or "")
+        if not task_id:
+            raise ValueError("创建任务失败")
+        return task_id, task
 
     def consume_existing_job(self, task_id: str, amount: int = 1) -> dict[str, Any]:
-        with self.db.transaction() as tx:
-            task = tx.get_document(FEATURE_JOBS_COLLECTION, task_id, lock=True)
-            if not task:
-                raise ValueError("任务不存在")
-            if bool(task.get("pointsConsumed")):
-                return task
-
-            openid = str(task.get("openid") or "")
-            if not openid:
-                raise ValueError("任务缺少 openid")
-
-            user = self._lock_user(tx, openid)
-            user_id = str(user.get("_id") or "")
-            current_points = int(user.get("points") or 0)
-            if current_points < amount:
-                raise ValueError("积分不足，请先获取积分")
-
-            now = _now_ms()
-            balance_after = current_points - amount
-            tx.update_document(
-                self.users_collection,
-                user_id,
-                {
-                    "points": balance_after,
-                    "totalUsedPoints": int(user.get("totalUsedPoints") or 0) + amount,
-                    "updatedAt": now,
-                },
-            )
-            consume_transaction_id = self._insert_transaction(
-                tx,
-                openid=openid,
-                tx_type="consume",
-                amount=-amount,
-                balance_after=balance_after,
-                reason="create_feature_job",
-                task_id=task_id,
-                now=now,
-            )
-            tx.update_document(
-                FEATURE_JOBS_COLLECTION,
-                task_id,
-                {
-                    "pointsCost": amount,
-                    "pointsConsumed": True,
-                    "pointsRefunded": False,
-                    "consumeTransactionId": consume_transaction_id,
-                    "updatedAt": now,
-                },
-            )
-            return {
-                **task,
-                "pointsCost": amount,
-                "pointsConsumed": True,
-                "pointsRefunded": False,
-                "consumeTransactionId": consume_transaction_id,
-                "updatedAt": now,
-            }
+        row = self.db.call("wantuju_consume_existing_job", {"task_id": task_id, "amount": amount})
+        if not row:
+            raise ValueError("任务不存在")
+        return row_to_doc(FEATURE_JOBS_COLLECTION, row)
 
     def refund_failed_job(self, task_id: str, err_msg: str, amount: int = 1) -> None:
-        with self.db.transaction() as tx:
-            task = tx.get_document(FEATURE_JOBS_COLLECTION, task_id, lock=True)
-            if not task:
-                raise ValueError("任务不存在")
-            refund_transaction_id = task.get("refundTransactionId")
-            points_consumed = bool(task.get("pointsConsumed"))
-            points_refunded = bool(task.get("pointsRefunded"))
-
-            if points_consumed and not points_refunded:
-                openid = str(task.get("openid") or "")
-                user = self._lock_user(tx, openid)
-                user_id = str(user.get("_id") or "")
-                current_points = int(user.get("points") or 0)
-                balance_after = current_points + amount
-                now = _now_ms()
-                tx.update_document(
-                    self.users_collection,
-                    user_id,
-                    {
-                        "points": balance_after,
-                        "totalRefundedPoints": int(user.get("totalRefundedPoints") or 0) + amount,
-                        "updatedAt": now,
-                    },
-                )
-                refund_transaction_id = self._insert_transaction(
-                    tx,
-                    openid=openid,
-                    tx_type="refund",
-                    amount=amount,
-                    balance_after=balance_after,
-                    reason="job_failed_refund",
-                    task_id=task_id,
-                    now=now,
-                )
-                points_refunded = True
-
-            tx.update_document(
-                FEATURE_JOBS_COLLECTION,
-                task_id,
-                {
-                    "status": "failed",
-                    "errMsg": err_msg,
-                    "pointsRefunded": points_refunded,
-                    "refundTransactionId": refund_transaction_id,
-                    "refundErrMsg": "",
-                    "updatedAt": _now_ms(),
-                },
-            )
+        self.db.call(
+            "wantuju_refund_failed_job",
+            {"task_id": task_id, "err_msg": err_msg, "amount": amount},
+        )
 
 
 class FeatureConfigStore:
@@ -343,19 +161,12 @@ class UserAdminStore:
         )
 
     def delete_user(self, user_id: str) -> dict[str, Any]:
-        with self.db.transaction() as tx:
-            user = tx.get_document(self.users_collection, user_id, lock=True)
-            openid = str(user.get("openid") or "")
-            if not openid:
-                raise ValueError("用户缺少 openid，无法级联删除关联数据")
-            transactions_deleted = tx.delete_where(self.transactions_collection, {"openid": openid})
-            jobs_deleted = tx.delete_where(self.jobs_collection, {"openid": openid})
-            tx.delete_document(self.users_collection, user_id)
+        result = self.db.call("wantuju_delete_user", {"user_id": user_id}) or {}
         return {
-            "userId": user_id,
-            "openid": openid,
-            "transactionsDeleted": transactions_deleted,
-            "jobsDeleted": jobs_deleted,
+            "userId": str(result.get("userId") or user_id),
+            "openid": str(result.get("openid") or ""),
+            "transactionsDeleted": int(result.get("transactionsDeleted") or 0),
+            "jobsDeleted": int(result.get("jobsDeleted") or 0),
         }
 
     def get_task(self, task_id: str) -> dict[str, Any]:
@@ -371,41 +182,16 @@ class UserAdminStore:
         return task
 
     def adjust_points(self, user_id: str, amount: int, reason: str, operator: str = "admin") -> dict[str, Any]:
-        now = _now_ms()
-        with self.db.transaction() as tx:
-            user = tx.get_document(self.users_collection, user_id, lock=True)
-            if not user:
-                raise ValueError("用户不存在")
-            openid = str(user.get("openid", ""))
-            current_points = int(user.get("points") or 0)
-            balance_after = current_points + amount
-            if balance_after < 0:
-                raise ValueError("调整后积分不能小于 0")
-
-            patch: dict[str, Any] = {
-                "points": balance_after,
-                "updatedAt": now,
-            }
-            if amount > 0:
-                patch["totalGrantedPoints"] = int(user.get("totalGrantedPoints") or 0) + amount
-            if amount < 0:
-                patch["totalUsedPoints"] = int(user.get("totalUsedPoints") or 0) + abs(amount)
-            tx.update_document(self.users_collection, user_id, patch)
-            return tx.insert_documents(
-                self.transactions_collection,
-                [
-                    {
-                        "openid": openid,
-                        "type": "adjust",
-                        "amount": amount,
-                        "balanceAfter": balance_after,
-                        "reason": reason,
-                        "taskId": None,
-                        "operator": operator,
-                        "createdAt": now,
-                    }
-                ],
-            )
+        return self.db.call(
+            "wantuju_adjust_points",
+            {
+                "user_id": user_id,
+                "amount": amount,
+                "reason": reason,
+                "operator": operator,
+                "now": _now_ms(),
+            },
+        ) or {}
 
     def list_transactions(
         self,

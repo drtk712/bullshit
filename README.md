@@ -49,7 +49,6 @@ uv run python -m uvicorn app.main:app --host 0.0.0.0 --port 8012
 ```env
 CLOUDBASE_ENV_ID=wantuju-prod-d2gf1sf2r508a56b1
 CLOUDBASE_APIKEY=<CloudBase HTTP API Bearer Token>
-DATABASE_URL=postgresql://USER:PASSWORD@<内网主机>:5432/postgres-4lino9f2?sslmode=require
 MEMEFAST_API_KEY=<图片生成模型 API Key>
 MEMEFAST_API_URL=<图片生成模型接口地址>
 MEMEFAST_MODEL=<图片生成模型名>
@@ -57,7 +56,7 @@ ADMIN_SESSION_SECRET=<管理端 Cookie 签名密钥>
 ADMIN_PASSWORD=<管理端登录密码>
 ```
 
-也可以不写 `DATABASE_URL`，改用 `PGHOST`、`PGPORT`、`PGUSER`、`PGPASSWORD`、`PGDATABASE`。连接方式、RLS 和迁移见云托管 README。
+数据库默认用上面的 API Key 走 CloudBase HTTP API（PostgREST + RPC）。只有需要协议直连时才加 `DATABASE_URL`，或 `PGHOST`、`PGPORT`、`PGUSER`、`PGPASSWORD`、`PGDATABASE`。事务、RLS 和迁移见云托管 README。
 
 ## 详细文档
 

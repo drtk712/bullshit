@@ -4,11 +4,12 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
 
-from app.core.config import database_dsn
+from app.core.config import data_backend, database_dsn, use_postgres
 from app.db.errors import DatabaseError
 
 
@@ -17,11 +18,27 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 
 
 def apply_migrations(dsn: str | None = None) -> list[str]:
+    """Apply unapplied *.sql files in filename order. Returns newly applied names.
+
+    A direct DSN uses psycopg. Otherwise the CloudBase HTTP API runs each
+    statement through ``POST /v1/rdb/exec-pgsql`` as ``cloudbase_postgres``.
+    """
+    if dsn:
+        return _apply_psycopg(dsn)
+    if use_postgres():
+        try:
+            return _apply_psycopg(database_dsn())
+        except ValueError as exc:
+            raise DatabaseError(str(exc)) from exc
+    if data_backend() == "http":
+        return _apply_http()
+    raise DatabaseError(
+        "数据层未配置：设置 CLOUDBASE_ENV_ID 和 CLOUDBASE_APIKEY，或 DATABASE_URL"
+    )
+
+
+def _apply_psycopg(conninfo: str) -> list[str]:
     """Apply unapplied *.sql files in filename order. Returns newly applied names."""
-    try:
-        conninfo = dsn or database_dsn()
-    except ValueError as exc:
-        raise DatabaseError(str(exc)) from exc
     if not conninfo:
         raise DatabaseError(
             "PostgreSQL 未配置：设置 DATABASE_URL，或 PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE"
@@ -65,6 +82,65 @@ def apply_migrations(dsn: str | None = None) -> list[str]:
         raise
     except psycopg.Error as exc:
         raise DatabaseError(f"PostgreSQL 迁移失败: {exc}") from exc
+    return applied
+
+
+def _ddl_hint(statement: str) -> str:
+    head = statement.lstrip().upper()
+    if head.startswith(("CREATE", "ALTER", "DROP", "GRANT", "REVOKE", "DO", "NOTIFY")):
+        return (
+            " 若 cloudbase_postgres 不能执行这段 DDL，请在控制台 SQL 编辑器"
+            "（角色 cloudbase_admin）按文件名顺序执行 app/db/migrations/*.sql。"
+            " 见 https://docs.cloudbase.net/http-api/pgdb/exec-pgsql 和"
+            " https://docs.cloudbase.net/en/authentication-v2/auth/auth-pg"
+        )
+    return ""
+
+
+def _migration_versions(rows: list[Any]) -> set[str]:
+    found: set[str] = set()
+    for row in rows:
+        if isinstance(row, dict):
+            version = row.get("version") or row.get("Version")
+            if version:
+                found.add(str(version))
+        elif isinstance(row, str):
+            found.add(row)
+    return found
+
+
+def _apply_http() -> list[str]:
+    from app.db.http_api import execute_admin_sql
+
+    applied: list[str] = []
+    execute_admin_sql(
+        """
+        CREATE TABLE IF NOT EXISTS public.schema_migrations (
+          version text PRIMARY KEY,
+          applied_at timestamptz NOT NULL DEFAULT now()
+        )
+        """,
+        role="cloudbase_postgres",
+    )
+    existing = _migration_versions(
+        execute_admin_sql("SELECT version FROM public.schema_migrations", role="cloudbase_postgres")
+    )
+    for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        version = path.name
+        if version in existing:
+            continue
+        for statement in split_sql(path.read_text(encoding="utf-8")):
+            try:
+                execute_admin_sql(statement, role="cloudbase_postgres")
+            except DatabaseError as exc:
+                raise DatabaseError(f"迁移 {version} 失败: {exc}{_ddl_hint(statement)}") from exc
+        safe_version = version.replace("'", "''")
+        execute_admin_sql(
+            f"INSERT INTO public.schema_migrations (version) VALUES ('{safe_version}')",
+            role="cloudbase_postgres",
+        )
+        applied.append(version)
+        logger.info("[数据库迁移] 已应用 %s", version)
     return applied
 
 

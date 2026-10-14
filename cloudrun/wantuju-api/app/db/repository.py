@@ -11,8 +11,10 @@ import psycopg
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-from app.db.errors import DatabaseError
+from app.core.config import data_backend
+from app.db.errors import DatabaseError, business_error
 from app.db.pool import get_pool
+from app.db.rpc import RPC_FUNCTIONS
 from app.db.schema import TABLES, Column, Table
 
 
@@ -77,8 +79,12 @@ def adapt_read(column: Column, value: Any) -> Any:
     if value is None:
         return None
     if column.kind == "ts":
+        if isinstance(value, str):
+            return _to_millis(datetime.fromisoformat(value.replace("Z", "+00:00")))
         return _to_millis(value)
     if column.kind == "date":
+        if isinstance(value, str):
+            return value
         return value.isoformat()
     if column.kind == "jsonb" and isinstance(value, str):
         return json.loads(value)
@@ -209,7 +215,9 @@ class Transaction:
         try:
             return self.conn.execute(query, params)
         except psycopg.Error as exc:
-            raise DatabaseError(f"PostgreSQL 请求失败: {exc}") from exc
+            diag = getattr(exc, "diag", None)
+            primary = (getattr(diag, "message_primary", None) or "") if diag is not None else ""
+            raise DatabaseError(f"PostgreSQL 请求失败: {exc}", primary=primary) from exc
 
     def get_document(self, table: str, doc_id: str, *, lock: bool = False) -> dict[str, Any]:
         return self.find_one(table, {"_id": doc_id}, lock=lock) or {}
@@ -341,6 +349,13 @@ class Transaction:
 
 
 class Database:
+    def __new__(cls, *args: Any, **kwargs: Any):
+        if cls is Database and data_backend() == "http":
+            from app.db.http_api import HttpDatabase
+
+            return HttpDatabase(*args, **kwargs)
+        return super().__new__(cls)
+
     @contextmanager
     def transaction(self) -> Iterator[Transaction]:
         with Transaction() as tx:
@@ -385,3 +400,20 @@ class Database:
     def list_documents(self, table: str, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         with self.transaction() as tx:
             return tx.list_documents(table, limit=limit, offset=offset)
+
+    def call(self, name: str, payload: dict[str, Any]) -> Any:
+        """Run one SECURITY DEFINER function. The function body is the transaction."""
+        if name not in RPC_FUNCTIONS:
+            raise DatabaseError(f"未知数据库函数: {name}")
+        query = sql.SQL("SELECT public.{}(%s::jsonb) AS result").format(sql.Identifier(name))
+        try:
+            with self.transaction() as tx:
+                row = tx._execute(query, [Jsonb(payload)]).fetchone()
+        except DatabaseError as exc:
+            business = business_error(exc)
+            if business is not None:
+                raise business from exc
+            raise
+        if not row or row.get("result") is None:
+            return None
+        return row["result"]

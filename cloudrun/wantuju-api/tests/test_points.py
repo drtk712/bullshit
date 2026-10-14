@@ -148,6 +148,31 @@ def test_ensure_user_grants_three_points_once(db):
     assert db.count_documents("point_transactions", {"openid": "fresh-user", "reason": "first_login"}) == 1
 
 
+def test_adjust_points_rejects_negative_balance_and_delete_user_cascades(db):
+    from app.db import UserAdminStore
+
+    user = _user(db, "user-5", 1)
+    store = UserAdminStore(db)
+    with pytest.raises(ValueError, match="不能小于 0"):
+        store.adjust_points(user["_id"], -2, "fix")
+    assert _points(db, "user-5") == 1
+
+    store.adjust_points(user["_id"], 2, "bonus")
+    assert _points(db, "user-5") == 3
+    assert db.count_documents("point_transactions", {"openid": "user-5", "type": "adjust"}) == 1
+
+    with pytest.raises(ValueError, match="用户不存在"):
+        store.adjust_points("missing-user", 1, "x")
+
+    ledger = PointLedger(db)
+    ledger.create_pending_job(_job("user-5"), amount=1)
+    deleted = store.delete_user(user["_id"])
+    assert deleted["transactionsDeleted"] >= 1
+    assert deleted["jobsDeleted"] == 1
+    assert db.find_one("users", {"openid": "user-5"}) is None
+    assert db.count_documents("feature_jobs", {"openid": "user-5"}) == 0
+
+
 def test_concurrent_consume_cannot_overdraw(db):
     _user(db, "user-4", 1)
     ledger = PointLedger(db)
