@@ -2,7 +2,7 @@
 App({
   onLaunch: function () {
     this.globalData = {
-      env: "cloud1-d7g1nt83fde793ad3",
+      env: "wantuju-prod-d2gf1sf2r508a56b1",
       shouldRefreshTasks: false,
       shouldRefreshUserProfile: false,
     };

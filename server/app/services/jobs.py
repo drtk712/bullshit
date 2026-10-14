@@ -32,10 +32,9 @@ async def process_job(
         await asyncio.to_thread(job_store.update_job, task_id, {"status": "processing", "errMsg": ""})
 
         if is_test:
-            poster_file_id = (
-                test_poster_file_id
-                or "cloud://cloud1-d7g1nt83fde793ad3.636c-cloud1-d7g1nt83fde793ad3-1427592986/posters/0274fd6869f6176c00082cfb0eeefd94.png"
-            )
+            poster_file_id = test_poster_file_id or ""
+            if not poster_file_id:
+                raise RuntimeError("测试模式需要传入当前环境的海报文件 ID")
             await asyncio.to_thread(
                 job_store.update_job,
                 task_id,

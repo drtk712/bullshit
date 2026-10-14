@@ -225,7 +225,7 @@ wantuju-api
 3. 用 `cloudrun/wantuju-api` 的 Dockerfile 发布。容器启动后会自己跑迁移。
 4. 看日志里的 `[数据库迁移]`。如果 `cloudbase_postgres` 不能建表或建函数，按上一节在 SQL 编辑器执行迁移文件后再重启。失败时服务仍会启动，但业务接口会返回 502。
 5. 只有选用 psycopg 时才填写 `DATABASE_URL`。账号要是表主或 `BYPASSRLS`。主机若是 VPC 私网 IP，把云托管服务绑到同一 VPC / 子网，并放通 TCP 5432。
-6. 小程序 `callContainer` 的云环境要指向 `wantuju-prod-d2gf1sf2r508a56b1`。代码里 `miniprogram/app.js` 仍写着已释放的旧环境 ID，切换环境时改那里，接口路径不用改。
+6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。
 
 Dockerfile 会监听 `${PORT:-80}`：
 
