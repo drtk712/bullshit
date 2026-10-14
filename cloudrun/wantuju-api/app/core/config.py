@@ -10,13 +10,31 @@ from urllib.parse import quote
 class Settings:
     cloudbase_env_id: str | None = os.getenv("CLOUDBASE_ENV_ID")
     cloudbase_apikey: str | None = os.getenv("CLOUDBASE_APIKEY")
-    memefast_api_key: str = os.getenv("MEMEFAST_API_KEY", "")
-    memefast_api_url: str = os.getenv("MEMEFAST_API_URL", "https://memefast.top/v1/chat/completions")
-    memefast_model: str = os.getenv("MEMEFAST_MODEL", "gpt-image-2-all")
     run_env: str = os.getenv("TENCENTCLOUD_RUNENV", "")
 
 
 settings = Settings()
+
+
+DEFAULT_IMAGE_API_BASE_URL = "https://aigw.telecomjs.com/v1"
+DEFAULT_IMAGE_MODEL = "orb_base_02_vis"
+
+
+def image_api_base_url() -> str:
+    """OpenAI-compatible images API origin, without a trailing slash or images path."""
+    raw = os.getenv("IMAGE_API_BASE_URL", DEFAULT_IMAGE_API_BASE_URL).strip().rstrip("/")
+    for suffix in ("/images/generations", "/images/edits"):
+        if raw.endswith(suffix):
+            raw = raw[: -len(suffix)]
+    return raw or DEFAULT_IMAGE_API_BASE_URL
+
+
+def image_api_key() -> str:
+    return os.getenv("IMAGE_API_KEY", "").strip()
+
+
+def image_model() -> str:
+    return os.getenv("IMAGE_MODEL", DEFAULT_IMAGE_MODEL).strip() or DEFAULT_IMAGE_MODEL
 
 
 def validation_api_key() -> str:

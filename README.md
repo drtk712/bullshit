@@ -23,7 +23,7 @@
 | 前端 | 微信小程序原生开发 |
 | 云开发 | 微信云托管 + CloudBase PostgreSQL + 云存储 |
 | 服务端 | Python 3.11 + FastAPI (`cloudrun/wantuju-api`) |
-| 生成能力 | `MEMEFAST_API_URL` 配置的图片生成模型 |
+| 生成能力 | `IMAGE_API_BASE_URL` 上的 OpenAI Images 接口，默认模型 `orb_base_02_vis` |
 
 ## 快速开始
 
@@ -49,9 +49,9 @@ uv run python -m uvicorn app.main:app --host 0.0.0.0 --port 8012
 ```env
 CLOUDBASE_ENV_ID=wantuju-prod-d2gf1sf2r508a56b1
 CLOUDBASE_APIKEY=<CloudBase HTTP API Bearer Token>
-MEMEFAST_API_KEY=<图片生成模型 API Key>
-MEMEFAST_API_URL=<图片生成模型接口地址>
-MEMEFAST_MODEL=<图片生成模型名>
+IMAGE_API_BASE_URL=https://aigw.telecomjs.com/v1
+IMAGE_API_KEY=<图片网关 Bearer Token>
+IMAGE_MODEL=orb_base_02_vis
 ADMIN_SESSION_SECRET=<管理端 Cookie 签名密钥>
 ADMIN_PASSWORD=<管理端登录密码>
 ```

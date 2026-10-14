@@ -58,16 +58,20 @@ PGDATABASE=postgres-4lino9f2
 PGSSLMODE=require
 ```
 
-图片生成和管理端：
+图片生成和管理端。图片接口是 OpenAI Images 协议，默认基址 `https://aigw.telecomjs.com/v1`，模型 `orb_base_02_vis`。鉴权头是 `Authorization: Bearer <IMAGE_API_KEY>`。不要使用名称里带 `fast` 的模型。
 
 ```env
-MEMEFAST_API_KEY=<图片生成模型 API Key>
-MEMEFAST_API_URL=https://www.openclaudecode.cn/v1/chat/completions
-MEMEFAST_MODEL=gpt-image-2
+IMAGE_API_BASE_URL=https://aigw.telecomjs.com/v1
+IMAGE_API_KEY=<图片网关 Bearer Token>
+IMAGE_MODEL=orb_base_02_vis
 
 ADMIN_SESSION_SECRET=<强随机字符串>
 ADMIN_PASSWORD=<管理端登录密码>
 ```
+
+玩法需要用户上传的照片做图生图。服务先 `POST {IMAGE_API_BASE_URL}/images/generations`，JSON 里的 `image` 是照片的 HTTPS 地址，并请求 `response_format=b64_json`。响应认 `data[0].b64_json`、`data[0].url`（http 或 data URL），也认直接返回的图片字节。网关若拒绝 `response_format`，会去掉该字段再试一次。若报错像是拉不到这张 URL，会先把原图换成 data URL 再请求 generations。若明确拒绝 `image` 参数，或 generations 返回 404/405，则下载原图改走 `POST /images/edits` 的 multipart 字段 `image`。不发送 `quality`、`size`、`style`、`mode`。
+
+电信网关没有公开的入参文档。如果它忽略未知的 `image` 字段并返回 200，服务看不出原图有没有被用上。云存储签名 URL 若不能被网关拉取，会落到 data URL，再不行才走 edits。
 
 可选：
 
@@ -90,6 +94,9 @@ CLOUDBASE_COMMAND_DB_NAME
 CLOUDBASE_ACCESS_TOKEN
 POSTER_SERVER_URL
 POSTER_SERVER_TOKEN
+MEMEFAST_API_KEY
+MEMEFAST_API_URL
+MEMEFAST_MODEL
 ```
 
 ## 连接 CloudBase PostgreSQL
@@ -382,7 +389,7 @@ CloudRun 没拿到微信注入的 `openid`。
 
 - 查看 CloudRun 日志里的 `[队列启动]`、`[队列取出]`、`[任务完成]`、`[任务失败]`、`task_claimed_processing`。
 - 管理端 `/admin/dashboard` 查看队列状态和处理中任务。
-- 检查 `MEMEFAST_API_KEY`、`MEMEFAST_API_URL`、`MEMEFAST_MODEL`。
+- 检查 `IMAGE_API_KEY`、`IMAGE_API_BASE_URL`、`IMAGE_MODEL`。模型名不能包含 `fast`。
 - `processing` 且租约未过期的任务不会被另一个 worker 抢走。超过 15 分钟才会重新领取。
 
 ### 任务 failed 但未退款
