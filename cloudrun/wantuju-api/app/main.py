@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.admin.routes import router as admin_router
-from app.api import features, miniapp, share_rewards, tasks, transactions, users
+from app.api import features, miniapp, share_rewards, tasks, transactions, uploads, users
 from app.cloudbase.client import CloudBaseError
 from app.core.logging import compact_error, configure_logging, request_log_middleware
 from app.db.migrate import apply_migrations
@@ -52,4 +52,5 @@ app.include_router(users.router)
 app.include_router(share_rewards.router)
 app.include_router(transactions.router)
 app.include_router(tasks.router)
+app.include_router(uploads.router)
 app.include_router(admin_router, prefix="/admin")

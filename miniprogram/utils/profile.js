@@ -1,14 +1,5 @@
 const { saveProfile } = require("./api/user");
-
-const getAvatarExt = (avatarPath) => {
-  const extMatch = String(avatarPath || "").match(/\.(png|jpg|jpeg|webp)$/i);
-  return extMatch ? extMatch[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
-};
-
-const createAvatarCloudPath = (avatarPath) => {
-  const ext = getAvatarExt(avatarPath);
-  return `user-avatars/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-};
+const { uploadPhoto } = require("./api/upload");
 
 const normalizeProfileInput = ({ nickName, avatarPath }) => {
   const normalizedNickName = String(nickName || "").trim();
@@ -32,12 +23,7 @@ const uploadAvatarIfNeeded = async (avatarPath) => {
     return avatarPath;
   }
 
-  const uploadRes = await wx.cloud.uploadFile({
-    cloudPath: createAvatarCloudPath(avatarPath),
-    filePath: avatarPath,
-  });
-
-  return uploadRes.fileID;
+  return uploadPhoto(avatarPath);
 };
 
 const saveUserProfile = async ({ nickName, avatarPath }) => {

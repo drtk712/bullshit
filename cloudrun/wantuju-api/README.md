@@ -225,7 +225,9 @@ wantuju-api
 3. 用 `cloudrun/wantuju-api` 的 Dockerfile 发布。容器启动后会自己跑迁移。
 4. 看日志里的 `[数据库迁移]`。如果 `cloudbase_postgres` 不能建表或建函数，按上一节在 SQL 编辑器执行迁移文件后再重启。失败时服务仍会启动，但业务接口会返回 502。
 5. 只有选用 psycopg 时才填写 `DATABASE_URL`。账号要是表主或 `BYPASSRLS`。主机若是 VPC 私网 IP，把云托管服务绑到同一 VPC / 子网，并放通 TCP 5432。
-6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。
+6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。照片上传走 `POST /miniapp/upload`，由服务端用 `CLOUDBASE_APIKEY` 写入云存储。这个环境建在腾讯云上，没有绑定小程序 AppID，`wx.cloud.uploadFile` 会报 `STORAGE_BUCKET_NOT_FOUND`。
+
+实例最小副本数为 0 时，空闲后的第一次请求要冷启动容器，实测大约 5 分钟。这是云托管规格，不是业务代码超时。需要降低等待就把最小副本调到 1。
 
 Dockerfile 会监听 `${PORT:-80}`：
 
@@ -274,6 +276,7 @@ wx.cloud.callContainer({
 - `POST /miniapp/share-reward/check-in`：每日签到。
 - `GET /miniapp/transactions`：积分流水。
 - `GET /miniapp/tasks`：任务列表。
+- `POST /miniapp/upload`：上传照片。支持原始图片字节、`multipart` 字段 `file`，或 JSON `contentBase64`。返回 `cloud://` 文件 ID。
 - `POST /miniapp/tasks`：创建任务并入队处理。
 - `GET /miniapp/tasks/{task_id}`：任务详情。
 - `GET /miniapp/tasks/{task_id}/status`：任务状态。

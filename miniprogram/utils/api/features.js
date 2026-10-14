@@ -1,8 +1,6 @@
 const { callCloudRun } = require("../cloudrunClient");
-const { isDevelopVersion } = require("../runtimeEnv");
 const { buildQuery, getApiErrorMessage } = require("./errors");
 
-const DEVELOP_FEATURE_TYPES = new Set(["filter", "watermark", "split", "long_image"]);
 const RETIRED_CLOUD_ENV = "cloud1-d7g1nt83fde793ad3";
 
 function withoutRetiredPreview(feature) {
@@ -12,8 +10,7 @@ function withoutRetiredPreview(feature) {
 }
 
 function filterFeatureListForRuntime(features = []) {
-  if (!isDevelopVersion()) return features;
-  return features.filter((feature) => DEVELOP_FEATURE_TYPES.has(feature?.type));
+  return features || [];
 }
 
 async function fetchFeatureList() {
