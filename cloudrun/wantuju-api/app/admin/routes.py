@@ -32,6 +32,7 @@ from app.admin.views import (
     _users_page,
 )
 from app.cloudbase.client import CloudBaseError
+from app.core.redact import redact_secrets
 from app.db import get_feature_store, get_user_store
 from app.cloudbase.storage import get_storage
 from app.services.job_queue import job_queue
@@ -40,6 +41,35 @@ from app.services.preview_composer import SUPPORTED_IMAGE_EXTENSIONS, compose_pr
 
 router = APIRouter()
 MAX_PREVIEW_UPLOAD_BYTES = 12 * 1024 * 1024
+_HIDDEN_STORAGE_KEYS = {
+    "authorization",
+    "token",
+    "secretid",
+    "secretkey",
+    "sessiontoken",
+    "tmpsecret",
+    "serviceaccesstoken",
+    "x-cloudbase-context",
+}
+
+
+def _safe_error(exc: BaseException) -> str:
+    return redact_secrets(str(exc))
+
+
+def _public_storage_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    visible: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        visible.append(
+            {
+                key: value
+                for key, value in item.items()
+                if key.lower() not in _HIDDEN_STORAGE_KEYS and "secret" not in key.lower() and "token" not in key.lower()
+            }
+        )
+    return visible
 
 
 def _validate_preview_upload(upload: UploadFile, label: str) -> None:
@@ -74,7 +104,7 @@ async def dashboard(request: Request):
         summary = get_user_store().dashboard()
         return _dashboard_page(summary, len(features), features_enabled, queue_stats=job_queue.stats())
     except CloudBaseError as exc:
-        return _dashboard_page({}, 0, 0, str(exc), queue_stats=job_queue.stats())
+        return _dashboard_page({}, 0, 0, _safe_error(exc), queue_stats=job_queue.stats())
 
 
 @router.get("/login")
@@ -124,7 +154,7 @@ async def users(request: Request):
         )
         return _users_page(items, total, filters)
     except CloudBaseError as exc:
-        return _users_page([], 0, filters, str(exc))
+        return _users_page([], 0, filters, _safe_error(exc))
 
 
 @router.get("/users/{user_id}")
@@ -141,7 +171,7 @@ async def user_detail(request: Request, user_id: str):
         )
     except CloudBaseError as exc:
         filters = _page_filters(request, "openid", "nick_name")
-        return _users_page([], 0, filters, str(exc))
+        return _users_page([], 0, filters, _safe_error(exc))
 
 
 def _page_filters(request: Request, *names: str) -> dict[str, Any]:
@@ -239,7 +269,7 @@ async def transactions(request: Request):
         )
         return _transactions_page(items, total, filters)
     except CloudBaseError as exc:
-        return _transactions_page([], 0, filters, str(exc))
+        return _transactions_page([], 0, filters, _safe_error(exc))
 
 
 @router.get("/tasks")
@@ -263,7 +293,7 @@ async def tasks(request: Request):
         )
         return _tasks_page(items, total, filters)
     except CloudBaseError as exc:
-        return _tasks_page([], 0, filters, str(exc))
+        return _tasks_page([], 0, filters, _safe_error(exc))
 
 
 @router.get("/tasks/{task_id}")
@@ -277,7 +307,7 @@ async def task_detail(request: Request, task_id: str):
             raise ValueError("任务不存在")
         return _task_detail_page(task)
     except (CloudBaseError, ValueError) as exc:
-        return _task_detail_page({"_id": task_id}, str(exc))
+        return _task_detail_page({"_id": task_id}, _safe_error(exc))
 
 
 @router.post("/tasks/preview")
@@ -330,7 +360,7 @@ async def task_preview(request: Request):
             preview={"task_id": task_id, "field": field, "file_id": file_id, "url": url},
         )
     except CloudBaseError as exc:
-        return _tasks_page([], 0, filters, str(exc))
+        return _tasks_page([], 0, filters, _safe_error(exc))
 
 
 @router.post("/tasks/{task_id}/delete")
@@ -349,7 +379,7 @@ async def task_delete(request: Request, task_id: str):
             pass
         return _redirect(_tasks_url(filters))
     except (CloudBaseError, ValueError) as exc:
-        return _render_tasks_with_error(filters, str(exc))
+        return _render_tasks_with_error(filters, _safe_error(exc))
 
 
 @router.get("/storage")
@@ -370,10 +400,10 @@ async def storage_download_info(request: Request):
     try:
         if not cloud_object_id.startswith("cloud://"):
             raise ValueError("Cloud Object ID 必须以 cloud:// 开头")
-        info = get_storage().get_download_info([cloud_object_id])
+        info = _public_storage_items(get_storage().get_download_info([cloud_object_id]))
         return _storage_page(cloud_object_id=cloud_object_id, download_info=info)
     except (CloudBaseError, ValueError) as exc:
-        return _storage_page(cloud_object_id=cloud_object_id, error=str(exc))
+        return _storage_page(cloud_object_id=cloud_object_id, error=_safe_error(exc))
 
 
 @router.post("/storage/upload-info")
@@ -386,10 +416,10 @@ async def storage_upload_info(request: Request):
     try:
         if not object_id:
             raise ValueError("对象路径不能为空")
-        info = get_storage().get_upload_info([object_id])
+        info = _public_storage_items(get_storage().get_upload_info([object_id]))
         return _storage_page(object_id=object_id, upload_info=info)
     except (CloudBaseError, ValueError) as exc:
-        return _storage_page(object_id=object_id, error=str(exc))
+        return _storage_page(object_id=object_id, error=_safe_error(exc))
 
 
 @router.post("/storage/compose-preview")
@@ -427,7 +457,7 @@ async def storage_compose_preview(request: Request):
             },
         )
     except (CloudBaseError, ValueError, OSError, RuntimeError) as exc:
-        return _storage_page(object_id=object_id, error=str(exc))
+        return _storage_page(object_id=object_id, error=_safe_error(exc))
 
 
 @router.post("/users/{user_id}/points")
@@ -452,7 +482,7 @@ async def user_adjust_points(request: Request, user_id: str):
         user = store.get_user(user_id)
         return _user_detail_page(
             user,
-            error=str(exc),
+            error=_safe_error(exc),
         )
     return _redirect(f"/admin/users/{user_id}?status=points_adjusted")
 
@@ -471,7 +501,7 @@ async def user_block(request: Request, user_id: str):
         operator = str(form.get("operator", "admin")).strip() or "admin"
         store.block_user(user_id, reason, operator)
     except (CloudBaseError, ValueError) as exc:
-        return _user_detail_page(store.get_user(user_id), error=str(exc))
+        return _user_detail_page(store.get_user(user_id), error=_safe_error(exc))
     return _redirect(f"/admin/users/{user_id}?status=user_blocked")
 
 
@@ -486,7 +516,7 @@ async def user_unblock(request: Request, user_id: str):
         operator = str(form.get("operator", "admin")).strip() or "admin"
         store.unblock_user(user_id, operator)
     except CloudBaseError as exc:
-        return _user_detail_page(store.get_user(user_id), error=str(exc))
+        return _user_detail_page(store.get_user(user_id), error=_safe_error(exc))
     return _redirect(f"/admin/users/{user_id}?status=user_unblocked")
 
 
@@ -502,7 +532,7 @@ async def user_delete(request: Request, user_id: str):
             raise ValueError("删除确认必须填写当前用户 ID")
         store.delete_user(user_id)
     except (CloudBaseError, ValueError) as exc:
-        return _user_detail_page(store.get_user(user_id), error=str(exc))
+        return _user_detail_page(store.get_user(user_id), error=_safe_error(exc))
     return _redirect("/admin/users?status=user_deleted")
 
 
@@ -517,7 +547,7 @@ async def features(request: Request):
             message=_message(request.query_params.get("status")),
         )
     except CloudBaseError as exc:
-        return _features_page([], str(exc))
+        return _features_page([], _safe_error(exc))
 
 
 @router.get("/features/new")
@@ -549,7 +579,7 @@ async def feature_create(request: Request):
         except ValueError:
             doc = _blank_feature()
             doc["_id"] = fallback_id
-        return _edit_page(doc, str(exc), is_new=True)
+        return _edit_page(doc, _safe_error(exc), is_new=True)
     return _redirect("/admin/features?status=created")
 
 
@@ -561,7 +591,7 @@ async def feature_edit(request: Request, doc_id: str):
     try:
         return _edit_page(get_feature_store().get_feature(doc_id))
     except CloudBaseError as exc:
-        return _features_page([], str(exc))
+        return _features_page([], _safe_error(exc))
 
 
 @router.post("/features/{doc_id}")
@@ -575,7 +605,7 @@ async def feature_save(request: Request, doc_id: str):
         get_feature_store().update_feature(doc_id, patch)
     except (CloudBaseError, ValueError) as exc:
         doc = get_feature_store().get_feature(doc_id)
-        return _edit_page(doc, str(exc))
+        return _edit_page(doc, _safe_error(exc))
     return _redirect("/admin/features?status=saved")
 
 
@@ -592,5 +622,5 @@ async def feature_delete(request: Request, doc_id: str):
         get_feature_store().delete_feature(doc_id)
     except CloudBaseError as exc:
         doc = get_feature_store().get_feature(doc_id)
-        return _edit_page(doc, str(exc))
+        return _edit_page(doc, _safe_error(exc))
     return _redirect("/admin/features?status=deleted")

@@ -120,7 +120,7 @@ cloudrun/wantuju-api/README.md
 
 - `/health` 正常。
 - `/debug/routes` 包含核心小程序接口和 `/admin/login`。
-- `/miniapp/whoami` 能拿到 `openid`。
+- `/miniapp/whoami` 在 callContainer 下返回 `openidResolved: true`，且响应不含请求头。
 - 首页玩法列表正常。
 - 上传图片创建任务正常。
 - 任务完成、失败退款、任务删除正常。

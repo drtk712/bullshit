@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.cloudbase.client import CloudBaseError
+from app.core.redact import redact_secrets
 from app.services.features import FeatureService
 
 
@@ -22,4 +23,4 @@ async def features(type: str | None = Query(default=None)) -> dict[str, object]:
 
         return {"success": True, "data": {"features": service.list_enabled_features()}}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc

@@ -40,9 +40,9 @@ async def process_job(
         )
 
     except Exception as exc:
-        logger.error("[任务失败] task_id=%s, 错误: %s", task_id, exc)
+        logger.error("[任务失败] task_id=%s, 错误: %s", task_id, compact_error(exc))
         log_event(logger, "job_failed", task_id=task_id, type=job_type, error=compact_error(exc))
-        await asyncio.to_thread(mark_job_failed_with_refund, task_id, str(exc))
+        await asyncio.to_thread(mark_job_failed_with_refund, task_id, compact_error(exc))
 
 
 async def process_job_v2(
@@ -96,12 +96,13 @@ async def process_job_v2(
             source_file_ids,
         )
     except Exception as exc:
-        logger.error("[V2任务失败] task_id=%s, 错误: %s", task_id, exc)
+        logger.error("[V2任务失败] task_id=%s, 错误: %s", task_id, compact_error(exc))
         log_event(logger, "job_v2_failed", task_id=task_id, type=job_type, charged=charged, error=compact_error(exc))
+        safe_error = compact_error(exc)
         if charged:
-            await asyncio.to_thread(mark_job_failed_with_refund, task_id, str(exc))
+            await asyncio.to_thread(mark_job_failed_with_refund, task_id, safe_error)
         else:
-            await asyncio.to_thread(mark_job_failed_without_refund, task_id, str(exc))
+            await asyncio.to_thread(mark_job_failed_without_refund, task_id, safe_error)
 
 
 async def _process_job_payload(
@@ -166,14 +167,14 @@ def mark_job_failed_with_refund(task_id: str, err_msg: str) -> None:
         get_point_ledger().refund_failed_job(task_id, err_msg, 1)
         log_event(logger, "job_refunded", task_id=task_id, error=compact_error(err_msg))
     except Exception as exc:
-        logger.error("[失败结算异常] task_id=%s, 错误: %s", task_id, exc)
+        logger.error("[失败结算异常] task_id=%s, 错误: %s", task_id, compact_error(exc))
         log_event(logger, "job_refund_failed", task_id=task_id, error=compact_error(exc))
         get_poster_job_store().update_job(
             task_id,
             {
                 "status": "failed",
-                "errMsg": err_msg,
-                "refundErrMsg": str(exc),
+                "errMsg": compact_error(err_msg),
+                "refundErrMsg": compact_error(exc),
             },
         )
 

@@ -259,12 +259,12 @@ wx.cloud.callContainer({
 })
 ```
 
-`/miniapp/whoami` 应返回 `wechatGateway: true` 和非空 `openid`。公网域名自己带 `x-wx-openid` 时，`openid` 为空。
+`/miniapp/whoami` 只返回 `openidResolved: true` 或 `false`，不返回 openid，也不返回任何请求头。公网自己带 `x-wx-openid` 时为 `false`。
 
 ## 小程序接口
 
 - `GET /health`：健康检查。
-- `GET /miniapp/whoami`：查看微信注入的请求头。只有带 `x-wx-source` 时才返回 `openid`。
+- `GET /miniapp/whoami`：只返回是否解析到 openid（`openidResolved`）。不回显请求头。
 - `GET /miniapp/features`：启用玩法列表。
 - `GET /miniapp/features?type=palm`：单个启用玩法。
 - `GET /miniapp/me`：当前用户资料和分享积分状态。
@@ -325,7 +325,7 @@ wx.cloud.callContainer({
 
 1. 日志出现 `[数据库迁移] PostgreSQL schema 已是最新` 或列出新应用的文件。
 2. `/health` 返回 `status: ok`。
-3. `/miniapp/whoami` 能拿到 `openid`。
+3. `/miniapp/whoami` 在 callContainer 下返回 `openidResolved: true`，响应里没有请求头。
 4. 小程序首页玩法列表正常（`validation` 为 NULL 的玩法不会请求旧校验服务）。
 5. 我的页面积分、签到、分享状态正常。
 6. 上传图片创建任务，任务进入生成中。
@@ -352,7 +352,7 @@ wx.cloud.callContainer({
 排查：
 
 - 小程序必须使用 `wx.cloud.callContainer`，不要用 `wx.request` 打公网域名。
-- 调用 `/miniapp/whoami`。`wechatGateway` 应为 true，`headerKeys` 里要有 `x-wx-source`，以及 `x-wx-openid` 或资源复用时的 `x-wx-from-openid`。
+- 调用 `/miniapp/whoami`。callContainer 下应为 `{"openidResolved": true}`。响应里不应出现请求头或 `x-cloudbase-context`。
 - 确认云托管服务允许小程序访问。
 - 确认小程序云环境是 `wantuju-prod-d2gf1sf2r508a56b1`。
 - 管理端走 `/admin`，用 `ADMIN_PASSWORD` 登录，不依赖这些头。

@@ -12,8 +12,10 @@ class DatabaseError(CloudBaseError):
     """
 
     def __init__(self, message: str, *, primary: str | None = None) -> None:
+        from app.core.redact import redact_secrets
+
         super().__init__(message)
-        self.primary = primary or ""
+        self.primary = redact_secrets(primary or "")
 
 
 # Messages raised by the plpgsql functions. Callers still see ValueError.

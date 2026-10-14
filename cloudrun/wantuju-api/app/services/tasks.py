@@ -183,7 +183,7 @@ class TaskService:
             log_event(logger, "task_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
             return {"taskId": task_id}
         except Exception as exc:
-            err_msg = str(exc) if isinstance(exc, JobCreationError) else str(exc) or "创建任务失败"
+            err_msg = compact_error(exc) or "创建任务失败"
             log_event(logger, "task_create_failed", task_id=task_id or "", type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
             if task_id:
                 try:
@@ -294,7 +294,7 @@ class TaskService:
             log_event(logger, "task_v2_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
             return {"taskId": task_id}
         except Exception as exc:
-            err_msg = str(exc) or "创建任务失败"
+            err_msg = compact_error(exc) or "创建任务失败"
             log_event(logger, "task_v2_create_failed", task_id=task_id or "", type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
             if task_id:
                 self.db.update_document(
@@ -502,7 +502,7 @@ class TaskService:
             try:
                 return self.validate_image_once(file_id, feature_config)
             except ValidationServiceError as exc:
-                last_error = str(exc) or last_error
+                last_error = compact_error(exc) or last_error
                 log_event(logger, "image_validation_retry", attempt=attempt, max_retries=max_retries, error=compact_error(last_error))
                 if attempt <= max_retries:
                     time.sleep(min(2 * attempt, 5))

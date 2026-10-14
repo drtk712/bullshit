@@ -16,8 +16,6 @@ import time
 
 from fastapi import APIRouter, Request
 
-from app.core.config import settings
-
 
 router = APIRouter()
 
@@ -58,12 +56,6 @@ async def health() -> dict[str, object]:
 
 
 @router.get("/miniapp/whoami")
-async def whoami(request: Request) -> dict[str, object]:
-    headers = cloudbase_headers(request)
-    return {
-        "openid": extract_openid(headers),
-        "wechatGateway": wechat_gateway_request(headers),
-        "headers": {key: "[redacted]" if "token" in key else value for key, value in headers.items()},
-        "headerKeys": sorted(headers.keys()),
-        "env": settings.run_env,
-    }
+async def whoami(request: Request) -> dict[str, bool]:
+    """Whether callContainer identity was present. No header values, keys, or openid."""
+    return {"openidResolved": bool(extract_openid(cloudbase_headers(request)))}

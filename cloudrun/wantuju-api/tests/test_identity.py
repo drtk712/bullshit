@@ -10,6 +10,8 @@ from app.admin.routes import router as admin_router
 from app.api import miniapp, users
 from app.api.deps import require_openid
 from app.api.miniapp import extract_openid
+from app.cloudbase.client import CloudBaseError
+from app.core.redact import redact_secrets
 
 
 def _app() -> FastAPI:
@@ -41,8 +43,7 @@ def test_public_domain_cannot_impersonate_and_admin_stays_open():
     assert legacy.status_code == 401
 
     whoami = client.get("/miniapp/whoami", headers={"x-wx-openid": "attacker"}).json()
-    assert whoami["openid"] == ""
-    assert whoami["wechatGateway"] is False
+    assert whoami == {"openidResolved": False}
 
     trusted = client.get(
         "/miniapp/me",
@@ -53,6 +54,52 @@ def test_public_domain_cannot_impersonate_and_admin_stays_open():
 
     assert client.get("/admin/login").status_code == 200
     assert client.get("/health").status_code == 200
+
+
+def test_whoami_returns_no_header_values():
+    secret_id = "AKIDwhoami-sentinel-secret-id"
+    secret_key = "whoami-sentinel-secret-key"
+    session_token = "whoami-sentinel-session-token"
+    access_token = "whoami-sentinel-service-access-token"
+    openid = "openid-sentinel-value"
+    context = (
+        '{"tmpSecret":{"secretId":"%s","secretKey":"%s","token":"%s"},'
+        '"serviceAccessToken":"%s"}' % (secret_id, secret_key, session_token, access_token)
+    )
+    client = TestClient(_app())
+    response = client.get(
+        "/miniapp/whoami",
+        headers={
+            "x-wx-source": "wx_client",
+            "x-wx-openid": openid,
+            "x-cloudbase-context": context,
+            "x-wx-cloudbase-access-token": access_token,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"openidResolved": True}
+    body = response.text
+    for secret in (
+        secret_id,
+        secret_key,
+        session_token,
+        access_token,
+        openid,
+        "x-cloudbase-context",
+        "x-wx-openid",
+        "tmpSecret",
+        "secretKey",
+        "serviceAccessToken",
+        "headerKeys",
+        "wechatGateway",
+    ):
+        assert secret not in body
+
+
+def test_credential_text_is_redacted_before_it_can_be_logged():
+    raw = 'x-cloudbase-context {"tmpSecret":{"secretId":"AKIDleak","secretKey":"keyleak"}}'
+    assert "AKIDleak" not in redact_secrets(raw)
+    assert "keyleak" not in str(CloudBaseError(raw))
 
 
 def test_require_openid_rejects_a_bare_header():
