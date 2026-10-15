@@ -1,9 +1,9 @@
-"""Miniapp photo upload through the server storage credential.
+"""Miniapp photo upload through the PG Storage HTTP API.
 
-The CloudBase env lives on Tencent Cloud and is not linked to the mini program
-appid, so ``wx.cloud.uploadFile`` cannot see the bucket. This route stores the
-bytes in the environment's traditional COS bucket and returns a classic
-``cloud://{envId}.{bucket}/...`` file ID.
+The CloudBase env is PostgreSQL RuntimeMode and is not linked to the mini
+program appid, so ``wx.cloud.uploadFile`` cannot see the bucket. This route
+stores bytes with the PG object API and returns ``cloud://{bucket}/{path}``
+plus an HTTPS signed URL when signing succeeds.
 """
 from __future__ import annotations
 
@@ -37,15 +37,35 @@ async def upload_photo(request: Request) -> dict[str, object]:
 
     extension, mime = _image_type(content)
     object_id = f"uploads/{uuid4().hex}{extension}"
+    storage = get_storage()
     try:
-        file_id = await asyncio.to_thread(get_storage().upload_bytes, object_id, content, mime)
+        file_id = await asyncio.to_thread(storage.upload_bytes, object_id, content, mime)
     except CloudBaseError as exc:
         raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
     if not str(file_id).startswith("cloud://"):
         raise HTTPException(status_code=502, detail="上传云存储失败")
-    return {"success": True, "data": {"fileID": file_id}}
+    download_url = await asyncio.to_thread(_signed_download_url, storage, str(file_id))
+    data: dict[str, object] = {"fileID": file_id}
+    if download_url:
+        data["url"] = download_url
+        data["tempFileURL"] = download_url
+        data["fileUrl"] = download_url
+    return {"success": True, "data": data}
+
+
+def _signed_download_url(storage: object, file_id: str) -> str:
+    """Best-effort HTTPS URL. The file id is still returned if signing fails."""
+    getter = getattr(storage, "get_download_url", None)
+    if not callable(getter):
+        return ""
+    try:
+        url = getter(file_id)
+    except (CloudBaseError, RuntimeError, OSError):
+        return ""
+    text = str(url or "")
+    return text if text.startswith("https://") else ""
 
 
 async def _read_image(request: Request) -> bytes:

@@ -36,7 +36,19 @@
 
 默认数据层走 CloudBase HTTP 网关 `https://{envId}.api.tcloudbasegateway.com`，请求头 `Authorization: Bearer <CLOUDBASE_APIKEY>`。API Key 在服务端对应 `service_role`（`BYPASSRLS`），不要放进小程序。
 
-照片和结果图不进 PostgreSQL 云存储（`storage.buckets` / `wantuju`）。上传走传统 COS：`POST https://{envId}.ap-shanghai.tcb-api.tencentcloudapi.com/admin`，`action` 为 `storage.getUploadMetadata`，同样用 `Authorization: Bearer <CLOUDBASE_APIKEY>`。返回的 fileID 是 `cloud://{envId}.{bucket}/{path}`。这个环境的桶是 `7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986`（可用 `CLOUDBASE_STORAGE_BUCKET` 覆盖，地域用 `CLOUDBASE_REGION`，默认 `ap-shanghai`）。任务接口另外带上 `fileUrl` / `posterUrl` / `resultUrls`，小程序在 `wx.cloud.getTempFileURL` 失败时直接用这些 HTTPS 链接。
+这个环境的 RuntimeMode 是 PostgreSQL。用户、积分、任务、玩法仍只放在 PostgreSQL 里。照片和结果图的字节不写入业务表，也不通过 SQL 或 pgstore 存文件。对象走 CloudBase PG 云存储 HTTP API（底层是对象存储）：`https://{envId}.api.tcloudbasegateway.com`，请求头 `Authorization: Bearer <CLOUDBASE_APIKEY>`。
+
+传统管理接口 `POST …tcb-api…/admin` 的 `storage.getUploadMetadata` 在这个环境会返回 `INVALID_ACCESS_TOKEN`。官方错误 `STORAGE_NOT_SUPPORTED` 表示旧 SDK 不能在 PG 环境使用经典云存储，必须改用 PG Storage HTTP API。
+
+| 操作 | 方法 | 路径 |
+|------|------|------|
+| 上传 | POST | `/v1/storages/object/{bucket}/{objectName}`，二进制 body，`Content-Type` 为文件类型，`x-upsert: true` |
+| 签名下载 | POST | `/v1/storages/object/sign/{bucket}`，body `{"paths":["…"],"expiresIn":3600}`，用返回的 HTTPS `fullSignedURL` |
+| 删除 | DELETE | `/v1/storages/object/{bucket}`，body `{"prefixes":["…"]}`，单次最多 100 个 |
+
+文档：[PG Storage HTTP API](https://docs.cloudbase.net/http-api/storage-pg/pg-storage-api)。
+
+桶 id 是逻辑名 `wantuju`，不是传统 COS 桶名 `7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986`。`CLOUDBASE_PG_STORAGE_BUCKET` 优先，默认 `wantuju`。`CLOUDBASE_STORAGE_BUCKET` 如果看起来像经典 COS 桶名（上面那串，或 `{数字}-…-{长数字}`），会忽略，不会拿去当 PG 桶 id。稳定引用是 `cloud://wantuju/{objectName}`。任务接口继续带 `fileUrl` / `posterUrl` / `resultUrls`。小程序用这些 HTTPS 签名链接显示图片，不依赖 `wx.cloud.getTempFileURL` 去解析传统 `cloud://{envId}.{cosBucket}/...`。
 
 ```env
 CLOUDBASE_ENV_ID=wantuju-prod-d2gf1sf2r508a56b1
@@ -227,7 +239,7 @@ wantuju-api
 3. 用 `cloudrun/wantuju-api` 的 Dockerfile 发布。容器启动后会自己跑迁移。
 4. 看日志里的 `[数据库迁移]`。如果 `cloudbase_postgres` 不能建表或建函数，按上一节在 SQL 编辑器执行迁移文件后再重启。失败时服务仍会启动，但业务接口会返回 502。
 5. 只有选用 psycopg 时才填写 `DATABASE_URL`。账号要是表主或 `BYPASSRLS`。主机若是 VPC 私网 IP，把云托管服务绑到同一 VPC / 子网，并放通 TCP 5432。
-6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。照片上传走 `POST /miniapp/upload`，由服务端写入传统 COS 桶 `7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986`，返回 `cloud://wantuju-prod-d2gf1sf2r508a56b1.7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986/...`。这个环境建在腾讯云上，没有绑定小程序 AppID，`wx.cloud.uploadFile` 会报 `STORAGE_BUCKET_NOT_FOUND`。结果页优先用接口里的 HTTPS 临时链接，绑定 AppID 之后也可以用 `wx.cloud.getTempFileURL`。
+6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。照片上传走 `POST /miniapp/upload`，由服务端写入 PG 云存储桶 `wantuju`，返回 `cloud://wantuju/...`，并尽量带上 HTTPS `url` / `tempFileURL`。这个环境建在腾讯云上，没有绑定小程序 AppID，`wx.cloud.uploadFile` 会报 `STORAGE_BUCKET_NOT_FOUND`。结果页用接口里的 HTTPS 签名链接显示图片。
 
 实例最小副本数为 0 时，空闲后的第一次请求要冷启动容器，实测大约 5 分钟。这是云托管规格，不是业务代码超时。需要降低等待就把最小副本调到 1。
 
@@ -278,7 +290,7 @@ wx.cloud.callContainer({
 - `POST /miniapp/share-reward/check-in`：每日签到。
 - `GET /miniapp/transactions`：积分流水。
 - `GET /miniapp/tasks`：任务列表。
-- `POST /miniapp/upload`：上传照片。支持原始图片字节、`multipart` 字段 `file`，或 JSON `contentBase64`。返回 `cloud://` 文件 ID。
+- `POST /miniapp/upload`：上传照片。支持原始图片字节、`multipart` 字段 `file`，或 JSON `contentBase64`。返回 `fileID`（`cloud://wantuju/...`），以及可用的 HTTPS `url` / `tempFileURL`。
 - `POST /miniapp/tasks`：创建任务并入队处理。
 - `GET /miniapp/tasks/{task_id}`：任务详情。
 - `GET /miniapp/tasks/{task_id}/status`：任务状态。
