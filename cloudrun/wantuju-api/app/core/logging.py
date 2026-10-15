@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import Request
 
 from app.api.miniapp import cloudbase_headers, extract_openid
+from app.core.redact import redact_secrets
 
 
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
@@ -32,7 +33,7 @@ def mask_openid(openid: str | None) -> str:
 
 
 def compact_error(error: Exception | str, limit: int = 180) -> str:
-    text = str(error or "").replace("\n", " ").strip()
+    text = redact_secrets(str(error or "").replace("\n", " ").strip())
     return text[:limit]
 
 
@@ -59,7 +60,7 @@ async def request_log_middleware(request: Request, call_next):
         response = await call_next(request)
     except Exception as exc:
         duration_ms = int((time.perf_counter() - started) * 1000)
-        logger.exception(
+        logger.error(
             "event=http_error method=%s path=%s openid=%s duration_ms=%s error=%s",
             request.method,
             path,

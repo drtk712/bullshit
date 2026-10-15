@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.deps import require_openid
+from app.core.redact import redact_secrets
 from app.cloudbase.client import CloudBaseError
 from app.services.tasks import JobCreationError, TaskService
 
@@ -36,9 +37,9 @@ async def create_task(request: Request, body: CreateTaskRequest) -> dict[str, ob
     except JobCreationError as exc:
         if exc.cleanup_uploads:
             service.cleanup_uploads(file_ids)
-        return {"success": False, "errMsg": str(exc)}
+        return {"success": False, "errMsg": redact_secrets(str(exc))}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
 
 
 @router.post("/tasks/v2")
@@ -58,9 +59,9 @@ async def create_task_v2(request: Request, body: CreateTaskRequest) -> dict[str,
     except JobCreationError as exc:
         if exc.cleanup_uploads:
             service.cleanup_uploads(file_ids)
-        return {"success": False, "errMsg": str(exc)}
+        return {"success": False, "errMsg": redact_secrets(str(exc))}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
 
 
 @router.get("/tasks")
@@ -75,7 +76,7 @@ async def tasks(
         data = TaskService().list_tasks(openid, page=page, page_size=pageSize, status_filter=filter)
         return {"success": True, "data": data}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
 
 
 @router.get("/tasks/{task_id}")
@@ -87,7 +88,7 @@ async def task_detail(request: Request, task_id: str) -> dict[str, object]:
             return {"success": False, "errMsg": "任务不存在"}
         return {"success": True, "data": {"task": task}}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
 
 
 @router.get("/tasks/{task_id}/status")
@@ -99,7 +100,7 @@ async def task_status(request: Request, task_id: str) -> dict[str, object]:
             return {"success": False, "errMsg": "任务不存在"}
         return {"success": True, "data": status}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
 
 
 @router.get("/shared-tasks/{task_id}")
@@ -110,7 +111,7 @@ async def shared_task(task_id: str) -> dict[str, object]:
             return {"success": False, "errMsg": "图片暂不可查看"}
         return {"success": True, "data": {"task": task}}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc
 
 
 @router.delete("/tasks/{task_id}")
@@ -120,6 +121,6 @@ async def delete_task(request: Request, task_id: str) -> dict[str, object]:
         data = TaskService().delete_task(openid, task_id)
         return {"success": True, "data": data}
     except ValueError as exc:
-        return {"success": False, "errMsg": str(exc)}
+        return {"success": False, "errMsg": redact_secrets(str(exc))}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc

@@ -1,12 +1,16 @@
 const { callCloudRun } = require("../cloudrunClient");
-const { isDevelopVersion } = require("../runtimeEnv");
 const { buildQuery, getApiErrorMessage } = require("./errors");
 
-const DEVELOP_FEATURE_TYPES = new Set(["filter", "watermark", "split", "long_image"]);
+const RETIRED_CLOUD_ENV = "cloud1-d7g1nt83fde793ad3";
+
+function withoutRetiredPreview(feature) {
+  if (!feature || typeof feature.previewImageHD !== "string") return feature;
+  if (!feature.previewImageHD.includes(RETIRED_CLOUD_ENV)) return feature;
+  return { ...feature, previewImageHD: "" };
+}
 
 function filterFeatureListForRuntime(features = []) {
-  if (!isDevelopVersion()) return features;
-  return features.filter((feature) => DEVELOP_FEATURE_TYPES.has(feature?.type));
+  return features || [];
 }
 
 async function fetchFeatureList() {
@@ -16,7 +20,7 @@ async function fetchFeatureList() {
   });
 
   if (resp.data?.success && Array.isArray(resp.data?.data?.features)) {
-    return filterFeatureListForRuntime(resp.data.data.features);
+    return filterFeatureListForRuntime(resp.data.data.features).map(withoutRetiredPreview);
   }
 
   throw new Error(getApiErrorMessage(resp, "功能列表加载失败"));
@@ -29,7 +33,7 @@ async function fetchFeature(type) {
   });
 
   if (resp.data?.success && resp.data?.data?.feature) {
-    return resp.data.data.feature;
+    return withoutRetiredPreview(resp.data.data.feature);
   }
 
   throw new Error(getApiErrorMessage(resp, "功能暂不可用"));

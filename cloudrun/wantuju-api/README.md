@@ -2,6 +2,15 @@
 
 微信云托管版后端服务，面向小程序提供 `wx.cloud.callContainer` 直连接口，并承载管理端 `/admin`。
 
+数据层默认走 CloudBase HTTP API 访问环境里的 PostgreSQL 17，凭据是已经用于云存储的 `CLOUDBASE_APIKEY`。小程序不直连数据库，接口形状保持不变。只有显式配置了 `DATABASE_URL`（或完整的 `PG*`）时才改用 psycopg 直连。
+
+当前环境：
+
+- 环境 ID：`wantuju-prod-d2gf1sf2r508a56b1`（ap-shanghai）
+- 实例：`cloudbase-pg`
+- 数据库：`postgres-4lino9f2`
+- schema：`public`
+
 ## 服务范围
 
 - 小程序用户资料、分享奖励、每日签到、积分流水。
@@ -12,52 +21,199 @@
 
 ## 代码结构
 
-- `app/main.py`：FastAPI 应用入口，挂载路由并启动任务队列。
+- `app/main.py`：FastAPI 应用入口，启动时应用 SQL 迁移并启动任务队列。
 - `app/api/`：小程序 HTTP 路由。
 - `app/admin/`：FastHTML 管理端路由和页面。
 - `app/services/`：业务逻辑、任务队列、图片生成和工具处理。
-- `app/cloudbase/`：CloudBase HTTP API、NoSQL、Storage 封装。
+- `app/db/`：数据访问。默认是 CloudBase PostgREST；配置了连接串时用 psycopg。
+- `app/db/migrations/`：启动时按文件名顺序执行的 SQL，含积分和领任务用的函数。
+- `app/cloudbase/`：CloudBase HTTP API 与云存储。文档数据库客户端已移除。
 - `app/core/`：运行配置。
 
 ## 环境变量
 
-必填：
+在云托管服务配置里设置，不要写进仓库。
+
+默认数据层走 CloudBase HTTP 网关 `https://{envId}.api.tcloudbasegateway.com`，请求头 `Authorization: Bearer <CLOUDBASE_APIKEY>`。API Key 在服务端对应 `service_role`（`BYPASSRLS`），不要放进小程序。
+
+这个环境的 RuntimeMode 是 PostgreSQL。用户、积分、任务、玩法仍只放在 PostgreSQL 里。照片和结果图的字节不写入业务表，也不通过 SQL 或 pgstore 存文件。对象走 CloudBase PG 云存储 HTTP API（底层是对象存储）：`https://{envId}.api.tcloudbasegateway.com`，请求头 `Authorization: Bearer <CLOUDBASE_APIKEY>`。
+
+传统管理接口 `POST …tcb-api…/admin` 的 `storage.getUploadMetadata` 在这个环境会返回 `INVALID_ACCESS_TOKEN`。官方错误 `STORAGE_NOT_SUPPORTED` 表示旧 SDK 不能在 PG 环境使用经典云存储，必须改用 PG Storage HTTP API。
+
+| 操作 | 方法 | 路径 |
+|------|------|------|
+| 上传 | POST | `/v1/storages/object/{bucket}/{objectName}`，二进制 body，`Content-Type` 为文件类型，`x-upsert: true` |
+| 签名下载 | POST | `/v1/storages/object/sign/{bucket}`，body `{"paths":["…"],"expiresIn":3600}`，用返回的 HTTPS `fullSignedURL` |
+| 删除 | DELETE | `/v1/storages/object/{bucket}`，body `{"prefixes":["…"]}`，单次最多 100 个 |
+
+文档：[PG Storage HTTP API](https://docs.cloudbase.net/http-api/storage-pg/pg-storage-api)。
+
+桶 id 是逻辑名 `wantuju`，不是传统 COS 桶名 `7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986`。`CLOUDBASE_PG_STORAGE_BUCKET` 优先，默认 `wantuju`。`CLOUDBASE_STORAGE_BUCKET` 如果看起来像经典 COS 桶名（上面那串，或 `{数字}-…-{长数字}`），会忽略，不会拿去当 PG 桶 id。稳定引用是 `cloud://wantuju/{objectName}`。任务接口继续带 `fileUrl` / `posterUrl` / `resultUrls`。小程序用这些 HTTPS 签名链接显示图片，不依赖 `wx.cloud.getTempFileURL` 去解析传统 `cloud://{envId}.{cosBucket}/...`。
 
 ```env
-CLOUDBASE_ENV_ID=cloud1-d7g1nt83fde793ad3
+CLOUDBASE_ENV_ID=wantuju-prod-d2gf1sf2r508a56b1
 CLOUDBASE_APIKEY=<CloudBase HTTP API Bearer Token>
-CLOUDBASE_DB_INSTANCE=flexdb
-CLOUDBASE_DB_NAME=tnt-gizs5ya5s
+```
 
-MEMEFAST_API_KEY=<图片生成模型 API Key>
-MEMEFAST_API_URL=https://www.openclaudecode.cn/v1/chat/completions
-MEMEFAST_MODEL=gpt-image-2
+可选的 psycopg 直连。设置了 `DATABASE_URL` 或下面任意一项 `PG*`（`PGSSLMODE` 除外）后，服务不再走 HTTP 数据层：
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/postgres-4lino9f2?sslmode=require
+```
+
+或拆开写：
+
+```env
+PGHOST=<控制台里的内网地址>
+PGPORT=5432
+PGUSER=<数据库账号>
+PGPASSWORD=<数据库密码>
+PGDATABASE=postgres-4lino9f2
+PGSSLMODE=require
+```
+
+图片生成和管理端。图片接口是 OpenAI Images 协议，默认基址 `https://aigw.telecomjs.com/v1`，模型 `orb_base_02_vis`。鉴权头是 `Authorization: Bearer <IMAGE_API_KEY>`。不要使用名称里带 `fast` 的模型。
+
+```env
+IMAGE_API_BASE_URL=https://aigw.telecomjs.com/v1
+IMAGE_API_KEY=<图片网关 Bearer Token>
+IMAGE_MODEL=orb_base_02_vis
 
 ADMIN_SESSION_SECRET=<强随机字符串>
 ADMIN_PASSWORD=<管理端登录密码>
 ```
 
+有用户照片的玩法一律先下载原图，再 `POST {IMAGE_API_BASE_URL}/images/edits`，multipart 字段名是 `image`。实测 generations 即使带上 URL、URL 数组或 data URL 也会返回 200，但不会使用这张照片。没有输入图的玩法才走 `POST /images/generations`，JSON 里不放 `image`。响应认 `data[0].b64_json` 或 `data[0].url`。若响应里有 `usage.input_tokens_details.image_tokens` 且不大于 0，图生图记为失败并退款。单次等待 180 秒。返回的 PNG 会转成 JPEG，长边超过 2048 会先缩小，再上传云存储。不发送 `quality`、`size`、`style`、`mode`。
+
 可选：
 
 ```env
-CLOUDBASE_COMMAND_DB_INSTANCE=<命令/事务 API 实例，默认跟随 CLOUDBASE_DB_INSTANCE>
-CLOUDBASE_COMMAND_DB_NAME=<命令/事务 API 数据库，默认跟随 CLOUDBASE_DB_NAME>
+DB_POOL_MIN=1
+DB_POOL_MAX=5
+DB_POOL_TIMEOUT=10
+VALIDATION_API_KEY=<将来的 OpenAI 兼容视觉模型 Key，现在留空>
 ```
 
-已经废弃，不要再配置或依赖：
+`DB_POOL_*` 只在 psycopg 直连时生效。云托管最大实例数乘以 `DB_POOL_MAX` 要小于数据库最大连接数。HTTP 路径没有应用侧连接池，每次请求由网关自己连库。
+
+已经不再使用，不要再配置：
 
 ```env
+CLOUDBASE_DB_INSTANCE
+CLOUDBASE_DB_NAME
+CLOUDBASE_COMMAND_DB_INSTANCE
+CLOUDBASE_COMMAND_DB_NAME
 CLOUDBASE_ACCESS_TOKEN
 POSTER_SERVER_URL
 POSTER_SERVER_TOKEN
+MEMEFAST_API_KEY
+MEMEFAST_API_URL
+MEMEFAST_MODEL
 ```
+
+## 连接 CloudBase PostgreSQL
+
+默认用 HTTPS，不需要数据库密码、内网地址或 VPC。
+
+| 用途 | 方法 | 路径 |
+|------|------|------|
+| 查询、插入、更新、删除 | GET / POST / PATCH / DELETE | `/v1/rdb/rest/{table}` |
+| 扣分、退款、领任务、签到、分享、调积分、删用户、首登赠送、嵌套 JSON 更新 | POST | `/v1/rdb/rest/rpc/{function}` |
+| 启动迁移 | POST | `/v1/rdb/exec-pgsql`（`role=cloudbase_postgres`） |
+
+只访问 `public` schema。文档：
+
+- [HTTP API 概览](https://docs.cloudbase.net/http-api/basic/overview)
+- [PostgreSQL REST](https://docs.cloudbase.net/http-api/pgdb/postgresql-restful-api)
+- [RPC](https://docs.cloudbase.net/database/postgresql/http/rpc)
+- [执行 SQL](https://docs.cloudbase.net/http-api/pgdb/exec-pgsql)
+- [角色与权限](https://docs.cloudbase.net/database/postgresql/roles)
+
+### 事务
+
+PostgREST 的每一次请求是一个数据库事务，不能把多次 HTTP 请求包进同一个事务。条件更新也盖不住「锁用户、改余额、插任务、插流水」这种多表步骤，并发扣分会丢更新。
+
+这些步骤写在 `app/db/migrations/0003_rpc.sql` 的 plpgsql 函数里。函数内 `SELECT ... FOR UPDATE`，全部写完才返回；请求结束时提交或回滚。psycopg 回退调用同一批函数，所以两条路径的原子性一致。普通列表、详情和单行更新仍走 REST 或直连 SQL。
+
+`service_role` 带 `BYPASSRLS`，但表权限仍要 GRANT。`0003` 在角色存在时把四张业务表的读写和这些函数的 `EXECUTE` 授给 `service_role`，并收回 `PUBLIC` / `anon` / `authenticated` 对函数的执行权。API Key 只放在云托管环境变量里。
+
+### 可选的协议直连
+
+需要连接池、或 HTTP 网关不可用时，再配 `DATABASE_URL`。官方也把 PostgreSQL 协议作为事务和连接池的直连方式。控制台路径：云开发 → 环境 `wantuju-prod-d2gf1sf2r508a56b1` → 数据库 → PostgreSQL → 实例 `cloudbase-pg` → 连接信息。数据库名是 `postgres-4lino9f2`，schema 用 `public`。
+
+参考：[连接数据库](https://docs.cloudbase.net/database/postgresql/connecting-to-postgresql)、[云托管 VPC](https://docs.cloudbase.net/run/deploy/networking/vpc)。
+
+### 内网还是公网
+
+服务和数据库在同一个云开发环境时，用控制台给出的**内网地址**。不要把公网地址配进 Cloud Run，除非控制台明确开了公网访问并做了 IP 白名单。
+
+内网地址有两种常见形态，以控制台为准：
+
+- 同环境内网域名：云托管实例通常可以直接解析，不必再配 VPC。
+- VPC 私网 IP（`10.` / `172.16.`–`172.31.` / `192.168.`）：给云托管服务打开私有网络，选数据库所在的 VPC 和子网。安全组放通该子网访问 TCP `5432`。`VpcConf` 是服务访问数据库的出网配置，和小程序 `callContainer` 的入站无关。
+
+小程序仍然用 `wx.cloud.callContainer`。关掉云托管公网入口不影响 callContainer，但容器自己必须能连上数据库。
+
+### SSL
+
+官方 Node 示例使用 `rejectUnauthorized: false`，对应 libpq 的 `sslmode=require`（加密，不校验私有 CA）。这是 `PGSSLMODE` 的默认值。如果控制台写明内网端点不启用 SSL，改成 `PGSSLMODE=disable`。本地 Postgres 用 `disable`。
+
+### 行级安全（RLS）
+
+CloudBase 给 `feature_configs` 打开了 RLS，而且没有策略。`anon` / `authenticated`（小程序 SDK、Publishable Key）因此读不到任何行，这是预期的。表主和超级用户默认跳过 RLS；`FORCE ROW LEVEL SECURITY` 会把表主也纳进策略。带 `BYPASSRLS` 的 `service_role` 仍然跳过 RLS。
+
+HTTP 路径用 API Key，网关把它换成 `service_role`。直连路径用表主，或同样具备 `BYPASSRLS` 的账号。不要使用客户端匿名角色，也不要把 API Key 或数据库密码放到小程序里。
+
+进程启动时会执行 `app/db/migrations/0002_rls.sql`：
+
+- 给 `users`、`point_transactions`、`feature_jobs` 也打开 RLS，避免客户端角色以后被误授权。
+- 收回 `PUBLIC`、`anon`、`authenticated` 在这四张表上的权限。
+- 只给**执行迁移的当前角色**加一条 `FOR ALL ... USING (true)` 策略。
+
+直连时，迁移角色和运行角色必须是同一个 `DATABASE_URL`。`0003_rpc.sql` 另外在 `service_role` 存在时授予表的读写和函数的 `EXECUTE`。策略没有授给 `anon` / `authenticated`，客户端仍然被拒绝。
+
+## 迁移
+
+启动时自动执行 `app/db/migrations/*.sql`，并记在 `public.schema_migrations`。也可以手动跑：
+
+```bash
+cd cloudrun/wantuju-api
+uv run python -m app.db.migrate
+```
+
+没配 `DATABASE_URL` 时，迁移经 `POST /v1/rdb/exec-pgsql` 逐条执行，角色是 `cloudbase_postgres`。该角色可以做 DML；CloudBase 对它的 DDL 有白名单（策略、索引），`CREATE TABLE` / `CREATE FUNCTION` 可能被拒绝。遇到这种错误时，在控制台 SQL 编辑器（`cloudbase_admin`）按文件名顺序执行 `app/db/migrations/*.sql`，再重启服务。说明见 [执行 SQL](https://docs.cloudbase.net/http-api/pgdb/exec-pgsql) 和 [身份与权限收敛](https://docs.cloudbase.net/en/authentication-v2/auth/auth-pg)。
+
+- `0000_feature_configs.sql` 与线上 DDL 一致，使用 `CREATE TABLE IF NOT EXISTS`。已有的 10 行不会被改写，也不会重复插入。
+- `0001_app_tables.sql` 创建 `users`、`point_transactions`、`feature_jobs`。旧文档库已随环境释放，不做数据回填。
+- `0002_rls.sql` 处理上面的 RLS。
+- `0003_rpc.sql` 创建扣分、退款、领任务等函数，并在 `service_role` 存在时授权。
+
+玩法表用 `sort_order` 而不是文档库里的 `order`。接口和后台仍对外使用 `order`。`validation` 为 NULL 时跳过图片校验。旧验证服务 `http://36.156.154.98:8010` 已不可用，不要把地址写回去。后台把校验字段全部留空会把 `validation` 存成 NULL。如果以后接 OpenAI 兼容视觉模型，填写 `validation.serviceUrl` / `model` / `prompt` / `failMessage`，并可选填 `validation.apiKey` 或环境变量 `VALIDATION_API_KEY`（请求头 `Authorization: Bearer`）。只配置了 Key、没有 URL 时不会发起校验。
 
 ## 本地运行
 
 ```bash
 cd cloudrun/wantuju-api
 uv sync
-uv run python -m uvicorn app.main:app --host 0.0.0.0 --port 8012
+DATABASE_URL='postgresql://USER:PASSWORD@127.0.0.1:5432/wantuju?sslmode=disable' \
+  uv run python -m uvicorn app.main:app --host 0.0.0.0 --port 8012
+```
+
+本地库可用 Docker：
+
+```bash
+docker run -d --name wantuju-pg \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=wantuju \
+  -p 5432:5432 \
+  postgres:17
+```
+
+测试使用本机 Postgres（默认 `postgresql://wantuju:wantuju@127.0.0.1:5432/wantuju?sslmode=disable`）。可以用 `TEST_DATABASE_URL` 覆盖，但主机必须是 `127.0.0.1` 或 `localhost`。
+
+```bash
+uv sync --group dev
+uv run pytest
 ```
 
 如果本地 `uv` 缓存权限异常，可临时使用项目内缓存：
@@ -74,17 +230,30 @@ UV_CACHE_DIR=.uv-cache uv run python -m uvicorn app.main:app --host 0.0.0.0 --po
 wantuju-api
 ```
 
+`cloudbaserc.json` 的环境 ID 是 `wantuju-prod-d2gf1sf2r508a56b1`。
+
+部署步骤：
+
+1. 在控制台确认 PostgreSQL 实例 `cloudbase-pg`、数据库 `postgres-4lino9f2` 可用。默认不需要复制内网地址。
+2. 配置 `CLOUDBASE_ENV_ID`、`CLOUDBASE_APIKEY`、图片生成和管理端变量。`VALIDATION_API_KEY` 留空。不要设置 `DATABASE_URL`，除非要改走 psycopg。
+3. 用 `cloudrun/wantuju-api` 的 Dockerfile 发布。容器启动后会自己跑迁移。
+4. 看日志里的 `[数据库迁移]`。如果 `cloudbase_postgres` 不能建表或建函数，按上一节在 SQL 编辑器执行迁移文件后再重启。失败时服务仍会启动，但业务接口会返回 502。
+5. 只有选用 psycopg 时才填写 `DATABASE_URL`。账号要是表主或 `BYPASSRLS`。主机若是 VPC 私网 IP，把云托管服务绑到同一 VPC / 子网，并放通 TCP 5432。
+6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。照片上传走 `POST /miniapp/upload`，由服务端写入 PG 云存储桶 `wantuju`，返回 `cloud://wantuju/...`，并尽量带上 HTTPS `url` / `tempFileURL`。这个环境建在腾讯云上，没有绑定小程序 AppID，`wx.cloud.uploadFile` 会报 `STORAGE_BUCKET_NOT_FOUND`。结果页用接口里的 HTTPS 签名链接显示图片。
+
+实例最小副本数为 0 时，空闲后的第一次请求要冷启动容器，实测大约 5 分钟。这是云托管规格，不是业务代码超时。需要降低等待就把最小副本调到 1。
+
 Dockerfile 会监听 `${PORT:-80}`：
 
 ```bash
-uv run python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}
+/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}
 ```
 
 部署后先用小程序 callContainer 验证：
 
 ```js
 wx.cloud.callContainer({
-  config: { env: 'cloud1-d7g1nt83fde793ad3' },
+  config: { env: 'wantuju-prod-d2gf1sf2r508a56b1' },
   path: '/health',
   method: 'GET',
   header: { 'X-WX-SERVICE': 'wantuju-api' },
@@ -97,7 +266,7 @@ wx.cloud.callContainer({
 
 ```js
 wx.cloud.callContainer({
-  config: { env: 'cloud1-d7g1nt83fde793ad3' },
+  config: { env: 'wantuju-prod-d2gf1sf2r508a56b1' },
   path: '/miniapp/whoami',
   method: 'GET',
   header: { 'X-WX-SERVICE': 'wantuju-api' },
@@ -106,13 +275,12 @@ wx.cloud.callContainer({
 })
 ```
 
-`/miniapp/whoami` 应返回非空 `openid`。
+`/miniapp/whoami` 只返回 `openidResolved: true` 或 `false`，不返回 openid，也不返回任何请求头。公网自己带 `x-wx-openid` 时为 `false`。
 
 ## 小程序接口
 
 - `GET /health`：健康检查。
-- `GET /debug/routes`：调试当前容器实际挂载路由。
-- `GET /miniapp/whoami`：查看 CloudBase/WeChat 注入的请求头和 `openid`。
+- `GET /miniapp/whoami`：只返回是否解析到 openid（`openidResolved`）。不回显请求头。
 - `GET /miniapp/features`：启用玩法列表。
 - `GET /miniapp/features?type=palm`：单个启用玩法。
 - `GET /miniapp/me`：当前用户资料和分享积分状态。
@@ -122,6 +290,7 @@ wx.cloud.callContainer({
 - `POST /miniapp/share-reward/check-in`：每日签到。
 - `GET /miniapp/transactions`：积分流水。
 - `GET /miniapp/tasks`：任务列表。
+- `POST /miniapp/upload`：上传照片。支持原始图片字节、`multipart` 字段 `file`，或 JSON `contentBase64`。返回 `fileID`（`cloud://wantuju/...`），以及可用的 HTTPS `url` / `tempFileURL`。
 - `POST /miniapp/tasks`：创建任务并入队处理。
 - `GET /miniapp/tasks/{task_id}`：任务详情。
 - `GET /miniapp/tasks/{task_id}/status`：任务状态。
@@ -139,13 +308,13 @@ wx.cloud.callContainer({
 页面：
 
 - `/admin/dashboard`：仪表盘、队列状态、处理中任务。
-- `/admin/features`：玩法配置管理。
+- `/admin/features`：玩法配置管理。嵌套字段（如 `public.title`）写入对应 JSONB 列。
 - `/admin/users`：用户列表、详情、积分调整、封禁/解封、删除。
 - `/admin/transactions`：积分流水筛选。
 - `/admin/tasks`：任务筛选、图片预览。
 - `/admin/storage`：云存储下载链接、上传授权、预览图合成。
 
-管理端会直接操作正式集合，删除用户会级联删除该用户的积分流水和任务记录。只用测试用户验证危险操作。
+管理端直接操作线上表。删除用户会在一个事务里删除该用户的积分流水和任务。只用测试用户验证危险操作。
 
 ## 任务处理
 
@@ -161,17 +330,20 @@ wx.cloud.callContainer({
 
 - 最多 5 个任务并发处理。
 - 其他任务保持 `pending` 排队。
+- 领取任务调用 `wantuju_claim_job`，对 `feature_jobs` 行加锁。`pending` 可以领取；`processing` 只有租约超过 15 分钟才能被重新领取。
 - 服务启动时会尝试恢复 `pending` 和超时 `processing` 任务。
-- 恢复失败不会阻止服务启动，但需要查看日志排查 CloudBase API 是否可用。
+- 恢复失败不会阻止服务启动，但需要查看日志排查数据库是否可用。
+
+扣分、退款、人工调整、签到和分享奖励都在对应的 SQL 函数里完成，并对用户行 `SELECT ... FOR UPDATE`。积分列有 `points >= 0` 约束。HTTP 与 psycopg 都调用这些函数。
 
 ## 上线检查
 
 部署后按顺序验证：
 
-1. `/health` 返回 `status: ok`。
-2. `/debug/routes` 包含 `/miniapp/share-reward/check-in`、`/miniapp/tasks`、`/admin/login`。
-3. `/miniapp/whoami` 能拿到 `openid`。
-4. 小程序首页玩法列表正常。
+1. 日志出现 `[数据库迁移] PostgreSQL schema 已是最新` 或列出新应用的文件。
+2. `/health` 返回 `status: ok`。
+3. `/miniapp/whoami` 在 callContainer 下返回 `openidResolved: true`，响应里没有请求头。
+4. 小程序首页玩法列表正常（`validation` 为 NULL 的玩法不会请求旧校验服务）。
 5. 我的页面积分、签到、分享状态正常。
 6. 上传图片创建任务，任务进入生成中。
 7. 任务完成后结果页、生成记录、任务详情正常。
@@ -186,39 +358,52 @@ wx.cloud.callContainer({
 
 排查：
 
-- 调用 `/debug/routes`，确认路由是否存在。
 - 确认 `X-WX-SERVICE` 是 `wantuju-api`。
 - 确认部署的是 `cloudrun/wantuju-api` 最新代码。
 - 确认 Dockerfile 启动的是 `app.main:app`。
 
 ### `401 无法获取用户身份`
 
-CloudRun 没拿到微信注入的 `openid`。
+请求没有被当成微信 callContainer。公网打开时，只带 `x-wx-openid` 不算登录。
 
 排查：
 
-- 必须使用 `wx.cloud.callContainer`，不要用 `wx.request`。
-- 调用 `/miniapp/whoami` 查看 header keys。
+- 小程序必须使用 `wx.cloud.callContainer`，不要用 `wx.request` 打公网域名。
+- 调用 `/miniapp/whoami`。callContainer 下应为 `{"openidResolved": true}`。响应里不应出现请求头或 `x-cloudbase-context`。
 - 确认云托管服务允许小程序访问。
+- 确认小程序云环境是 `wantuju-prod-d2gf1sf2r508a56b1`。
+- 管理端走 `/admin`，用 `ADMIN_PASSWORD` 登录，不依赖这些头。
 
-### CloudBase API `502`
+### 公网访问和用户身份
 
-服务端访问 CloudBase HTTP API 失败。
+`callContainer` 走微信内网。微信校验用户后，由云托管入口写入 `x-wx-openid`（资源复用时是 `x-wx-from-openid`）和 `x-wx-source`。文档说明这些头可以信任，并写明公网开启时要用 `x-wx-source` 判断是不是微信侧发起的请求。
 
-排查：
+公网域名不会由微信附带用户身份。服务因此只在 `x-wx-source` 非空时读取 openid，忽略调用方自己写的 `x-wx-openid`、`x-cloudbase-openid`、`x-tcb-openid`。`/health`、玩法列表和 `/admin` 仍可从公网访问。`/admin` 使用独立的口令和签名 cookie。
 
-- 检查 `CLOUDBASE_ENV_ID`、`CLOUDBASE_APIKEY`。
-- 检查 `CLOUDBASE_DB_INSTANCE`、`CLOUDBASE_DB_NAME`。
-- 检查 CloudBase API Key 权限。
-- 查看返回的 CloudBase request id。
+这个判断依赖云托管入口不会把公网客户端自己写的 `x-wx-source` 透传进容器。微信文档和官方模板都按这个约定处理。如果某次网关改成透传该头，只检查它就不够，那时应关掉公网，或给小程序另做登录态。管理端仍需要公网，所以没有把整个服务锁在 callContainer 上。
+
+### PostgreSQL 连接失败或业务接口 502
+
+默认路径排查：
+
+- `CLOUDBASE_ENV_ID` 和 `CLOUDBASE_APIKEY` 是否是新环境的值。请求域名是 `https://wantuju-prod-d2gf1sf2r508a56b1.api.tcloudbasegateway.com`。
+- 启动日志里的 `[数据库迁移失败]`。`403` 表示这个 Key 不能调用 `exec-pgsql`。`CREATE` 被拒绝时，到 SQL 编辑器执行 `app/db/migrations/*.sql`。
+- RPC 返回找不到函数时，确认 `0003_rpc.sql` 已执行。迁移末尾会 `NOTIFY pgrst` 刷新 schema 缓存。
+- 查询成功但永远是 0 行：当前身份不是 `service_role`，或 `0003` 没有把表 GRANT 给它。
+
+直连路径再排查：
+
+- `DATABASE_URL` 或 `PGHOST` / `PGUSER` / `PGPASSWORD` / `PGDATABASE` 是否完整。一旦设置，HTTP 数据层不会启用。
+- 主机是否为内网地址。VPC IP 是否已把云托管服务绑到同一 VPC，安全组是否放通 5432。
+- `sslmode=require` 连不上时，对照控制台改成 `disable` 再试。
+- 账号是否为表主或 `BYPASSRLS`。如果查询成功但结果永远是 0 行，就是 RLS 把当前角色滤掉了。用执行迁移的那个角色连接，或换 `service_role`。
 
 ### 签到或分享并发异常
 
-签到和分享奖励通过 CloudBase 事务执行。若出现重复奖励或失败：
+签到、分享、扣分和退款在 PostgreSQL 事务里对用户行加锁。若重复奖励或失败：
 
-- 检查事务 URL 是否为 `/v1/database/instances/{instance}/databases/{database}/transactions`。
-- 检查 `run_commands` 是否为 `/commands` 后缀。
-- 查看 `point_transactions` 是否写入了对应 reason。
+- 查看 `point_transactions` 是否有对应 `reason`（`share_reward`、`daily_check_in`、`create_feature_job`、`job_failed_refund`）。
+- 确认没有两个 Cloud Run 服务连到不同的数据库。
 
 ### 任务长时间 pending
 
@@ -226,9 +411,10 @@ CloudRun 没拿到微信注入的 `openid`。
 
 排查：
 
-- 查看 CloudRun 日志里的 `[队列启动]`、`[队列取出]`、`[任务完成]`、`[任务失败]`。
+- 查看 CloudRun 日志里的 `[队列启动]`、`[队列取出]`、`[任务完成]`、`[任务失败]`、`task_claimed_processing`。
 - 管理端 `/admin/dashboard` 查看队列状态和处理中任务。
-- 检查 `MEMEFAST_API_KEY`、`MEMEFAST_API_URL`、`MEMEFAST_MODEL`。
+- 检查 `IMAGE_API_KEY`、`IMAGE_API_BASE_URL`、`IMAGE_MODEL`。模型名不能包含 `fast`。
+- `processing` 且租约未过期的任务不会被另一个 worker 抢走。超过 15 分钟才会重新领取。
 
 ### 任务 failed 但未退款
 
@@ -238,4 +424,8 @@ CloudRun 没拿到微信注入的 `openid`。
 
 - 查看任务字段 `pointsConsumed`、`pointsRefunded`、`refundErrMsg`。
 - 查看积分流水是否有 `reason=job_failed_refund`。
-- 如果 `refundErrMsg` 非空，优先排查 CloudBase 事务或用户记录。
+- 如果 `refundErrMsg` 非空，优先看 PostgreSQL 事务错误和用户记录是否存在。
+
+### 玩法列表为空，但表里有数据
+
+多半是连库角色被 RLS 挡住。用表主或 `service_role` 重新部署，并确认启动迁移已为该角色创建 `backend_all_feature_configs`。客户端 SDK 读这张表会继续被拒绝，小程序应走 `/miniapp/features`。

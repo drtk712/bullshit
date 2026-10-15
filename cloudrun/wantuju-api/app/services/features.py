@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.cloudbase.nosql import CloudBaseNoSQL
+from app.db import Database
 
 
 FEATURE_CONFIGS_COLLECTION = "feature_configs"
@@ -15,7 +15,7 @@ def to_public_feature(config: dict[str, Any]) -> dict[str, Any]:
     return {
         "type": config.get("type"),
         "enabled": config.get("enabled"),
-        "order": config.get("order"),
+        "order": config.get("order") if config.get("order") is not None else config.get("sort_order"),
         "param": config.get("param") if isinstance(config.get("param"), list) else [],
         **public,
         "ui": ui,
@@ -23,8 +23,8 @@ def to_public_feature(config: dict[str, Any]) -> dict[str, Any]:
 
 
 class FeatureService:
-    def __init__(self, db: CloudBaseNoSQL | None = None):
-        self.db = db or CloudBaseNoSQL()
+    def __init__(self, db: Database | None = None):
+        self.db = db or Database()
 
     def list_enabled_features(self) -> list[dict[str, Any]]:
         docs = self.db.list_documents(FEATURE_CONFIGS_COLLECTION, limit=200)

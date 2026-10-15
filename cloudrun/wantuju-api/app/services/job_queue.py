@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from app.core.logging import log_event
+from app.core.logging import compact_error, log_event
 from app.services.jobs_runtime import process_job, process_job_v2
 
 
@@ -96,8 +96,13 @@ class JobQueue:
                         job.image_urls,
                         job.source_file_ids,
                     )
-                except Exception:
-                    logger.exception("[队列任务异常] worker=%s task_id=%s", worker_id, job.task_id)
+                except Exception as exc:
+                    logger.error(
+                        "[队列任务异常] worker=%s task_id=%s error=%s",
+                        worker_id,
+                        job.task_id,
+                        compact_error(exc),
+                    )
             finally:
                 async with self.lock:
                     self.active_task_ids.discard(job.task_id)

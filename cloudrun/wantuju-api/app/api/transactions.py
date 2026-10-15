@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.deps import require_openid
+from app.core.redact import redact_secrets
 from app.cloudbase.client import CloudBaseError
 from app.services.transactions import TransactionService
 
@@ -22,4 +23,4 @@ async def transactions(
         data = TransactionService().list_transactions(openid, page=page, page_size=pageSize)
         return {"success": True, "data": data}
     except CloudBaseError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_secrets(str(exc))) from exc

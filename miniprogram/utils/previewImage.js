@@ -21,6 +21,16 @@ function setCachedPreviewUrl(fileID, tempFileURL) {
   };
 }
 
+function httpUrl(value) {
+  return typeof value === "string" && /^https?:\/\//.test(value) ? value : "";
+}
+
+async function resolveDisplayURL(directUrl, fileID) {
+  const ready = httpUrl(directUrl);
+  if (ready) return ready;
+  return getTempFileURL(fileID);
+}
+
 async function getTempFileURL(fileID) {
   if (!fileID) {
     throw new Error("缺少文件 ID");
@@ -111,6 +121,22 @@ function showAlbumPermissionModal(onAuthorized) {
 }
 
 function downloadFile(fileID) {
+  const remote = httpUrl(fileID);
+  if (remote) {
+    return new Promise((resolve, reject) => {
+      wx.downloadFile({
+        url: remote,
+        success: (downloadRes) => {
+          if (downloadRes.statusCode === 200 && downloadRes.tempFilePath) {
+            resolve(downloadRes.tempFilePath);
+            return;
+          }
+          reject(new Error("下载失败"));
+        },
+        fail: () => reject(new Error("下载失败")),
+      });
+    });
+  }
   return new Promise((resolve, reject) => {
     wx.cloud.downloadFile({
       fileID,
@@ -171,6 +197,8 @@ function saveImageFile(fileID, options = {}) {
 
 module.exports = {
   getTempFileURL,
+  resolveDisplayURL,
+  httpUrl,
   getStyledTempFileURL,
   previewImages,
   resolvePreviewUrls,

@@ -16,6 +16,11 @@ HttpMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
 class CloudBaseError(Exception):
     """Raised when CloudBase HTTP API cannot complete a request."""
 
+    def __init__(self, message: str) -> None:
+        from app.core.redact import redact_secrets
+
+        super().__init__(redact_secrets(message))
+
 
 class CloudBaseClient:
     def __init__(self, env_id: str | None = None, apikey: str | None = None, timeout: int = 30):

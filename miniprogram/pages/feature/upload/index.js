@@ -1,5 +1,6 @@
 const { fetchFeature } = require("../../../utils/api/features");
 const { createTaskV2 } = require("../../../utils/api/tasks");
+const { uploadPhoto } = require("../../../utils/api/upload");
 const { buildHomeSharePayload, getShareRewardStatus } = require("../../../utils/share");
 
 Page({
@@ -142,15 +143,7 @@ Page({
   },
 
   uploadImage(filePath) {
-    const cloudPath = `feature-upload/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    return new Promise((resolve, reject) => {
-      wx.cloud.uploadFile({
-        cloudPath,
-        filePath,
-        success: (res) => resolve(res.fileID),
-        fail: () => reject(new Error("上传失败")),
-      });
-    });
+    return uploadPhoto(filePath);
   },
 
   createJob(fileIDOrFileIDs) {

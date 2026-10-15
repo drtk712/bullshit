@@ -1,14 +1,25 @@
-"""Miniapp identity and diagnostics routes."""
+"""Miniapp identity and diagnostics routes.
+
+callContainer travels the WeChat private path. That ingress verifies the user
+and writes ``x-wx-openid`` (or ``x-wx-from-openid`` when the env is shared)
+together with ``x-wx-source``. A public-domain request does not get those
+headers from WeChat. Official guidance when public access stays on is to
+treat a request as a WeChat call only when ``x-wx-source`` is present, so a
+client-supplied ``x-wx-openid`` alone is ignored.
+
+``/admin`` does not use this identity. It stays on the public host and uses
+its own password cookie.
+"""
 from __future__ import annotations
 
 import time
 
 from fastapi import APIRouter, Request
 
-from app.core.config import settings
-
 
 router = APIRouter()
+
+_WECHAT_OPENID_HEADERS = ("x-wx-openid", "x-wx-from-openid")
 
 
 def cloudbase_headers(request: Request) -> dict[str, str]:
@@ -20,14 +31,16 @@ def cloudbase_headers(request: Request) -> dict[str, str]:
     }
 
 
+def wechat_gateway_request(headers: dict[str, str]) -> bool:
+    """True when the Cloud Run WeChat ingress marked the call."""
+    return bool(str(headers.get("x-wx-source") or "").strip())
+
+
 def extract_openid(headers: dict[str, str]) -> str:
-    for key in (
-        "x-wx-openid",
-        "x-wx-from-openid",
-        "x-cloudbase-openid",
-        "x-tcb-openid",
-    ):
-        value = headers.get(key)
+    if not wechat_gateway_request(headers):
+        return ""
+    for key in _WECHAT_OPENID_HEADERS:
+        value = str(headers.get(key) or "").strip()
         if value:
             return value
     return ""
@@ -43,11 +56,6 @@ async def health() -> dict[str, object]:
 
 
 @router.get("/miniapp/whoami")
-async def whoami(request: Request) -> dict[str, object]:
-    headers = cloudbase_headers(request)
-    return {
-        "openid": extract_openid(headers),
-        "headers": headers,
-        "headerKeys": sorted(headers.keys()),
-        "env": settings.run_env,
-    }
+async def whoami(request: Request) -> dict[str, bool]:
+    """Whether callContainer identity was present. No header values, keys, or openid."""
+    return {"openidResolved": bool(extract_openid(cloudbase_headers(request)))}

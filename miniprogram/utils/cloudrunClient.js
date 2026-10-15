@@ -1,6 +1,6 @@
 const CLOUDRUN_SERVICE_NAME = "wantuju-api";
 
-const callCloudRun = async ({ path, method = "GET", data = {} }) => {
+const callCloudRun = async ({ path, method = "GET", data = {}, header = {} }) => {
   const app = getApp();
   try {
     return await wx.cloud.callContainer({
@@ -9,6 +9,7 @@ const callCloudRun = async ({ path, method = "GET", data = {} }) => {
       method,
       header: {
         "X-WX-SERVICE": CLOUDRUN_SERVICE_NAME,
+        ...header,
       },
       data,
     });

@@ -7,9 +7,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.admin.routes import router as admin_router
-from app.api import features, miniapp, share_rewards, tasks, transactions, users
+from app.api import features, miniapp, share_rewards, tasks, transactions, uploads, users
 from app.cloudbase.client import CloudBaseError
-from app.core.logging import configure_logging, request_log_middleware
+from app.core.logging import compact_error, configure_logging, request_log_middleware
+from app.db.migrate import apply_migrations
+from app.db.pool import close_pool
 from app.services.job_queue import job_queue
 from app.services.tasks import TaskService
 
@@ -20,17 +22,26 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        applied = apply_migrations()
+        if applied:
+            logger.info("[数据库迁移] 新应用 %s", ", ".join(applied))
+        else:
+            logger.info("[数据库迁移] PostgreSQL schema 已是最新")
+    except CloudBaseError as exc:
+        logger.error("[数据库迁移失败] PostgreSQL 暂不可用，服务继续启动: %s", compact_error(exc))
     await job_queue.start()
     try:
         recovered = await TaskService().recover_unfinished_jobs()
         if recovered:
             logger.info("[恢复任务] %s 个任务已重新入队", recovered)
-    except CloudBaseError:
-        logger.exception("[恢复任务失败] CloudBase 暂不可用，服务继续启动")
+    except CloudBaseError as exc:
+        logger.error("[恢复任务失败] PostgreSQL 暂不可用，服务继续启动: %s", compact_error(exc))
     try:
         yield
     finally:
         await job_queue.stop()
+        close_pool()
 
 
 app = FastAPI(title="Wantuju API", version="0.1.0", lifespan=lifespan)
@@ -41,4 +52,5 @@ app.include_router(users.router)
 app.include_router(share_rewards.router)
 app.include_router(transactions.router)
 app.include_router(tasks.router)
+app.include_router(uploads.router)
 app.include_router(admin_router, prefix="/admin")

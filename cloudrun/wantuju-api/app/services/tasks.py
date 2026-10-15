@@ -10,9 +10,11 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from app.cloudbase.nosql import CloudBaseNoSQL, created_id, get_point_ledger
 from app.cloudbase.storage import CloudBaseStorage
+from app.core.config import validation_api_key
 from app.core.logging import compact_error, log_event, mask_openid
+from app.db import Database, created_id, get_point_ledger
+from app.db.repository import row_to_doc
 from app.services.features import FeatureService
 from app.services.job_queue import QueuedJob, job_queue
 from app.services.users import UserService
@@ -80,15 +82,45 @@ def to_shared_task(task: dict[str, Any], task_id: str) -> dict[str, Any]:
     }
 
 
+def _cloud_file_ids(task: dict[str, Any]) -> list[str]:
+    found: list[str] = []
+    for key in ("fileID", "posterFileID"):
+        value = task.get(key)
+        if isinstance(value, str) and value.startswith("cloud://"):
+            found.append(value)
+    for key in ("fileIDs", "resultFileIDs"):
+        values = task.get(key)
+        if isinstance(values, list):
+            found.extend(item for item in values if isinstance(item, str) and item.startswith("cloud://"))
+    return found
+
+
+def apply_temp_urls(payload: dict[str, Any], urls: dict[str, str]) -> dict[str, Any]:
+    """Attach HTTPS URLs next to file IDs. Empty when signing failed."""
+    file_id = payload.get("fileID")
+    if isinstance(file_id, str) and file_id.startswith("cloud://"):
+        payload["fileUrl"] = urls.get(file_id) or None
+    poster_id = payload.get("posterFileID")
+    if isinstance(poster_id, str) and poster_id.startswith("cloud://"):
+        payload["posterUrl"] = urls.get(poster_id) or None
+    result_ids = payload.get("resultFileIDs")
+    if isinstance(result_ids, list):
+        payload["resultUrls"] = [
+            urls.get(item) or "" if isinstance(item, str) and item.startswith("cloud://") else ""
+            for item in result_ids
+        ]
+    return payload
+
+
 class TaskService:
     def __init__(
         self,
-        db: CloudBaseNoSQL | None = None,
+        db: Database | None = None,
         storage: CloudBaseStorage | None = None,
         user_service: UserService | None = None,
         feature_service: FeatureService | None = None,
     ):
-        self.db = db or CloudBaseNoSQL()
+        self.db = db or Database()
         self.storage = storage or CloudBaseStorage()
         self.user_service = user_service or UserService(self.db)
         self.feature_service = feature_service or FeatureService(self.db)
@@ -181,7 +213,7 @@ class TaskService:
             log_event(logger, "task_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
             return {"taskId": task_id}
         except Exception as exc:
-            err_msg = str(exc) if isinstance(exc, JobCreationError) else str(exc) or "创建任务失败"
+            err_msg = compact_error(exc) or "创建任务失败"
             log_event(logger, "task_create_failed", task_id=task_id or "", type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
             if task_id:
                 try:
@@ -292,7 +324,7 @@ class TaskService:
             log_event(logger, "task_v2_enqueued", task_id=task_id, type=feature_type, queue_size=job_queue.stats()["queueSize"])
             return {"taskId": task_id}
         except Exception as exc:
-            err_msg = str(exc) or "创建任务失败"
+            err_msg = compact_error(exc) or "创建任务失败"
             log_event(logger, "task_v2_create_failed", task_id=task_id or "", type=feature_type, openid=mask_openid(openid), error=compact_error(err_msg))
             if task_id:
                 self.db.update_document(
@@ -328,8 +360,12 @@ class TaskService:
             skip=skip,
         )
 
+        public = [to_public_task(task) for task in tasks]
+        urls = self._temp_urls(tasks)
+        for item in public:
+            apply_temp_urls(item, urls)
         return {
-            "tasks": [to_public_task(task) for task in tasks],
+            "tasks": public,
             "total": total,
             "page": page,
             "pageSize": page_size,
@@ -340,19 +376,40 @@ class TaskService:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
         if not task or task.get("openid") != openid:
             return None
-        return to_public_task(task)
+        return apply_temp_urls(to_public_task(task), self._temp_urls([task]))
 
     def get_task_status(self, openid: str, task_id: str) -> dict[str, Any] | None:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
         if not task or task.get("openid") != openid:
             return None
-        return to_task_status(task)
+        return apply_temp_urls(to_task_status(task), self._temp_urls([task]))
 
     def get_shared_task(self, task_id: str) -> dict[str, Any] | None:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
         if not task or task.get("status") != "completed" or not task.get("posterFileID"):
             return None
-        return to_shared_task(task, task_id)
+        return apply_temp_urls(to_shared_task(task, task_id), self._temp_urls([task]))
+
+    def _temp_urls(self, tasks: list[dict[str, Any]]) -> dict[str, str]:
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for task in tasks:
+            for file_id in _cloud_file_ids(task):
+                if file_id not in seen:
+                    seen.add(file_id)
+                    ordered.append(file_id)
+        if not ordered or not hasattr(self.storage, "get_download_urls"):
+            return {}
+        try:
+            found = self.storage.get_download_urls(ordered)
+        except Exception as exc:
+            logger.info("临时链接获取失败: %s", compact_error(exc))
+            return {}
+        return {
+            file_id: url
+            for file_id, url in zip(ordered, found)
+            if isinstance(url, str) and url.startswith("https://")
+        }
 
     def delete_task(self, openid: str, task_id: str) -> dict[str, str]:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
@@ -380,45 +437,24 @@ class TaskService:
         return {"taskId": task_id}
 
     def claim_processing_job(self, task_id: str) -> dict[str, Any] | None:
-        transaction_id = self.db.begin_transaction()
-        try:
-            job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id, transaction_id=transaction_id)
-            if not job:
-                self.db.rollback_transaction(transaction_id)
-                return None
-
-            status = str(job.get("status") or "")
-            now = int(time.time() * 1000)
-            lease_at = int(job.get("processingLeaseAt") or 0)
-            if status == "processing" and lease_at and now - lease_at < PROCESSING_RECOVERY_AFTER_MS:
-                self.db.commit_transaction(transaction_id)
-                return None
-            if status not in {"pending", "processing"}:
-                self.db.commit_transaction(transaction_id)
-                return None
-
-            token = f"{task_id}:{now}"
-            self.db.update_document(
-                FEATURE_JOBS_COLLECTION,
-                task_id,
-                {
-                    "status": "processing",
-                    "processingLeaseToken": token,
-                    "processingLeaseAt": now,
-                    "errMsg": "",
-                    "updatedAt": now,
-                },
-                transaction_id=transaction_id,
-            )
-            self.db.commit_transaction(transaction_id)
-            fresh_job = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
-            if fresh_job.get("processingLeaseToken") != token:
-                return None
-            log_event(logger, "task_claimed_processing", task_id=task_id, type=fresh_job.get("type"), lease_at=now)
-            return fresh_job
-        except Exception:
-            self.db.rollback_transaction(transaction_id)
-            raise
+        now = int(time.time() * 1000)
+        token = f"{task_id}:{now}"
+        result = self.db.call(
+            "wantuju_claim_job",
+            {
+                "task_id": task_id,
+                "token": token,
+                "now_ms": now,
+                "lease_ms": PROCESSING_RECOVERY_AFTER_MS,
+            },
+        )
+        if not result:
+            return None
+        fresh_job = row_to_doc(FEATURE_JOBS_COLLECTION, result)
+        if fresh_job.get("processingLeaseToken") != token:
+            return None
+        log_event(logger, "task_claimed_processing", task_id=task_id, type=fresh_job.get("type"), lease_at=now)
+        return fresh_job
 
     async def recover_unfinished_jobs(self, *, limit: int = 50) -> int:
         now = int(time.time() * 1000)
@@ -499,7 +535,7 @@ class TaskService:
             service_url,
             data=json.dumps(payload).encode("utf-8"),
             method="POST",
-            headers={"Content-Type": "application/json"},
+            headers=validation_request_headers(validation_config),
         )
         try:
             with urlopen(request, timeout=55) as response:
@@ -521,7 +557,7 @@ class TaskService:
             try:
                 return self.validate_image_once(file_id, feature_config)
             except ValidationServiceError as exc:
-                last_error = str(exc) or last_error
+                last_error = compact_error(exc) or last_error
                 log_event(logger, "image_validation_retry", attempt=attempt, max_retries=max_retries, error=compact_error(last_error))
                 if attempt <= max_retries:
                     time.sleep(min(2 * attempt, 5))
@@ -556,7 +592,7 @@ class TaskService:
             service_url,
             data=json.dumps(payload).encode("utf-8"),
             method="POST",
-            headers={"Content-Type": "application/json"},
+            headers=validation_request_headers(validation_config),
         )
         try:
             with urlopen(request, timeout=55) as response:
@@ -586,6 +622,17 @@ class TaskService:
             self.storage.delete_objects(file_ids)
         except Exception:
             pass
+
+
+def validation_request_headers(validation_config: dict[str, Any]) -> dict[str, str]:
+    """OpenAI-compatible headers. No key is sent unless one is configured."""
+    headers = {"Content-Type": "application/json"}
+    api_key = str(validation_config.get("apiKey") or validation_config.get("api_key") or "").strip()
+    if not api_key:
+        api_key = validation_api_key()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
 
 def normalize_job_param(input_value: Any) -> dict[str, str]:
