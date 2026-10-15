@@ -2,7 +2,8 @@
 
 The CloudBase env lives on Tencent Cloud and is not linked to the mini program
 appid, so ``wx.cloud.uploadFile`` cannot see the bucket. This route stores the
-bytes with ``CLOUDBASE_APIKEY`` and returns a ``cloud://`` file ID.
+bytes in the environment's traditional COS bucket and returns a classic
+``cloud://{envId}.{bucket}/...`` file ID.
 """
 from __future__ import annotations
 

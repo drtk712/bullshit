@@ -6,7 +6,7 @@ const {
 } = require('../../utils/taskDisplay');
 const { buildFeatureMap, fetchFeatureList } = require('../../utils/api/features');
 const { fetchTasks } = require('../../utils/api/tasks');
-const { getTempFileURL, saveImageFile } = require('../../utils/previewImage');
+const { resolveDisplayURL, httpUrl, saveImageFile } = require('../../utils/previewImage');
 const { buildTaskSharePayload } = require('../../utils/share');
 
 const PAGE_SIZE = 5;
@@ -118,7 +118,7 @@ Page({
     await Promise.all((tasks || []).map(async (task) => {
       if (!task.posterFileID) return;
       try {
-        const tempFileURL = await getTempFileURL(task.posterFileID);
+        const tempFileURL = await resolveDisplayURL(task.posterUrl, task.posterFileID);
         task.shareImage = tempFileURL;
         task.thumbImage = applyThumbStyle(tempFileURL);
       } catch (err) {
@@ -165,7 +165,7 @@ Page({
       return;
     }
 
-    saveImageFile(task.posterFileID);
+    saveImageFile(httpUrl(task.posterUrl) || task.posterFileID);
   },
 
   retryTask(e) {

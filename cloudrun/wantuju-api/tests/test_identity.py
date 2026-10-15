@@ -53,7 +53,10 @@ def test_public_domain_cannot_impersonate_and_admin_stays_open():
     assert trusted.json()["success"] is True
 
     assert client.get("/admin/login").status_code == 200
-    assert client.get("/health").status_code == 200
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert set(health.json()) == {"status", "service", "timestamp"}
+    assert health.json()["status"] == "ok"
 
 
 def test_whoami_returns_no_header_values():

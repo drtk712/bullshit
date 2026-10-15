@@ -1,5 +1,5 @@
 const { fetchSharedTask } = require("../../../utils/api/tasks");
-const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
+const { resolveDisplayURL, httpUrl, saveImageFile } = require("../../../utils/previewImage");
 const { buildTaskSharePayload } = require("../../../utils/share");
 
 Page({
@@ -50,7 +50,7 @@ Page({
 
     try {
       const task = await fetchSharedTask(taskId);
-      const posterPreviewUrl = await getTempFileURL(task.posterFileID);
+      const posterPreviewUrl = await resolveDisplayURL(task.posterUrl, task.posterFileID);
 
       this.setData({
         task: {
@@ -81,7 +81,7 @@ Page({
       return;
     }
 
-    saveImageFile(posterFileID, { loadingTitle: "保存中" });
+    saveImageFile(httpUrl(this.data.task.posterUrl) || posterFileID, { loadingTitle: "保存中" });
   },
 
   retryLoad() {

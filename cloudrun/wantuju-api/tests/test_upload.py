@@ -16,13 +16,17 @@ JPEG = b"\xff\xd8\xff\xe0" + b"jpeg-bytes"
 WECHAT = {"x-wx-source": "wx_client", "x-wx-openid": "uploader"}
 
 
+_ENV = "wantuju-prod-d2gf1sf2r508a56b1"
+_BUCKET = "7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986"
+
+
 class _Storage:
     def __init__(self):
         self.calls = []
 
     def upload_bytes(self, object_id, content, content_type=None):
         self.calls.append((object_id, content, content_type))
-        return f"cloud://wantuju/{object_id}"
+        return f"cloud://{_ENV}.{_BUCKET}/{object_id}"
 
 
 def _client(monkeypatch) -> tuple[TestClient, _Storage]:
@@ -39,7 +43,7 @@ def test_raw_bytes_are_stored_and_return_file_id(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
-    assert body["data"]["fileID"] == f"cloud://wantuju/{storage.calls[0][0]}"
+    assert body["data"]["fileID"] == f"cloud://{_ENV}.{_BUCKET}/{storage.calls[0][0]}"
     assert storage.calls[0][0].startswith("uploads/")
     assert storage.calls[0][0].endswith(".jpg")
     assert storage.calls[0][1] == JPEG

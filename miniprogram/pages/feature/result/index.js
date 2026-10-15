@@ -5,7 +5,7 @@ const {
 } = require("../../../utils/taskDisplay");
 const { buildFeatureMap, fetchFeatureList } = require("../../../utils/api/features");
 const { fetchTask } = require("../../../utils/api/tasks");
-const { getTempFileURL, saveImageFile } = require("../../../utils/previewImage");
+const { resolveDisplayURL, httpUrl, saveImageFile } = require("../../../utils/previewImage");
 const { buildTaskSharePayload } = require("../../../utils/share");
 
 Page({
@@ -55,7 +55,7 @@ Page({
       const posterState = await this.createPosterState(task);
       const resultUrls = await this.createResultUrls(task);
       const originalImageUrl = task.fileID
-        ? await getTempFileURL(task.fileID).catch(() => "")
+        ? await resolveDisplayURL(task.fileUrl, task.fileID).catch(() => "")
         : "";
       this.setData({
         task: {
@@ -89,7 +89,7 @@ Page({
       return { posterPreviewUrl: "", posterError: "图片尚未处理完成" };
     }
     try {
-      const posterPreviewUrl = await getTempFileURL(task.posterFileID);
+      const posterPreviewUrl = await resolveDisplayURL(task.posterUrl, task.posterFileID);
       return { posterPreviewUrl, posterError: "" };
     } catch (err) {
       return { posterPreviewUrl: "", posterError: "图片加载失败，点击记录重试" };
@@ -99,7 +99,10 @@ Page({
   async createResultUrls(task) {
     const fileIDs = Array.isArray(task.resultFileIDs) ? task.resultFileIDs.filter(Boolean) : [];
     if (task.status !== "completed" || !fileIDs.length) return [];
-    const results = await Promise.all(fileIDs.map((fileID) => getTempFileURL(fileID).catch(() => "")));
+    const signed = Array.isArray(task.resultUrls) ? task.resultUrls : [];
+    const results = await Promise.all(
+      fileIDs.map((fileID, index) => resolveDisplayURL(signed[index], fileID).catch(() => ""))
+    );
     return results.filter(Boolean);
   },
 
@@ -124,7 +127,7 @@ Page({
       return;
     }
 
-    saveImageFile(posterFileID, { loadingTitle: "保存中" });
+    saveImageFile(httpUrl(this.data.task.posterUrl) || posterFileID, { loadingTitle: "保存中" });
   },
 
   saveResultPiece(e) {
@@ -134,7 +137,8 @@ Page({
       wx.showToast({ title: "图片未处理完成", icon: "none" });
       return;
     }
-    saveImageFile(fileID, { loadingTitle: "保存中" });
+    const signed = this.data.task?.resultUrls?.[index];
+    saveImageFile(httpUrl(signed) || fileID, { loadingTitle: "保存中" });
   },
 
   onShareAppMessage() {

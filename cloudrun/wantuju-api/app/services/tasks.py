@@ -82,6 +82,36 @@ def to_shared_task(task: dict[str, Any], task_id: str) -> dict[str, Any]:
     }
 
 
+def _cloud_file_ids(task: dict[str, Any]) -> list[str]:
+    found: list[str] = []
+    for key in ("fileID", "posterFileID"):
+        value = task.get(key)
+        if isinstance(value, str) and value.startswith("cloud://"):
+            found.append(value)
+    for key in ("fileIDs", "resultFileIDs"):
+        values = task.get(key)
+        if isinstance(values, list):
+            found.extend(item for item in values if isinstance(item, str) and item.startswith("cloud://"))
+    return found
+
+
+def apply_temp_urls(payload: dict[str, Any], urls: dict[str, str]) -> dict[str, Any]:
+    """Attach HTTPS URLs next to file IDs. Empty when signing failed."""
+    file_id = payload.get("fileID")
+    if isinstance(file_id, str) and file_id.startswith("cloud://"):
+        payload["fileUrl"] = urls.get(file_id) or None
+    poster_id = payload.get("posterFileID")
+    if isinstance(poster_id, str) and poster_id.startswith("cloud://"):
+        payload["posterUrl"] = urls.get(poster_id) or None
+    result_ids = payload.get("resultFileIDs")
+    if isinstance(result_ids, list):
+        payload["resultUrls"] = [
+            urls.get(item) or "" if isinstance(item, str) and item.startswith("cloud://") else ""
+            for item in result_ids
+        ]
+    return payload
+
+
 class TaskService:
     def __init__(
         self,
@@ -330,8 +360,12 @@ class TaskService:
             skip=skip,
         )
 
+        public = [to_public_task(task) for task in tasks]
+        urls = self._temp_urls(tasks)
+        for item in public:
+            apply_temp_urls(item, urls)
         return {
-            "tasks": [to_public_task(task) for task in tasks],
+            "tasks": public,
             "total": total,
             "page": page,
             "pageSize": page_size,
@@ -342,19 +376,40 @@ class TaskService:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
         if not task or task.get("openid") != openid:
             return None
-        return to_public_task(task)
+        return apply_temp_urls(to_public_task(task), self._temp_urls([task]))
 
     def get_task_status(self, openid: str, task_id: str) -> dict[str, Any] | None:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
         if not task or task.get("openid") != openid:
             return None
-        return to_task_status(task)
+        return apply_temp_urls(to_task_status(task), self._temp_urls([task]))
 
     def get_shared_task(self, task_id: str) -> dict[str, Any] | None:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)
         if not task or task.get("status") != "completed" or not task.get("posterFileID"):
             return None
-        return to_shared_task(task, task_id)
+        return apply_temp_urls(to_shared_task(task, task_id), self._temp_urls([task]))
+
+    def _temp_urls(self, tasks: list[dict[str, Any]]) -> dict[str, str]:
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for task in tasks:
+            for file_id in _cloud_file_ids(task):
+                if file_id not in seen:
+                    seen.add(file_id)
+                    ordered.append(file_id)
+        if not ordered or not hasattr(self.storage, "get_download_urls"):
+            return {}
+        try:
+            found = self.storage.get_download_urls(ordered)
+        except Exception as exc:
+            logger.info("临时链接获取失败: %s", compact_error(exc))
+            return {}
+        return {
+            file_id: url
+            for file_id, url in zip(ordered, found)
+            if isinstance(url, str) and url.startswith("https://")
+        }
 
     def delete_task(self, openid: str, task_id: str) -> dict[str, str]:
         task = self.db.get_document(FEATURE_JOBS_COLLECTION, task_id)

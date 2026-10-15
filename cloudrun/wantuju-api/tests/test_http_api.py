@@ -67,7 +67,12 @@ def test_in_filter_uses_postgrest_list():
             0,
         )
     )
-    assert params["status"] == 'in.("pending","processing")'
+    assert params["status"] == "in.(pending,processing)"
+
+
+def test_string_equality_is_not_quoted():
+    params = dict(compile_params(TABLES["feature_configs"], {"type": "doodle"}, None, 1, 0))
+    assert params["type"] == "eq.doodle"
 
 
 def test_database_url_keeps_psycopg_fallback():
@@ -126,7 +131,8 @@ def test_find_many_maps_rows_and_sends_bearer_token(monkeypatch):
     assert rows[0]["createdAt"] == expected_ms
     target = unquote(captured["url"])
     assert "/v1/rdb/rest/feature_jobs" in target
-    assert 'openid=eq."user-1"' in target
+    assert "openid=eq.user-1" in target
+    assert 'eq."' not in target
     assert "order=created_at.desc" in target
     assert captured["auth"] == "Bearer test-key"
 

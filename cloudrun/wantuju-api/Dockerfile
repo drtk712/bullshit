@@ -15,4 +15,4 @@ COPY app ./app
 
 EXPOSE 80
 
-CMD ["sh", "-c", "uv run python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}"]
+CMD ["sh", "-c", "exec /app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}"]

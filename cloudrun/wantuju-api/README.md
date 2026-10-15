@@ -34,7 +34,9 @@
 
 在云托管服务配置里设置，不要写进仓库。
 
-默认数据层和云存储共用这两项。网关是 `https://{envId}.api.tcloudbasegateway.com`，请求头 `Authorization: Bearer <CLOUDBASE_APIKEY>`。API Key 在服务端对应 `service_role`（`BYPASSRLS`），不要放进小程序。
+默认数据层走 CloudBase HTTP 网关 `https://{envId}.api.tcloudbasegateway.com`，请求头 `Authorization: Bearer <CLOUDBASE_APIKEY>`。API Key 在服务端对应 `service_role`（`BYPASSRLS`），不要放进小程序。
+
+照片和结果图不进 PostgreSQL 云存储（`storage.buckets` / `wantuju`）。上传走传统 COS：`POST https://{envId}.ap-shanghai.tcb-api.tencentcloudapi.com/admin`，`action` 为 `storage.getUploadMetadata`，同样用 `Authorization: Bearer <CLOUDBASE_APIKEY>`。返回的 fileID 是 `cloud://{envId}.{bucket}/{path}`。这个环境的桶是 `7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986`（可用 `CLOUDBASE_STORAGE_BUCKET` 覆盖，地域用 `CLOUDBASE_REGION`，默认 `ap-shanghai`）。任务接口另外带上 `fileUrl` / `posterUrl` / `resultUrls`，小程序在 `wx.cloud.getTempFileURL` 失败时直接用这些 HTTPS 链接。
 
 ```env
 CLOUDBASE_ENV_ID=wantuju-prod-d2gf1sf2r508a56b1
@@ -225,14 +227,14 @@ wantuju-api
 3. 用 `cloudrun/wantuju-api` 的 Dockerfile 发布。容器启动后会自己跑迁移。
 4. 看日志里的 `[数据库迁移]`。如果 `cloudbase_postgres` 不能建表或建函数，按上一节在 SQL 编辑器执行迁移文件后再重启。失败时服务仍会启动，但业务接口会返回 502。
 5. 只有选用 psycopg 时才填写 `DATABASE_URL`。账号要是表主或 `BYPASSRLS`。主机若是 VPC 私网 IP，把云托管服务绑到同一 VPC / 子网，并放通 TCP 5432。
-6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。照片上传走 `POST /miniapp/upload`，由服务端用 `CLOUDBASE_APIKEY` 写入云存储。这个环境建在腾讯云上，没有绑定小程序 AppID，`wx.cloud.uploadFile` 会报 `STORAGE_BUCKET_NOT_FOUND`。
+6. 小程序 `callContainer` 使用 `miniprogram/app.js` 里的环境 `wantuju-prod-d2gf1sf2r508a56b1`，服务名是 `wantuju-api`。接口路径不用改。旧环境的预览图 `cloud://` 会被换成页面占位，避免图片组件加载失败。照片上传走 `POST /miniapp/upload`，由服务端写入传统 COS 桶 `7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986`，返回 `cloud://wantuju-prod-d2gf1sf2r508a56b1.7761-wantuju-prod-d2gf1sf2r508a56b1-1427592986/...`。这个环境建在腾讯云上，没有绑定小程序 AppID，`wx.cloud.uploadFile` 会报 `STORAGE_BUCKET_NOT_FOUND`。结果页优先用接口里的 HTTPS 临时链接，绑定 AppID 之后也可以用 `wx.cloud.getTempFileURL`。
 
 实例最小副本数为 0 时，空闲后的第一次请求要冷启动容器，实测大约 5 分钟。这是云托管规格，不是业务代码超时。需要降低等待就把最小副本调到 1。
 
 Dockerfile 会监听 `${PORT:-80}`：
 
 ```bash
-uv run python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}
+/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}
 ```
 
 部署后先用小程序 callContainer 验证：

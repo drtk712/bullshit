@@ -32,6 +32,18 @@ def _quote(text: str) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _postgrest_text(value: str) -> str:
+    """Render a PostgREST literal.
+
+    CloudBase rejects quoted strings such as ``type=eq."doodle"``. Values
+    without filter-grammar characters are sent raw. Quotes stay only for
+    commas, spaces, and parentheses that would split ``or()`` / ``in()``.
+    """
+    if value and not any(char in value for char in ' ,()"\\'):
+        return value
+    return _quote(value)
+
+
 def _literal(column: Column, value: Any) -> str:
     if isinstance(value, bool) or column.kind == "bool":
         return "true" if bool(value) else "false"
@@ -42,8 +54,8 @@ def _literal(column: Column, value: Any) -> str:
             rendered = value.isoformat()
         else:
             rendered = _from_millis(int(value)).isoformat()
-        return _quote(rendered)
-    return _quote(str(value))
+        return _postgrest_text(rendered)
+    return _postgrest_text(str(value))
 
 
 def _predicate(column: Column, value: Any) -> str:
