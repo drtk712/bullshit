@@ -1,40 +1,96 @@
-# 玩图局
+# Wantuju
 
-基于微信小程序的图片玩法合集。用户上传照片，选择玩法，系统自动生成/改造/解读图片内容，支持保存和分享。
+English | [中文](README.zh-CN.md)
 
-当前后端主链路已迁移到微信云托管 `cloudrun/wantuju-api`，小程序通过 `wx.cloud.callContainer` 直连云托管服务。旧 `cloudfunctions/quickstartFunctions` 和旧 `server` 仅作为历史备份保留。
+Wantuju (玩图局) is an open-source WeChat mini program for photo play modes. A person uploads a photo, picks a mode, and the backend asks an image generation model to transform or interpret that photo. Results can be saved and shared.
 
-运维与部署以 [cloudrun/wantuju-api/README.md](cloudrun/wantuju-api/README.md) 为准；旧链路退场计划见 [docs/operations/legacy-decommission-checklist.md](docs/operations/legacy-decommission-checklist.md)。
+The mini program does not talk to the model directly. `cloudrun/wantuju-api`, a Python FastAPI service on WeChat CloudBase Run, owns the prompt, the model call, point charges, and cloud storage. New play modes are prompt configurations, so adding one does not require a new client release.
 
-## 功能特性
+## Play modes
 
-- 🖐️ **看手相** - 上传手掌照片，生成趣味手相解读
-- 💇 **设计发型** - 上传正面照片，生成发型建议和效果图
-- 🔮 **可扩展** - 支持接入老照片修复、头像生成、风格转换、宠物拟人、节日写真等更多玩法
-- 👤 **用户系统** - 微信一键登录，首次登录赠送 3 积分
-- 💰 **积分系统** - 每次生成消耗 1 积分，失败自动退款
-- 💾 **保存分享** - 支持保存生成结果到相册和分享
-- 📱 **底部导航** - 首页 / 我的，查看积分和生成记录
+- **Palm reading.** Upload a palm photo and generate a playful reading.
+- **Hairstyle.** Upload a front-facing photo and generate a hairstyle suggestion image.
+- **Avatar.** Turn a portrait into a profile image.
+- **Doodle.** Redraw a photo or sketch as a doodle illustration.
+- **Crayon.** Redraw a photo with a crayon texture.
+- **Soul portrait.** Generate a portrait from the mood of a photo.
+- **Old-photo restore.** Repair a faded or damaged photograph.
+- **Style transfer.** Recast a photo in another visual style.
+- **Pet portrait.** Turn a pet photo into an anthropomorphic portrait.
+- **Holiday photo.** Generate a portrait for a holiday theme.
+- **Product shot.** Clean a product photo into a display image.
 
-## 技术架构
+A new play mode goes live by writing its prompt in the admin console. It does not need a new mini program release.
+- **Local image tools.** Cropping and long-image stitching run with Pillow and do not call the generation model.
+- **Accounts and points.** WeChat sign-in, a starting balance, one point per generation, and an automatic refund when generation fails.
+- **History and sharing.** Save a result to the album, share it, and review past tasks.
 
-| 层级 | 技术 |
-|------|------|
-| 前端 | 微信小程序原生开发 |
-| 云开发 | 微信云托管 + 云数据库 + 云存储 |
-| 服务端 | Python 3.11 + FastAPI (`cloudrun/wantuju-api`) |
-| 生成能力 | `MEMEFAST_API_URL` 配置的图片生成模型 |
+## Image generation
 
-## 快速开始
+Each generative play mode stores its own prompt. At run time the service fills `${variable}` placeholders from the request, then sends the source photo and the rendered prompt together.
 
-### 前端
+The model call uses the official OpenAI Image API. The source photo and the rendered prompt go to [`POST https://api.openai.com/v1/images/edits`](https://developers.openai.com/api/docs/guides/image-generation) with `gpt-image-2`:
 
-1. 使用微信开发者工具打开项目
-2. 填写 `project.config.json` 中的 AppID
-3. 确认云托管服务 `wantuju-api` 已部署
-4. 编译预览
+```http
+POST /v1/images/edits HTTP/1.1
+Host: api.openai.com
+Authorization: Bearer $OPENAI_API_KEY
+Content-Type: application/json
+```
 
-### 服务端
+```json
+{
+  "model": "gpt-image-2",
+  "prompt": "Generate a poster from this photo...",
+  "images": [
+    { "image_url": "https://..." }
+  ]
+}
+```
+
+The service then:
+
+1. Sends the photo and prompt with a bearer token.
+2. Retries transient HTTP failures, up to 3 attempts, with a 300 second timeout.
+3. Reads the generated image from `data[0].b64_json` in the [Images response](https://developers.openai.com/api/docs/guides/image-generation).
+4. Decodes that image and stores it in CloudBase storage.
+5. Marks the task complete, or refunds the point if generation fails.
+
+Uploads can also be checked with a separate vision prompt before a point is spent. The model is asked to answer yes or no against the play mode's requirement. Prompt text for both the check and the generation step is edited in the admin console, not hardcoded per feature.
+
+Implementation: [`cloudrun/wantuju-api/app/services/poster.py`](cloudrun/wantuju-api/app/services/poster.py) and [`cloudrun/wantuju-api/app/services/tasks.py`](cloudrun/wantuju-api/app/services/tasks.py).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  user[WeChat user] --> mini[Mini program]
+  mini --> api[wantuju-api]
+  api --> db[(CloudBase database)]
+  api --> model[Image generation model]
+  model --> api
+  api --> storage[Cloud storage]
+```
+
+| Layer | Role |
+| --- | --- |
+| Mini program | Native WeChat client. Uploads photos, shows progress, saves and shares results. |
+| `cloudrun/wantuju-api` | FastAPI on Python 3.11. Play modes, task queue, points, admin UI. |
+| Image model | OpenAI Image API, `POST /v1/images/edits`, model `gpt-image-2`. |
+| CloudBase | Database, file storage, and the CloudRun service `wantuju-api`. |
+
+The mini program calls the service with `wx.cloud.callContainer`. Older copies under `cloudfunctions/quickstartFunctions` and `server/` are historical and are not the current path.
+
+## Quick start
+
+### Mini program
+
+1. Open this repository in WeChat DevTools.
+2. Set your own AppID in `project.config.json`.
+3. Set your CloudBase environment in `miniprogram/app.js`.
+4. Deploy the `wantuju-api` CloudRun service, then compile and preview.
+
+### API
 
 ```bash
 cd cloudrun/wantuju-api
@@ -42,50 +98,48 @@ uv sync
 uv run python -m uvicorn app.main:app --host 0.0.0.0 --port 8012
 ```
 
-### 环境变量
-
-在云托管服务配置：
+Create a local `.env` in `cloudrun/wantuju-api`. Do not commit it.
 
 ```env
-CLOUDBASE_ENV_ID=cloud1-d7g1nt83fde793ad3
-CLOUDBASE_APIKEY=<CloudBase HTTP API Bearer Token>
+CLOUDBASE_ENV_ID=<your CloudBase env id>
+CLOUDBASE_APIKEY=<CloudBase HTTP API bearer token>
 CLOUDBASE_DB_INSTANCE=flexdb
-CLOUDBASE_DB_NAME=tnt-gizs5ya5s
-MEMEFAST_API_KEY=<图片生成模型 API Key>
-MEMEFAST_API_URL=<图片生成模型接口地址>
-MEMEFAST_MODEL=<图片生成模型名>
-ADMIN_SESSION_SECRET=<管理端 Cookie 签名密钥>
-ADMIN_PASSWORD=<管理端登录密码>
+CLOUDBASE_DB_NAME=<your CloudBase database name>
+
+MEMEFAST_API_KEY=<OpenAI API key>
+MEMEFAST_API_URL=https://api.openai.com/v1/images/edits
+MEMEFAST_MODEL=gpt-image-2
+
+ADMIN_SESSION_SECRET=<random string>
+ADMIN_PASSWORD=<admin password>
 ```
 
-## 详细文档
+`MEMEFAST_API_URL` is the official image edit endpoint, `https://api.openai.com/v1/images/edits`. `MEMEFAST_MODEL` is `gpt-image-2`.
 
-查看 [cloudrun/wantuju-api/README.md](cloudrun/wantuju-api/README.md) 了解 CloudRun 部署、接口、管理端和排障说明。
+Deployment, routes, and the admin console are documented in [cloudrun/wantuju-api/README.md](cloudrun/wantuju-api/README.md).
 
-[DESIGN.md](DESIGN.md) 和 `docs/plans/` 下的旧设计文档保留为历史参考，不再代表当前主链路。
+## Repository layout
 
-## 云数据库集合
+```text
+miniprogram/                 WeChat mini program
+cloudrun/wantuju-api/         Current API: model calls, tasks, points, admin
+cloudfunctions/              Legacy cloud functions
+server/                      Legacy FastAPI service
+docs/                        Design notes and the legacy retirement checklist
+```
 
-| 集合名 | 用途 |
-|--------|------|
-| `feature_jobs` | 生成任务记录 |
-| `users` | 用户信息（openid、积分等） |
-| `point_transactions` | 积分流水（赠送/消耗/退款） |
+## Mini program API
 
-## CloudRun 小程序接口
+| Path | Purpose |
+| --- | --- |
+| `GET /health` | Health check |
+| `GET /miniapp/features` | Enabled play modes |
+| `GET /miniapp/me` | Current user and point balance |
+| `POST /miniapp/tasks` | Create a generation task |
+| `GET /miniapp/tasks` | List tasks |
+| `/miniapp/share-reward/*` | Share rewards and daily check-in |
+| `/admin/*` | Admin console |
 
-| 接口 | 说明 |
-|------|------|
-| `/miniapp/features` | 获取玩法配置 |
-| `/miniapp/me` | 获取用户资料 |
-| `/miniapp/share-reward/*` | 分享奖励和每日签到 |
-| `/miniapp/transactions` | 积分明细 |
-| `/miniapp/tasks*` | 任务创建、查询、删除 |
-| `/admin/*` | 管理端 |
+## Contributing
 
-## 项目配置
-
-- **AppID**: `wxa7c27609f05eb381`
-- **云开发环境**: `cloud1-d7g1nt83fde793ad3`
-- **基础库版本**: `3.15.2`
-- **云托管服务**: `wantuju-api`
+Issues and pull requests are welcome, especially for new play-mode prompts, model providers, and mini program flows. Keep secrets in environment variables. `.env`, `server/.env`, and `project.private.config.json` are gitignored.
